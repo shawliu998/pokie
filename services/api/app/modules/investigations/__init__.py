@@ -1,0 +1,1 @@
+"""Investigation aggregate module."""

@@ -1,0 +1,1 @@
+"""Investigation synthesis module."""

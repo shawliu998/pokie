@@ -1,0 +1,307 @@
+{
+  "schema_version": 1,
+  "allowed_spdx_licenses": [
+    "Apache-2.0",
+    "BSD-3-Clause",
+    "LGPL-3.0-only",
+    "MIT"
+  ],
+  "blocked_dependency_names": [
+    "agent-reach",
+    "bettafish",
+    "deer-flow",
+    "trendradar"
+  ],
+  "dependencies": [
+    {
+      "ecosystem": "python",
+      "name": "alembic",
+      "version": "1.18.5",
+      "license": "MIT",
+      "source": "https://pypi.org/project/alembic/1.18.5/",
+      "manifest_scope": "runtime"
+    },
+    {
+      "ecosystem": "python",
+      "name": "boto3",
+      "version": "1.43.48",
+      "license": "Apache-2.0",
+      "source": "https://pypi.org/project/boto3/1.43.48/",
+      "manifest_scope": "runtime"
+    },
+    {
+      "ecosystem": "python",
+      "name": "fastapi",
+      "version": "0.138.2",
+      "license": "MIT",
+      "source": "https://pypi.org/project/fastapi/0.138.2/",
+      "manifest_scope": "runtime"
+    },
+    {
+      "ecosystem": "python",
+      "name": "httpx",
+      "version": "0.28.1",
+      "license": "BSD-3-Clause",
+      "source": "https://pypi.org/project/httpx/0.28.1/",
+      "manifest_scope": "runtime"
+    },
+    {
+      "ecosystem": "python",
+      "name": "psycopg",
+      "version": "3.3.4",
+      "license": "LGPL-3.0-only",
+      "source": "https://pypi.org/project/psycopg/3.3.4/",
+      "manifest_scope": "runtime"
+    },
+    {
+      "ecosystem": "python",
+      "name": "psycopg-binary",
+      "version": "3.3.4",
+      "license": "LGPL-3.0-only",
+      "source": "https://pypi.org/project/psycopg-binary/3.3.4/",
+      "manifest_scope": "extra-artifact",
+      "parent": "psycopg",
+      "extra": "binary"
+    },
+    {
+      "ecosystem": "python",
+      "name": "pydantic",
+      "version": "2.13.4",
+      "license": "MIT",
+      "source": "https://pypi.org/project/pydantic/2.13.4/",
+      "manifest_scope": "runtime"
+    },
+    {
+      "ecosystem": "python",
+      "name": "pydantic-settings",
+      "version": "2.14.2",
+      "license": "MIT",
+      "source": "https://pypi.org/project/pydantic-settings/2.14.2/",
+      "manifest_scope": "runtime"
+    },
+    {
+      "ecosystem": "python",
+      "name": "sqlalchemy",
+      "version": "2.0.51",
+      "license": "MIT",
+      "source": "https://pypi.org/project/sqlalchemy/2.0.51/",
+      "manifest_scope": "runtime"
+    },
+    {
+      "ecosystem": "python",
+      "name": "uvicorn",
+      "version": "0.51.0",
+      "license": "BSD-3-Clause",
+      "source": "https://pypi.org/project/uvicorn/0.51.0/",
+      "manifest_scope": "runtime"
+    },
+    {
+      "ecosystem": "python",
+      "name": "pyright",
+      "version": "1.1.411",
+      "license": "MIT",
+      "source": "https://pypi.org/project/pyright/1.1.411/",
+      "manifest_scope": "test"
+    },
+    {
+      "ecosystem": "python",
+      "name": "pytest",
+      "version": "9.1.1",
+      "license": "MIT",
+      "source": "https://pypi.org/project/pytest/9.1.1/",
+      "manifest_scope": "test"
+    },
+    {
+      "ecosystem": "python",
+      "name": "pytest-cov",
+      "version": "6.3.0",
+      "license": "MIT",
+      "source": "https://pypi.org/project/pytest-cov/6.3.0/",
+      "manifest_scope": "test"
+    },
+    {
+      "ecosystem": "python",
+      "name": "ruff",
+      "version": "0.15.21",
+      "license": "MIT",
+      "source": "https://pypi.org/project/ruff/0.15.21/",
+      "manifest_scope": "test"
+    },
+    {
+      "ecosystem": "javascript",
+      "name": "@eslint/js",
+      "version": "9.35.0",
+      "license": "MIT",
+      "source": "https://www.npmjs.com/package/@eslint/js/v/9.35.0",
+      "manifest_scope": "development"
+    },
+    {
+      "ecosystem": "javascript",
+      "name": "@playwright/test",
+      "version": "1.55.1",
+      "license": "Apache-2.0",
+      "source": "https://www.npmjs.com/package/@playwright/test/v/1.55.1",
+      "manifest_scope": "development"
+    },
+    {
+      "ecosystem": "javascript",
+      "name": "@tauri-apps/api",
+      "version": "2.11.1",
+      "license": "Apache-2.0 OR MIT",
+      "source": "https://www.npmjs.com/package/@tauri-apps/api/v/2.11.1",
+      "manifest_scope": "development"
+    },
+    {
+      "ecosystem": "javascript",
+      "name": "@tauri-apps/cli",
+      "version": "2.11.4",
+      "license": "Apache-2.0 OR MIT",
+      "source": "https://www.npmjs.com/package/@tauri-apps/cli/v/2.11.4",
+      "manifest_scope": "development"
+    },
+    {
+      "ecosystem": "javascript",
+      "name": "@types/react",
+      "version": "18.3.24",
+      "license": "MIT",
+      "source": "https://www.npmjs.com/package/@types/react/v/18.3.24",
+      "manifest_scope": "development"
+    },
+    {
+      "ecosystem": "javascript",
+      "name": "@types/react-dom",
+      "version": "18.3.7",
+      "license": "MIT",
+      "source": "https://www.npmjs.com/package/@types/react-dom/v/18.3.7",
+      "manifest_scope": "development"
+    },
+    {
+      "ecosystem": "javascript",
+      "name": "@vitejs/plugin-react",
+      "version": "4.7.0",
+      "license": "MIT",
+      "source": "https://www.npmjs.com/package/@vitejs/plugin-react/v/4.7.0",
+      "manifest_scope": "development"
+    },
+    {
+      "ecosystem": "javascript",
+      "name": "eslint",
+      "version": "9.35.0",
+      "license": "MIT",
+      "source": "https://www.npmjs.com/package/eslint/v/9.35.0",
+      "manifest_scope": "development"
+    },
+    {
+      "ecosystem": "javascript",
+      "name": "jsdom",
+      "version": "26.1.0",
+      "license": "MIT",
+      "source": "https://www.npmjs.com/package/jsdom/v/26.1.0",
+      "manifest_scope": "development"
+    },
+    {
+      "ecosystem": "javascript",
+      "name": "react",
+      "version": "18.3.1",
+      "license": "MIT",
+      "source": "https://www.npmjs.com/package/react/v/18.3.1",
+      "manifest_scope": "runtime"
+    },
+    {
+      "ecosystem": "javascript",
+      "name": "react-dom",
+      "version": "18.3.1",
+      "license": "MIT",
+      "source": "https://www.npmjs.com/package/react-dom/v/18.3.1",
+      "manifest_scope": "runtime"
+    },
+    {
+      "ecosystem": "javascript",
+      "name": "typescript",
+      "version": "5.9.2",
+      "license": "Apache-2.0",
+      "source": "https://www.npmjs.com/package/typescript/v/5.9.2",
+      "manifest_scope": "development"
+    },
+    {
+      "ecosystem": "javascript",
+      "name": "typescript-eslint",
+      "version": "8.42.0",
+      "license": "MIT",
+      "source": "https://www.npmjs.com/package/typescript-eslint/v/8.42.0",
+      "manifest_scope": "development"
+    },
+    {
+      "ecosystem": "javascript",
+      "name": "vite",
+      "version": "6.4.3",
+      "license": "MIT",
+      "source": "https://www.npmjs.com/package/vite/v/6.4.3",
+      "manifest_scope": "development"
+    },
+    {
+      "ecosystem": "javascript",
+      "name": "vitest",
+      "version": "3.2.6",
+      "license": "MIT",
+      "source": "https://www.npmjs.com/package/vitest/v/3.2.6",
+      "manifest_scope": "development"
+    },
+    {
+      "ecosystem": "rust",
+      "name": "base64",
+      "version": "0.22.1",
+      "license": "MIT OR Apache-2.0",
+      "source": "https://crates.io/crates/base64/0.22.1",
+      "manifest_scope": "runtime"
+    },
+    {
+      "ecosystem": "rust",
+      "name": "serde",
+      "version": "1.0.228",
+      "license": "MIT OR Apache-2.0",
+      "source": "https://crates.io/crates/serde/1.0.228",
+      "manifest_scope": "runtime"
+    },
+    {
+      "ecosystem": "rust",
+      "name": "serde_json",
+      "version": "1.0.150",
+      "license": "MIT OR Apache-2.0",
+      "source": "https://crates.io/crates/serde_json/1.0.150",
+      "manifest_scope": "runtime"
+    },
+    {
+      "ecosystem": "rust",
+      "name": "security-framework",
+      "version": "3.7.0",
+      "license": "MIT OR Apache-2.0",
+      "source": "https://crates.io/crates/security-framework/3.7.0",
+      "manifest_scope": "target-runtime"
+    },
+    {
+      "ecosystem": "rust",
+      "name": "sha2",
+      "version": "0.10.9",
+      "license": "MIT OR Apache-2.0",
+      "source": "https://crates.io/crates/sha2/0.10.9",
+      "manifest_scope": "runtime"
+    },
+    {
+      "ecosystem": "rust",
+      "name": "tauri",
+      "version": "2.11.1",
+      "license": "MIT OR Apache-2.0",
+      "source": "https://crates.io/crates/tauri/2.11.1",
+      "manifest_scope": "runtime"
+    },
+    {
+      "ecosystem": "rust",
+      "name": "tauri-build",
+      "version": "2.6.3",
+      "license": "MIT OR Apache-2.0",
+      "source": "https://crates.io/crates/tauri-build/2.6.3",
+      "manifest_scope": "build"
+    }
+  ]
+}

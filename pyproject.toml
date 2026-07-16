@@ -1,0 +1,61 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "glint-platform"
+version = "0.1.0"
+description = "Glint Phase 1 modular monolith and shared contracts"
+requires-python = ">=3.12"
+dependencies = [
+  "alembic>=1.16,<2",
+  "fastapi>=0.116,<0.139",
+  "httpx>=0.28,<1",
+  "boto3>=1.39,<2",
+  "pydantic>=2.11,<3",
+  "pydantic-settings>=2.10,<3",
+  "psycopg[binary]>=3.2.9,<4",
+  "sqlalchemy>=2.0.41,<3",
+  "uvicorn[standard]>=0.35,<1",
+]
+
+[project.optional-dependencies]
+test = [
+  "pyright>=1.1.403,<2",
+  "pytest>=9.0.3,<10",
+  "pytest-cov>=6.2,<7",
+  "ruff>=0.12,<1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["services", "packages", "connectors"]
+
+[tool.pytest.ini_options]
+addopts = "-q --strict-markers"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["infra/migrations/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["B008"]
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "strict"
+venvPath = "."
+venv = ".venv"
+include = ["services/api", "services/worker", "connectors", "packages/contracts", "packages/domain"]
+exclude = ["infra/migrations"]
+reportMissingTypeStubs = "none"
+reportUnknownMemberType = "none"
+reportUnknownVariableType = "none"
+reportUnknownArgumentType = "none"
+
+[tool.coverage.run]
+source = ["services/api", "services/worker", "connectors", "packages/contracts", "packages/domain"]
+branch = true

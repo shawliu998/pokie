@@ -1,0 +1,17 @@
+{
+  "name": "glint",
+  "private": true,
+  "packageManager": "pnpm@10.28.0",
+  "scripts": {
+    "dev": "pnpm --filter @glint/mac dev",
+    "build": "pnpm --filter @glint/mac build",
+    "lint": "pnpm --filter @glint/mac lint",
+    "typecheck": "pnpm --filter @glint/mac typecheck",
+    "test": "pnpm --filter @glint/mac test",
+    "test:e2e": "pnpm --filter @glint/mac test:e2e",
+    "tauri:check": "pnpm --filter @glint/mac tauri:check"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.55.1"
+  }
+}

@@ -1,0 +1,1 @@
+"""Worker repository adapters."""

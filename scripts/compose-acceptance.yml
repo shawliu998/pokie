@@ -1,0 +1,41 @@
+services:
+  minio-init:
+    volumes:
+      - ..:/workspace:ro
+    entrypoint: ["/bin/sh", "/workspace/scripts/minio-acceptance-init.sh"]
+    environment:
+      MINIO_ROOT_USER: glint_minio_root
+      MINIO_ROOT_PASSWORD: glint_minio_root_password
+  redis:
+    ports: !reset []
+  minio:
+    ports: !reset []
+  postgres:
+    ports: !override
+      - target: 5432
+        published: "0"
+        host_ip: 127.0.0.1
+  api:
+    ports: !override
+      - target: 8000
+        published: "0"
+        host_ip: 127.0.0.1
+    command:
+      - sh
+      - -c
+      - >
+        /opt/glint-venv/bin/alembic -c infra/migrations/alembic.ini upgrade head &&
+        /opt/glint-venv/bin/uvicorn services.api.app.main:app --host 0.0.0.0 --port 8000
+    environment:
+      GLINT_SERVICE_ROLE: api
+      GLINT_MIGRATION_DATABASE_URL: postgresql+psycopg://glint_owner:glint_owner_dev_password@postgres:5432/glint
+  worker:
+    environment:
+      GLINT_SERVICE_ROLE: worker
+      GLINT_CONNECTOR_FACTORY: scripts.runtime_fixture_connector:create_acceptance_connector_factory
+  smoke:
+    command: ["/bin/sh", "scripts/compose-smoke-acceptance.sh"]
+    environment:
+      GLINT_SERVICE_ROLE: worker
+      GLINT_DATABASE_URL: postgresql://glint_worker:glint_worker_dev_password@postgres:5432/glint
+      GLINT_CONNECTOR_FACTORY: scripts.runtime_fixture_connector:create_acceptance_connector_factory

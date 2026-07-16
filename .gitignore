@@ -1,0 +1,58 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+
+# Node / frontend
+node_modules/
+.pnpm-store/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+apps/mac/dist/
+apps/mac/.vite/
+
+# Rust / Tauri
+target/
+apps/mac/src-tauri/target/
+
+# Local runtime data
+data/
+.glint-objects/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+.minio/
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Logs
+*.log
+logs/
+
+# Generated acceptance evidence
+tests/artifacts/*
+!tests/artifacts/.gitkeep

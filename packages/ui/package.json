@@ -1,0 +1,9 @@
+{
+  "name": "@glint/ui",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": { ".": "./src/index.tsx" },
+  "peerDependencies": { "react": "18.3.1" },
+  "devDependencies": { "@types/react": "18.3.24" }
+}
