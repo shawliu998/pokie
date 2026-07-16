@@ -126,11 +126,45 @@ test('strict API mode covers CSV → Signal → SSE/reviews → Brief → termin
     await expect(page.getByText('static_import_content_count > 0', { exact: true })).toBeVisible();
     await expect(page.getByText(/P1 Acceptance CSV · last success/)).toBeVisible();
   }
+  await page.keyboard.press('Meta+k');
+  let commandPalette = page.getByRole('dialog', { name: 'Command Palette' });
+  await expect(commandPalette).toBeVisible();
+  await expect(commandPalette.getByText('Go to Investigations')).toBeVisible();
+  if (fixtureMode) await expect(commandPalette.getByText('Start Investigation')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Meta+p');
+  const globalSearch = page.getByRole('dialog', { name: 'Global Search' });
+  await globalSearch.getByRole('combobox', { name: 'Global Search' }).fill(fixtureMode ? 'Glint GitHub' : 'P1 Acceptance CSV');
+  await expect(globalSearch.getByText(fixtureMode ? 'Glint GitHub' : 'P1 Acceptance CSV', { exact: true }).first()).toBeVisible();
+  if (fixtureMode) {
+    await globalSearch.getByRole('combobox', { name: 'Global Search' }).press('Enter');
+    await expect(page.getByRole('article', { name: 'Glint GitHub source' })).toBeFocused();
+    await page.getByRole('button', { name: 'Inbox' }).click();
+  } else await page.keyboard.press('Escape');
+  const currentListFilter = page.getByLabel('Search Inbox');
+  await currentListFilter.press('r');
+  await expect(page.getByRole('dialog', { name: 'Investigation plan' })).toHaveCount(0);
+  await currentListFilter.press('Meta+k');
+  await expect(page.getByRole('dialog', { name: 'Command Palette' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await currentListFilter.fill('');
   await page.getByLabel('Business Impact').selectOption('high');
   await page.getByLabel('Urgency').selectOption('this_week');
   await page.getByRole('button', { name: 'Confirm Impact & Urgency' }).click();
   await expect(page.locator('.triage-grid').getByText('P1', { exact: true })).toBeVisible();
   await capture('02-signal-inbox');
+
+  await page.keyboard.press('Meta+k');
+  commandPalette = page.getByRole('dialog', { name: 'Command Palette' });
+  await commandPalette.getByRole('combobox', { name: 'Command Palette' }).fill('Show Keyboard Shortcuts');
+  await commandPalette.getByRole('combobox', { name: 'Command Palette' }).press('Enter');
+  const shortcutHelp = page.getByRole('dialog', { name: 'Keyboard Shortcuts' });
+  await expect(shortcutHelp).toContainText('J / ↓');
+  await page.keyboard.press('Escape');
+  await page.locator('.detail-header h2').click();
+  await page.keyboard.press('r');
+  await expect(page.getByRole('dialog', { name: 'Investigation plan' })).toBeVisible();
+  await page.keyboard.press('Escape');
 
   await page.getByRole('button', { name: 'Start Investigation' }).click();
   await expect(page.getByRole('dialog', { name: 'Investigation plan' })).toContainText('No model egress is authorized');
@@ -153,6 +187,10 @@ test('strict API mode covers CSV → Signal → SSE/reviews → Brief → termin
   await page.getByRole('tab', { name: 'Evidence' }).click();
   const evidenceCards = page.locator('.evidence');
   await expect(evidenceCards.first()).toBeVisible();
+  await page.keyboard.press('e');
+  await expect(page.getByRole('dialog', { name: 'Source Viewer' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Source Viewer' })).toHaveCount(0);
   const evidenceCount = await evidenceCards.count();
   for (let index = 0; index < evidenceCount; index += 1) {
     const card = evidenceCards.nth(index);
@@ -311,5 +349,16 @@ test('strict API mode covers CSV → Signal → SSE/reviews → Brief → termin
     await offlineBanner.getByRole('button', { name: 'Retry connection' }).click();
     await expect(offlineBanner).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Inbox' })).toBeVisible();
+    await page.getByRole('button', { name: 'Inbox' }).click();
+    await page.locator('.detail-header h2').click();
+    await page.keyboard.press('i');
+    const dismissDialog = page.getByRole('dialog', { name: 'Dismiss Signal' });
+    await dismissDialog.getByLabel('Dismiss reason').selectOption('known_issue');
+    await dismissDialog.getByLabel('Dismiss note').fill('Already tracked by the platform reliability owner.');
+    await dismissDialog.getByRole('button', { name: 'Dismiss Signal' }).click();
+    await expect(page.getByText('Signal dismissed. The audited disposition remains available in Signal history.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Start Investigation' })).toBeDisabled();
+    const dispositionState = await (await request.get(`${apiUrl}/v1/fixture-state`, { headers: fixtureHeaders })).json();
+    expect(dispositionState).toMatchObject({ signal_transition_count: 1, signal_disposition: { action: 'dismiss', dismiss_reason: 'known_issue', note: 'Already tracked by the platform reliability owner.' } });
   }
 });

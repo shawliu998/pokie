@@ -28,6 +28,7 @@ the license text distributed by each package. Resolved versions are pinned by
 | javascript | `@types/react` | `18.3.24` | `MIT` | [source](https://www.npmjs.com/package/@types/react/v/18.3.24) |
 | javascript | `@types/react-dom` | `18.3.7` | `MIT` | [source](https://www.npmjs.com/package/@types/react-dom/v/18.3.7) |
 | javascript | `@vitejs/plugin-react` | `4.7.0` | `MIT` | [source](https://www.npmjs.com/package/@vitejs/plugin-react/v/4.7.0) |
+| javascript | `cmdk` | `1.1.1` | `MIT` | [source](https://www.npmjs.com/package/cmdk/v/1.1.1) |
 | javascript | `eslint` | `9.35.0` | `MIT` | [source](https://www.npmjs.com/package/eslint/v/9.35.0) |
 | javascript | `jsdom` | `26.1.0` | `MIT` | [source](https://www.npmjs.com/package/jsdom/v/26.1.0) |
 | javascript | `react` | `18.3.1` | `MIT` | [source](https://www.npmjs.com/package/react/v/18.3.1) |

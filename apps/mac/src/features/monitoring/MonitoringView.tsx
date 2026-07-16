@@ -160,7 +160,7 @@ export function SourceCard({ source, schedules, activeWatchlists, recommendedWat
   const run = async (task: () => Promise<unknown>) => { setBusy(true); try { await task(); } finally { setBusy(false); } };
   const activeWatchlist = activeWatchlists.find((watchlist) => watchlist.id === watchlistId);
   const schedulable = source.sourceKind === 'cloud' && source.cadence !== 'manual' && ['validating', 'healthy', 'degraded'].includes(source.status) && Boolean(activeWatchlist);
-  return <article className="source-health" aria-label={`${source.name} source`}>
+  return <article className="source-health" aria-label={`${source.name} source`} data-source-id={source.id} tabIndex={-1}>
     <div><Status tone={source.health.state === 'healthy' ? 'positive' : source.health.state === 'unknown' ? 'neutral' : 'warning'}>{source.health.state}</Status> <Badge tone="info">{source.connectorType}</Badge> <Badge>{authenticityLabel(source.authenticity)}</Badge> <Status tone={source.status === 'disabled' ? 'neutral' : source.status === 'failed' ? 'danger' : 'info'}>{source.status}</Status></div>
     <h4>{source.name}</h4><p>{source.sourceKind} · {source.runtime}{source.cadence ? ` · ${source.cadence} · ${source.timezone}` : ''}</p>
     <p>Freshness: <strong>{source.freshness.state}</strong> · last success {displayTime(source.freshness.lastSuccessAt)} · last run {displayTime(source.lastRunAt)}</p><p>Health checked {displayTime(source.health.checkedAt)}{source.health.lastErrorCode ? ` · ${source.health.lastErrorCode}` : ''}</p>

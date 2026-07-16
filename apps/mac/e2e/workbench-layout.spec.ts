@@ -53,13 +53,10 @@ test('desktop resize state and explicit compact navigation remain deterministic'
   await page.locator('button.signal-row').first().click();
   const back = page.getByRole('button', { name: 'Back to list' });
   await expect(back).toBeVisible();
-  await page.getByLabel('Business Impact').selectOption('high');
-  await page.getByLabel('Urgency').selectOption('this_week');
-  await page.getByRole('button', { name: 'Confirm Impact & Urgency' }).click();
-  await page.getByRole('button', { name: 'Start Investigation' }).click();
-  await expect(page.getByRole('dialog', { name: 'Investigation plan' })).toBeVisible();
+  await page.locator('header.toolbar').getByRole('button').last().click();
+  await expect(page.getByRole('dialog', { name: 'Data status' })).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog', { name: 'Investigation plan' })).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'Data status' })).toHaveCount(0);
   await expect(back).toBeVisible();
   await page.getByRole('button', { name: 'Investigations' }).click();
   await expect(page.getByLabel('Search Investigations')).toBeVisible();
