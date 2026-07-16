@@ -13,6 +13,13 @@ from typing import Any
 DEFAULT_FIXTURE = (
     Path(__file__).parents[1] / "tests" / "eval" / "fixtures" / "phase3_model_quality_v1.json"
 )
+DEFAULT_ARTIFACT_DIR = Path(__file__).parents[1] / "tests" / "artifacts"
+ARTIFACT_FILENAMES = (
+    "phase3-quality-report.json",
+    "phase3-failure-reasons.json",
+    "phase3-prompt-manifest.json",
+    "phase3-eval-manifest.json",
+)
 
 
 class EvaluationError(RuntimeError):
@@ -428,15 +435,117 @@ def evaluate_dataset(dataset: dict[str, Any]) -> EvaluationReport:
     )
 
 
+def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.write_text(
+        json.dumps(payload, sort_keys=True, indent=2, ensure_ascii=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+def write_acceptance_artifacts(
+    dataset: dict[str, Any],
+    report: EvaluationReport,
+    artifact_dir: Path = DEFAULT_ARTIFACT_DIR,
+) -> tuple[Path, ...]:
+    """Write bounded replay metadata without prompts, source text, or provider output."""
+
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    candidate = _mapping(dataset["candidate"], "candidate")
+    review = _mapping(dataset["review"], "review")
+    thresholds = _mapping(dataset["thresholds"], "thresholds")
+    cases = _sequence(dataset["cases"], "cases")
+
+    prompt_refs: set[str] = set()
+    case_ids: list[str] = []
+    for raw_case in cases:
+        case = _mapping(raw_case, "case")
+        case_ids.append(_string(case.get("id"), "case.id"))
+        output = _mapping(case.get("model_output"), "model_output")
+        for raw_claim in _sequence(output.get("claims"), "model_output.claims"):
+            claim = _mapping(raw_claim, "claim")
+            for prompt_ref in _sequence(claim.get("model_prompt_refs"), "claim.model_prompt_refs"):
+                if isinstance(prompt_ref, str) and prompt_ref:
+                    prompt_refs.add(prompt_ref)
+
+    shared = {
+        "dataset_digest": report.dataset_digest,
+        "dataset_version": report.dataset_version,
+        "evaluation_boundary": "repository-reviewed-synthetic-replay",
+        "provider_credentials_used": False,
+    }
+    quality_report = {
+        "schema_version": "phase3-quality-report-v1",
+        **shared,
+        "acceptance_status": "Provisionally Passed" if report.passed else "Failed",
+        "report": report.to_dict(),
+    }
+    failure_reasons = {
+        "schema_version": "phase3-failure-reasons-v1",
+        **shared,
+        "passed": report.passed,
+        "failure_reason_counts": dict(sorted(report.failure_reason_counts.items())),
+    }
+    prompt_manifest = {
+        "schema_version": "phase3-prompt-manifest-v1",
+        **shared,
+        "graph_version": str(candidate["graph_version"]),
+        "prompt_version": str(candidate["prompt_version"]),
+        "model_prompt_refs": sorted(prompt_refs),
+        "prompt_content_included": False,
+        "contract": {
+            "host_derives_character_offsets_deterministically": True,
+            "model_calculates_character_offsets": False,
+            "model_copies_quote_text_verbatim": True,
+            "model_visible_tools": [],
+        },
+    }
+    eval_manifest = {
+        "schema_version": "phase3-eval-manifest-v1",
+        **shared,
+        "dataset_name": report.dataset_name,
+        "case_count": report.case_count,
+        "case_ids": sorted(case_ids),
+        "candidate": {
+            "provider": report.candidate_provider,
+            "model": report.candidate_model,
+            "graph_version": str(candidate["graph_version"]),
+            "prompt_version": str(candidate["prompt_version"]),
+        },
+        "review": {
+            "status": str(review["status"]),
+            "reviewed_at": str(review["reviewed_at"]),
+            "reviewer_roles": sorted(str(role) for role in review["reviewer_roles"]),
+        },
+        "thresholds": dict(sorted(thresholds.items())),
+        "artifact_filenames": list(ARTIFACT_FILENAMES),
+        "contains_prompt_or_source_body": False,
+        "contains_provider_response": False,
+    }
+
+    payloads = (quality_report, failure_reasons, prompt_manifest, eval_manifest)
+    paths = tuple(artifact_dir / filename for filename in ARTIFACT_FILENAMES)
+    for path, payload in zip(paths, payloads, strict=True):
+        _write_json(path, payload)
+    return paths
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("fixture", nargs="?", type=Path, default=DEFAULT_FIXTURE)
     parser.add_argument("--json", action="store_true", help="emit a machine-readable report")
+    parser.add_argument(
+        "--artifact-dir",
+        type=Path,
+        help="write the four bounded Phase 3 CI artifacts to this directory",
+    )
     args = parser.parse_args()
     try:
-        report = evaluate_dataset(load_dataset(args.fixture))
+        dataset = load_dataset(args.fixture)
+        report = evaluate_dataset(dataset)
     except EvaluationError as error:
         parser.exit(2, f"Phase 3 model-quality evaluation invalid: {error}\n")
+    if args.artifact_dir is not None:
+        write_acceptance_artifacts(dataset, report, args.artifact_dir)
     if args.json:
         print(json.dumps(report.to_dict(), sort_keys=True, separators=(",", ":")))
     else:

@@ -4,28 +4,31 @@ Evidence snapshot: 2026-07-16 (Asia/Shanghai)
 
 ## Decision
 
-**P2.5 Status: Conditionally Accepted**
+**P2.5 acceptance: Pending**
+
+This record uses only `Passed`, `Provisionally Passed`, `Pending`, `Failed`, and `Not Applicable`
+for acceptance statuses.
 
 The repository trust baseline, final-candidate remote CI, deterministic P1/P2
 path, local unsigned Mac bundle, imported-demo vertical flow, and five reviewed
-real-app captures have evidence. Final P2.5 acceptance is withheld because live
+real-app captures have passed their recorded boundaries. Final P2.5 acceptance is withheld because live
 GitHub/RSS verification has not been authorized/recorded and no external pilot
 has run.
 
-Recommendation: **do not enter Phase 3 yet**. Complete the authorized live-data
-verification and pilot evidence below first. No `Pending` item may be inferred
-as passing.
+Phase 3 work does not close these P2.5 evidence gaps. Complete the authorized
+live-data verification and pilot evidence below before changing this record.
+No `Pending` item may be inferred as passing.
 
 ## Candidate identity and repository
 
 | Item | Evidence | Status |
 | --- | --- | --- |
-| Final implementation candidate SHA | `be6998d942cb0d1cc0f83f4c26ce1f02fd756eb6` | **Verified** |
-| Branch | `feat/p2-5-pilot-workbench` | Recorded |
-| Public repository/default branch | Public repository; default branch `main` | Verified in [repository audit](./P2_5_REPOSITORY_AUDIT.md) |
-| Branch protection | Strict required `phase1`, `phase2`, `security-audit`, and `macos-native`; admin enforcement enabled | Verified in repository audit |
-| Historical trusted baseline | Commit `82a206aceb6ad213582a33323708e0ee500b3dcd`; [Actions run 29468568771](https://github.com/shawliu998/Glint/actions/runs/29468568771), all four jobs successful | Accepted historical baseline |
-| Final P2.5 remote evidence | Commit `be6998d942cb0d1cc0f83f4c26ce1f02fd756eb6`; [Actions run 29474562575](https://github.com/shawliu998/Glint/actions/runs/29474562575), `phase1`, `phase2`, `security-audit`, and `macos-native` all successful | **Verified** |
+| Final implementation candidate SHA | `be6998d942cb0d1cc0f83f4c26ce1f02fd756eb6` | **Passed** |
+| Branch | `feat/p2-5-pilot-workbench` | **Passed** — candidate identity recorded |
+| Public repository/default branch | Public repository; default branch `main` | **Passed** — see [repository audit](./P2_5_REPOSITORY_AUDIT.md) |
+| Branch protection | Strict required `phase1`, `phase2`, `security-audit`, and `macos-native`; admin enforcement enabled | **Passed** |
+| Historical trusted baseline | Commit `82a206aceb6ad213582a33323708e0ee500b3dcd`; [Actions run 29468568771](https://github.com/shawliu998/Glint/actions/runs/29468568771), all four jobs successful | **Passed** |
+| Final P2.5 remote evidence | Commit `be6998d942cb0d1cc0f83f4c26ce1f02fd756eb6`; [Actions run 29474562575](https://github.com/shawliu998/Glint/actions/runs/29474562575), `phase1`, `phase2`, `security-audit`, and `macos-native` all successful | **Passed** |
 
 The final green run is real remote CI on the implementation candidate. It
 accepts the deterministic and native-build boundaries; it does not convert
@@ -75,11 +78,11 @@ candidate SHA only.
 
 | Evidence class | Available evidence | Acceptance meaning |
 | --- | --- | --- |
-| **Imported** | Deterministic CSV import reaches terminal `ImportManifest`, Signal, review, Decision Brief, and audited Markdown export | Accepted for deterministic behavior, not external user data |
-| **Deterministic** | Seed/import fixtures, connector fixtures, strict API fixture, unit/integration/security/E2E gates | Reproducible acceptance; not live network proof |
-| **Captured Fixture** | No captured public payload is committed | **Pending / unavailable** |
+| **Imported** | Deterministic CSV import reaches terminal `ImportManifest`, Signal, review, Decision Brief, and audited Markdown export | **Passed** for deterministic behavior, not external user data |
+| **Deterministic** | Seed/import fixtures, connector fixtures, strict API fixture, unit/integration/security/E2E gates | **Passed**; not live network proof |
+| **Captured Fixture** | No captured public payload is committed | **Not Applicable** |
 | **Live verification** | Opt-in read-only runner exists; no authorized final result is recorded | **Pending** for both GitHub and RSS |
-| **No LLM** | Current accepted research/synthesis path is deterministic; model egress is not authorized | Explicit current product boundary |
+| **No LLM** | P2.5's accepted research/synthesis boundary is deterministic; later Phase 3 work is separate | **Not Applicable** |
 
 Domain `Collected` is a lineage value and does not, without a live-smoke record,
 prove that a specific item was fetched during a live verification.
@@ -109,14 +112,14 @@ degraded-result semantics.
 
 | Stage | Deterministic imported path | Live-collected path |
 | --- | --- | --- |
-| `ContentVersion` → Signal | Verified | Pending live proof |
-| Human triage → Investigation | Verified | Pending live proof |
-| Supporting Evidence | Verified | Pending live proof |
-| Counter Evidence / counter-search record | Verified by deterministic acceptance | Pending live proof |
-| Claim review | Verified | Pending live proof |
-| Synthesis review | Verified | Pending live proof |
-| Decision Brief → DecisionReady | Verified | Pending live proof |
-| Version-bound Markdown export and terminal audit | Verified | Pending live proof |
+| `ContentVersion` → Signal | **Passed** | **Pending** |
+| Human triage → Investigation | **Passed** | **Pending** |
+| Supporting Evidence | **Passed** | **Pending** |
+| Counter Evidence / counter-search record | **Passed** | **Pending** |
+| Claim review | **Passed** | **Pending** |
+| Synthesis review | **Passed** | **Pending** |
+| Decision Brief → DecisionReady | **Passed** | **Pending** |
+| Version-bound Markdown export and terminal audit | **Passed** | **Pending** |
 
 The deterministic path is real application/domain execution with fixture or
 imported inputs; it is not proof that the whole flow completed from a real
@@ -128,13 +131,13 @@ Required publishable paths and current state:
 
 | Artifact | Status |
 | --- | --- |
-| `docs/assets/glint-inbox.png` | **Complete** — reviewed 1440×960 real-app render |
-| `docs/assets/glint-signal-detail.png` | **Complete** — reviewed 1440×960 real-app render |
-| `docs/assets/glint-investigation.png` | **Complete** — reviewed 1440×960 real-app render |
-| `docs/assets/glint-decision-brief.png` | **Complete** — reviewed 1440×960 real-app render |
-| `docs/assets/glint-monitoring.png` | **Complete** — reviewed 1440×960 real-app render |
-| [90-second demo script](./DEMO_SCRIPT.md) | Complete; no video claimed |
-| [Pilot plan](./PILOT_PLAN.md) | Complete; no sessions/results claimed |
+| `docs/assets/glint-inbox.png` | **Passed** — reviewed 1440×960 real-app render |
+| `docs/assets/glint-signal-detail.png` | **Passed** — reviewed 1440×960 real-app render |
+| `docs/assets/glint-investigation.png` | **Passed** — reviewed 1440×960 real-app render |
+| `docs/assets/glint-decision-brief.png` | **Passed** — reviewed 1440×960 real-app render |
+| `docs/assets/glint-monitoring.png` | **Passed** — reviewed 1440×960 real-app render |
+| [90-second demo script](./DEMO_SCRIPT.md) | **Passed**; no video claimed |
+| [Pilot plan](./PILOT_PLAN.md) | **Passed** as a plan; participant execution is **Pending** |
 
 The five captures came from one real local application render backed by the
 API, worker, Postgres, and object store. The visible data mode is **Imported Demo

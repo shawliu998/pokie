@@ -13,6 +13,37 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  phase3-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.11.28'
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install Python dependencies
+        run: uv sync --locked --extra test --no-install-project
+      - name: Verify Phase 3 quality without provider credentials
+        env:
+          DEEPSEEK_API_KEY: ''
+          GLINT_MODEL_RUNTIME_ENABLED: 'false'
+        run: ./scripts/verify_phase3_quality.sh
+      - name: Upload Phase 3 quality artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase3-quality-artifacts
+          path: |
+            tests/artifacts/phase3-quality-report.json
+            tests/artifacts/phase3-failure-reasons.json
+            tests/artifacts/phase3-prompt-manifest.json
+            tests/artifacts/phase3-eval-manifest.json
+          if-no-files-found: error
+
   phase1:
     runs-on: ubuntu-latest
     steps:

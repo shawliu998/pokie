@@ -16,7 +16,8 @@ if has_python_module pytest; then
   layer "Phase 3 reviewed model-quality replay tests" \
     run_required_pytest tests/eval/test_phase3_model_quality.py
   layer "Phase 3 reviewed model-quality replay gate" \
-    "$PYTHON_BIN" scripts/evaluate_phase3_model_quality.py
+    "$PYTHON_BIN" scripts/evaluate_phase3_model_quality.py \
+      --artifact-dir tests/artifacts
   layer "Phase 3 prompt-injection containment" \
     run_required_pytest tests/security/test_prompt_injection_containment.py
 else

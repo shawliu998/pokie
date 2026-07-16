@@ -119,12 +119,29 @@ def test_fixed_langgraph_persists_typed_model_proposals_without_tools() -> None:
     domain.content_versions[version.id] = version
     transport = MockTransport(_response(version, "recurring permission failures"))
 
-    result = _runner(domain, transport).run(run.id, [version])
+    runner = _runner(domain, transport)
+    result = runner.run(run.id, [version])
 
+    expected_nodes = (
+        "validate_manifest",
+        "bound_content",
+        "propose_evidence",
+        "validate_evidence",
+        "propose_claim",
+        "require_human_review",
+    )
+    compiled_nodes = tuple(
+        node for node in runner._compile_graph().get_graph().nodes if not node.startswith("__")
+    )
+    assert result.graph_nodes == expected_nodes
     assert result.graph_nodes == DeepSeekResearchRunner.graph_nodes
+    assert compiled_nodes == expected_nodes
     assert result.claims[0].generation_method == "model"
     assert result.claims[0].suggestion_origin == "model"
     assert result.evidence[0].content_version_id == version.id
+    quote_start = version.normalized_body.index("recurring permission failures")
+    assert result.evidence[0].quote_start == quote_start
+    assert result.evidence[0].quote_end == quote_start + len("recurring permission failures")
     assert result.evidence[0].quote_text_digest == sha256_text("recurring permission failures")
     assert domain.research_runs[run.id].state is ResearchRunState.COMPLETED
     request = transport.requests[0]
@@ -132,6 +149,28 @@ def test_fixed_langgraph_persists_typed_model_proposals_without_tools() -> None:
     assert request["tool_choice"] == "none"
     assert request["response_format"] == {"type": "json_object"}
     assert "Authorization" not in json.dumps(request)
+
+
+def test_prompt_requires_verbatim_quotes_and_forbids_model_offsets() -> None:
+    version = _version("Customers report recurring permission failures during setup.")
+    run = _run(version)
+    domain = InMemoryDomainAdapter()
+    domain.research_runs[run.id] = run
+    domain.content_versions[version.id] = version
+    transport = MockTransport(_response(version, "recurring permission failures"))
+
+    _runner(domain, transport).run(run.id, [version])
+
+    request = transport.requests[0]
+    system_prompt = request["messages"][0]["content"]
+    user_payload = json.loads(request["messages"][1]["content"])
+    evidence_contract = user_payload["output_contract"]["evidence"][0]
+    normalized_prompt = system_prompt.casefold()
+    assert "copy quote_text verbatim" in normalized_prompt
+    assert "do not calculate or return character offsets" in normalized_prompt
+    assert "return exact character offsets" not in normalized_prompt
+    assert "quote_start" not in evidence_contract
+    assert "quote_end" not in evidence_contract
 
 
 def test_instruction_like_source_is_data_and_forces_human_review() -> None:

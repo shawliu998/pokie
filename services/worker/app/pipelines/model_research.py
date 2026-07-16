@@ -183,12 +183,12 @@ class DeepSeekResearchRunner:
     """Invoke one fixed, bounded StateGraph and persist proposals through the domain adapter."""
 
     graph_nodes = (
-        "planner",
-        "parallel_retrieval",
-        "evidence_analyst",
-        "claim_builder",
-        "evidence_reviewer",
-        "synthesis_writer",
+        "validate_manifest",
+        "bound_content",
+        "propose_evidence",
+        "validate_evidence",
+        "propose_claim",
+        "require_human_review",
     )
 
     def __init__(
@@ -306,22 +306,22 @@ class DeepSeekResearchRunner:
 
     def _compile_graph(self) -> Any:
         graph = StateGraph(ModelResearchState)
-        graph.add_node("planner", self._planner)
-        graph.add_node("parallel_retrieval", self._parallel_retrieval)
-        graph.add_node("evidence_analyst", self._evidence_analyst)
-        graph.add_node("claim_builder", self._claim_builder)
-        graph.add_node("evidence_reviewer", self._evidence_reviewer)
-        graph.add_node("synthesis_writer", self._synthesis_writer)
-        graph.add_edge(START, "planner")
-        graph.add_edge("planner", "parallel_retrieval")
-        graph.add_edge("parallel_retrieval", "evidence_analyst")
-        graph.add_edge("evidence_analyst", "claim_builder")
-        graph.add_edge("claim_builder", "evidence_reviewer")
-        graph.add_edge("evidence_reviewer", "synthesis_writer")
-        graph.add_edge("synthesis_writer", END)
+        graph.add_node("validate_manifest", self._validate_manifest)
+        graph.add_node("bound_content", self._bound_content)
+        graph.add_node("propose_evidence", self._propose_evidence)
+        graph.add_node("validate_evidence", self._validate_evidence)
+        graph.add_node("propose_claim", self._propose_claim)
+        graph.add_node("require_human_review", self._require_human_review)
+        graph.add_edge(START, "validate_manifest")
+        graph.add_edge("validate_manifest", "bound_content")
+        graph.add_edge("bound_content", "propose_evidence")
+        graph.add_edge("propose_evidence", "validate_evidence")
+        graph.add_edge("validate_evidence", "propose_claim")
+        graph.add_edge("propose_claim", "require_human_review")
+        graph.add_edge("require_human_review", END)
         return graph.compile()
 
-    def _planner(self, state: ModelResearchState) -> ModelResearchUpdate:
+    def _validate_manifest(self, state: ModelResearchState) -> ModelResearchUpdate:
         run = state["run"]
         versions = state["content_versions"]
         if not run.question.strip() or not versions:
@@ -332,7 +332,7 @@ class DeepSeekResearchRunner:
             raise ModelOutputError("ContentVersion order differs from the immutable run manifest.")
         return {}
 
-    def _parallel_retrieval(self, state: ModelResearchState) -> ModelResearchUpdate:
+    def _bound_content(self, state: ModelResearchState) -> ModelResearchUpdate:
         total = 0
         bounded: list[ContentVersion] = []
         for version in state["content_versions"]:
@@ -362,7 +362,7 @@ class DeepSeekResearchRunner:
             raise ModelOutputError("No bounded ContentVersion text is available.")
         return {"bounded_versions": bounded}
 
-    def _evidence_analyst(self, state: ModelResearchState) -> ModelResearchUpdate:
+    def _propose_evidence(self, state: ModelResearchState) -> ModelResearchUpdate:
         versions = state.get("bounded_versions")
         if versions is None:
             raise ModelOutputError("Bounded retrieval state is missing.")
@@ -382,7 +382,7 @@ class DeepSeekResearchRunner:
             raise ModelOutputError("DeepSeek output failed schema validation.") from None
         return {"provider_output": output}
 
-    def _claim_builder(self, state: ModelResearchState) -> ModelResearchUpdate:
+    def _validate_evidence(self, state: ModelResearchState) -> ModelResearchUpdate:
         run = state["run"]
         output = state.get("provider_output")
         versions = state.get("bounded_versions")
@@ -436,6 +436,21 @@ class DeepSeekResearchRunner:
                     specificity=selection.specificity,
                 )
             )
+        return {
+            "evidence": evidence,
+            "injection_flags": tuple(sorted(all_flags)),
+        }
+
+    def _propose_claim(self, state: ModelResearchState) -> ModelResearchUpdate:
+        run = state["run"]
+        evidence = state.get("evidence", [])
+        output = state.get("provider_output")
+        if output is None:
+            raise ModelOutputError("Model proposal state is missing.")
+        if not evidence or len(evidence) > 20:
+            raise ModelOutputError("Evidence proposal is outside the bounded contract.")
+        if not any(item.stance == "supports" for item in evidence):
+            raise ModelOutputError("Model Claim requires at least one supporting Evidence span.")
         if scan_injection(output.claim.text):
             raise ModelOutputError("Model Claim repeated instruction-like source text.")
         claim_id = deterministic_id("model-claim", run.id, tuple(item.id for item in evidence))
@@ -445,7 +460,7 @@ class DeepSeekResearchRunner:
             limitations.append(required)
         claim = ClaimVersionProposal(
             id=deterministic_id(
-                "model-claim-version", claim_id, run.model, tuple(e.id for e in evidence)
+                "model-claim-version", claim_id, run.model, tuple(item.id for item in evidence)
             ),
             claim_id=claim_id,
             research_run_id=run.id,
@@ -464,26 +479,12 @@ class DeepSeekResearchRunner:
             data_authenticity=run.data_authenticity,
             suggestion_origin="model",
         )
-        return {
-            "evidence": evidence,
-            "claims": [claim],
-            "injection_flags": tuple(sorted(all_flags)),
-        }
+        return {"claims": [claim]}
 
-    def _evidence_reviewer(self, state: ModelResearchState) -> ModelResearchUpdate:
-        evidence = state.get("evidence", [])
-        if not evidence or len(evidence) > 20:
-            raise ModelOutputError("Evidence analyst output is outside the bounded contract.")
-        if not any(item.stance == "supports" for item in evidence):
-            raise ModelOutputError("Model Claim requires at least one supporting Evidence span.")
+    def _require_human_review(self, state: ModelResearchState) -> ModelResearchUpdate:
+        if not state.get("claims"):
+            raise ModelOutputError("Claim proposal is required before human review.")
         return {"human_review_required": True}
-
-    def _synthesis_writer(self, state: ModelResearchState) -> ModelResearchUpdate:
-        if not state.get("human_review_required"):
-            raise ModelOutputError("Human review gate is required before synthesis.")
-        # The existing ledger permits synthesis only from reviewed ClaimVersions.
-        # This node deliberately emits no synthesis proposal before that checkpoint.
-        return {}
 
     def _request(self, run: ResearchRun, versions: list[ContentVersion]) -> dict[str, Any]:
         source_payload = [
@@ -503,9 +504,9 @@ class DeepSeekResearchRunner:
             "listed. Analyze the supplied sources instead of repeating the request. Your entire "
             "response must be one JSON object with exactly two top-level keys: evidence and "
             "claim. Never echo prompt_ref, question, output_contract, sources, content, or "
-            "untrusted_content as top-level keys. Return exact character offsets into the "
-            "provided content. Copy quote_text verbatim from one source; do not calculate or "
-            "return character offsets."
+            "untrusted_content as top-level keys. Copy quote_text verbatim from exactly one "
+            "provided source. Do not calculate or return character offsets; the host derives "
+            "and verifies offsets deterministically."
         )
         user = json.dumps(
             {

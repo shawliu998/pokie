@@ -10,11 +10,13 @@ from typing import Any
 import pytest
 
 from scripts.evaluate_phase3_model_quality import (
+    ARTIFACT_FILENAMES,
     DEFAULT_FIXTURE,
     EvaluationError,
     canonical_digest,
     evaluate_dataset,
     load_dataset,
+    write_acceptance_artifacts,
 )
 
 
@@ -153,3 +155,53 @@ def test_cli_report_is_bounded_and_contains_no_source_or_secret_text() -> None:
         "metrics",
         "passed",
     }
+
+
+def test_acceptance_artifacts_are_deterministic_and_bounded(tmp_path: Path) -> None:
+    dataset = load_dataset()
+    report = evaluate_dataset(dataset)
+    first_dir = tmp_path / "first"
+    second_dir = tmp_path / "second"
+
+    first_paths = write_acceptance_artifacts(dataset, report, first_dir)
+    second_paths = write_acceptance_artifacts(dataset, report, second_dir)
+
+    assert tuple(path.name for path in first_paths) == ARTIFACT_FILENAMES
+    assert tuple(path.name for path in second_paths) == ARTIFACT_FILENAMES
+    assert [path.read_bytes() for path in first_paths] == [
+        path.read_bytes() for path in second_paths
+    ]
+
+    payloads = [json.loads(path.read_text(encoding="utf-8")) for path in first_paths]
+    assert all(payload["dataset_digest"] == report.dataset_digest for payload in payloads)
+    assert all(payload["provider_credentials_used"] is False for payload in payloads)
+    serialized = json.dumps(payloads, sort_keys=True)
+    assert "DEEPSEEK_API_KEY" not in serialized
+    assert "Authorization" not in serialized
+    assert "Ignore previous instructions" not in serialized
+    for case in dataset["cases"]:
+        for source in case["source_versions"]:
+            assert source["body"] not in serialized
+
+
+def test_acceptance_artifacts_record_failed_gate_without_sensitive_bodies(
+    tmp_path: Path,
+) -> None:
+    dataset = _copy()
+    dataset["cases"][0]["model_output"]["evidence_candidates"][0]["quote_end"] = 999
+    report = evaluate_dataset(_rehash(dataset))
+
+    paths = write_acceptance_artifacts(dataset, report, tmp_path)
+    quality = json.loads(paths[0].read_text(encoding="utf-8"))
+    reasons = json.loads(paths[1].read_text(encoding="utf-8"))
+    prompt = json.loads(paths[2].read_text(encoding="utf-8"))
+    manifest = json.loads(paths[3].read_text(encoding="utf-8"))
+
+    assert quality["acceptance_status"] == "Failed"
+    assert quality["report"]["passed"] is False
+    assert reasons["passed"] is False
+    assert reasons["failure_reason_counts"]["citation_span_out_of_bounds"] == 1
+    assert prompt["prompt_content_included"] is False
+    assert prompt["contract"]["model_calculates_character_offsets"] is False
+    assert manifest["contains_prompt_or_source_body"] is False
+    assert manifest["contains_provider_response"] is False

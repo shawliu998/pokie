@@ -4,7 +4,16 @@ Verification date: 2026-07-16
 
 ## Status
 
-**Provisional deterministic replay gate passed; Phase 3 is not yet accepted.**
+This record uses only `Passed`, `Provisionally Passed`, `Pending`, `Failed`, and `Not Applicable`.
+
+| Verification layer | Status | Recorded boundary |
+| --- | --- | --- |
+| Deterministic reviewed replay gate | **Provisionally Passed** | Synthetic mechanism and safety gate only. |
+| Live provider adapter smoke | **Passed** | Three consecutive bounded synthetic calls; no response body retained. |
+| Live held-out quality evaluation | **Pending** | No approved held-out provider evaluation is recorded. |
+| Live Mac owner workflow | **Pending** | No complete model-assisted human-review-to-export run is recorded. |
+| External PM pilot | **Pending** | No target-user participant result is recorded. |
+| Phase 3 acceptance | **Pending** | A replay gate and adapter smoke are insufficient for acceptance. |
 
 The final opt-in live DeepSeek smoke candidate also passed three consecutive runs on 2026-07-16.
 Each run sent the same repository-owned synthetic ContentVersion through the fixed six-node graph;
@@ -34,6 +43,17 @@ Run:
 
 The gate executes mutation-tested replay evaluation and the existing end-to-end prompt-injection
 containment test. CI does not require or read a model-provider secret.
+
+The independent `phase3-quality` CI job uploads four deterministic artifacts:
+
+| Artifact | Contents |
+| --- | --- |
+| `phase3-quality-report.json` | Metric numerators, denominators, thresholds and provisional status. |
+| `phase3-failure-reasons.json` | Stable failure-reason counts, including an empty map on a clean replay. |
+| `phase3-prompt-manifest.json` | Prompt identifiers and the quote/offset/tool contract; no prompt text. |
+| `phase3-eval-manifest.json` | Dataset digest, case IDs, candidate identifiers, review metadata and thresholds. |
+
+None of these artifacts contains a prompt body, source body, provider response or credential.
 
 The reviewed replay result is:
 

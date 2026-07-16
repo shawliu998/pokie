@@ -50,14 +50,14 @@ GitHub / RSS / CSV
 
 ## What is real today
 
-| Surface | Evidence today | Authenticity boundary | Model use |
-| --- | --- | --- | --- |
-| CSV import and review-to-export path | Deterministic local acceptance against the real API, worker, Postgres/RLS, and Mac client | **Imported** test data | **No LLM** |
-| GitHub and RSS connectors | Contract, security, pagination, dedupe, and deterministic fixture tests | **Deterministic synthetic fixtures**, not live | **No LLM** |
-| Captured public payloads | None committed | **Captured Fixture: not available** | **No LLM** |
-| Networked GitHub/RSS smoke | Opt-in read-only runner implemented | **Live verification: Pending** | **No LLM** |
-| Mac portfolio screenshots | Real local API/worker/Postgres render at 1440×960 | **Imported Demo Fixture**, visibly labelled | Not applicable |
-| Phase 3 Evidence/Claim proposals | Fixed-node LangGraph, DeepSeek adapter, mocked provider tests, and synthetic replay gate | **Generated proposals** over exact pinned ContentVersions; live provider run pending | **Opt-in; disabled by default** |
+| Surface | Evidence today | Authenticity boundary | Model use | Status |
+| --- | --- | --- | --- | --- |
+| CSV import and review-to-export path | Deterministic local acceptance against the real API, worker, Postgres/RLS, and Mac client | **Imported** test data | **No LLM** | **Passed** |
+| GitHub and RSS connectors | Contract, security, pagination, dedupe, and deterministic fixture tests | **Deterministic synthetic fixtures**, not live | **No LLM** | **Passed** |
+| Captured public payloads | None committed | **Captured Fixture: not available** | **No LLM** | **Not Applicable** |
+| Networked GitHub/RSS smoke | Opt-in read-only runner implemented; no recorded final result | **Live verification** | **No LLM** | **Pending** |
+| Mac portfolio screenshots | Real local API/worker/Postgres render at 1440×960 | **Imported Demo Fixture**, visibly labelled | Not applicable | **Passed** |
+| Phase 3 Evidence/Claim proposals | Bounded graph, DeepSeek adapter, mocked-provider tests, synthetic replay gate, and a redacted live-adapter smoke | **Generated proposals** over exact pinned ContentVersions | **Opt-in; disabled by default** | **Provisionally Passed** |
 
 “Collected” in the domain model describes connector lineage; it does not by
 itself prove that a particular demo or test contacted a live service. Live data
@@ -66,10 +66,23 @@ must be accompanied by the separately recorded live-smoke evidence.
 Glint P2.5 is a pilot candidate, not a production or GA release. Its accepted
 research path remains deterministic. The first Phase 3 slice can generate
 model-assisted Evidence and ClaimVersion proposals, but it is disabled by
-default, still requires the existing human review gates, and has not been run
-against a live provider in the recorded acceptance evidence. See the
+default and still requires the existing human review gates. Its adapter has a
+recorded synthetic live smoke; that is not held-out quality or owner-workflow
+acceptance evidence. See the
 [model research runtime](./docs/MODEL_RESEARCH.md) and
 [provisional quality record](./docs/PHASE3_QUALITY_ACCEPTANCE.md).
+
+Phase 3 acceptance layers use one closed status vocabulary: `Passed`,
+`Provisionally Passed`, `Pending`, `Failed`, or `Not Applicable`.
+
+| Verification layer | Status |
+| --- | --- |
+| Deterministic reviewed replay gate | **Provisionally Passed** |
+| Live provider adapter smoke | **Passed** |
+| Live held-out quality evaluation | **Pending** |
+| Live Mac owner workflow | **Pending** |
+| External PM pilot | **Pending** |
+| Phase 3 acceptance | **Pending** |
 
 ## Run locally
 
@@ -126,8 +139,14 @@ Deterministic repository gates:
 ```bash
 ./scripts/verify_phase1.sh
 ./scripts/verify_phase2.sh
+./scripts/verify_phase3_quality.sh
 ./scripts/verify_tauri_runtime.sh
 ```
+
+The Phase 3 quality command is also an independent CI job. It runs without a
+provider credential and uploads four bounded JSON artifacts containing metrics,
+failure counts, prompt identifiers and evaluation metadata—not prompts, source
+bodies, provider responses or secrets.
 
 The networked smoke is intentionally separate and runs only with explicit user
 authorization and configured credentials:
@@ -170,7 +189,7 @@ and [API contracts](./docs/API_CONTRACTS.md) for the technical detail.
 - Source support is limited to imported CSV plus GitHub/RSS boundaries.
 - Production SLOs, operations, disaster recovery, and GA readiness are not
   established.
-- Phase 3 model-assisted synthesis after reviewed claims, live-provider quality
+- Phase 3 model-assisted synthesis after reviewed claims, live held-out quality
   evidence, Langfuse deployment, and full collaboration/RBAC UI remain out of
   scope for the current accepted slice.
 
