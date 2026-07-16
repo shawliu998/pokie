@@ -136,8 +136,15 @@ test('strict API mode covers CSV → Signal → SSE/reviews → Brief → termin
   await expect(page.getByRole('dialog', { name: 'Investigation plan' })).toContainText('No model egress is authorized');
   await expect(page.getByRole('dialog', { name: 'Investigation plan' })).toContainText(fixtureMode ? 'Glint GitHub · Cloud github collection' : 'P1 Acceptance CSV');
   await page.getByRole('button', { name: 'Run Investigation' }).click();
+  const runsTab = page.getByRole('tab', { name: 'Runs' });
+  const investigationError = page.locator('.error-banner');
+  const investigationOutcome = await Promise.race([
+    runsTab.waitFor({ state: 'visible', timeout: 60_000 }).then(() => 'ready' as const),
+    investigationError.waitFor({ state: 'visible', timeout: 60_000 }).then(() => 'error' as const),
+  ]);
+  if (investigationOutcome === 'error') throw new Error(`Run Investigation failed: ${await investigationError.innerText()}`);
   if (fixtureMode) await expect(page.locator('.detail-header')).toContainText('collected');
-  await page.getByRole('tab', { name: 'Runs' }).click();
+  await runsTab.click();
   await expect(page.getByText('Evidence and Claim proposal persisted.')).toBeVisible({ timeout: 120_000 });
   if (fixtureMode) await expect(page.getByText('BROKEN GAP EVENT MUST BE DISCARDED')).toHaveCount(0);
   await expect(page.getByText(/SSE connected/)).toBeVisible();
