@@ -76,6 +76,10 @@ The latest commit did trigger GitHub Actions. It did not pass.
 9. `phase2` depends on `phase1` and its verification script currently reruns the
    Phase 1 gate. This duplication is recorded for later CI refactoring; the gate
    is not removed during the trust-baseline fix.
+10. The first working-branch run exposed two additional trust issues: the API
+    E2E could wait for the Runs tab without surfacing an investigation error,
+    and a restored Cargo cache made the pinned `cargo-audit` install fail because
+    the binary already existed.
 
 ## Fixes prepared on the working branch
 
@@ -91,16 +95,39 @@ The latest commit did trigger GitHub Actions. It did not pass.
 - Made Watchlist selection explicit before schedule creation.
 - Added a ripgrep preflight, preserved safe scanner diagnostics, and installed
   ripgrep in the macOS job.
+- Made the API E2E race the expected Runs tab against the visible error banner,
+  so investigation startup failures are reported within 60 seconds.
+- Made the pinned `cargo-audit` install idempotent when the matching cached
+  binary is already present.
 
 ## Remote verification
 
-The baseline run above is the last result for `main`. The working-branch run URL,
-commit SHA, job results, and any follow-up fixes will be appended after the
-branch is pushed and the real GitHub Actions run reaches a terminal state.
+The working branch produced a fully successful remote baseline:
 
-Branch protection will be configured only after the required checks have a real
-successful run. Until then, lack of a green required-check baseline is an
-external sequencing blocker, not a reason to report the repository as trusted.
+- Run: [Glint verification 29468568771](https://github.com/shawliu998/Glint/actions/runs/29468568771)
+- Event: `push`
+- Branch: `feat/p2-5-pilot-workbench`
+- Commit: `82a206aceb6ad213582a33323708e0ee500b3dcd`
+- Overall result: `success`
+- `security-audit`: success (39 seconds)
+- `macos-native`: success (1 minute 59 seconds)
+- `phase1`: success (6 minutes 42 seconds)
+- `phase2`: success (7 minutes 51 seconds)
+
+Two earlier working-branch runs were intentionally used to close the remaining
+gaps rather than being reported as green:
+
+- [Run 29467649395](https://github.com/shawliu998/Glint/actions/runs/29467649395)
+  proved the environment, security, and native fixes, then failed because the
+  API E2E did not expose the investigation startup outcome.
+- [Run 29468519658](https://github.com/shawliu998/Glint/actions/runs/29468519658)
+  exposed the non-idempotent cached `cargo-audit` install and was superseded by
+  the fix through the configured concurrency cancellation.
+
+After the green run, branch protection was enabled on `main` with strict,
+administrator-enforced required checks for `phase1`, `phase2`,
+`security-audit`, and `macos-native`. Force pushes and branch deletion remain
+disabled. The repository now has a remote, reproducible CI trust baseline.
 
 ## Next files after Milestone A
 

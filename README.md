@@ -38,6 +38,8 @@ Phase 2 extends the same path with scheduled GitHub and RSS collection; it does 
 
 ## Verification
 
+Remote CI: [Glint verification workflow](https://github.com/shawliu998/Glint/actions/workflows/verify.yml) · [P2.5 green baseline](https://github.com/shawliu998/Glint/actions/runs/29468568771)
+
 Run the deterministic local P1/P2 acceptance gate from the repository root:
 
 ```bash
