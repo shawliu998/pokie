@@ -13,6 +13,7 @@ command -v pnpm >/dev/null 2>&1 || { printf 'pnpm is required for the native Tau
 command -v node >/dev/null 2>&1 || { printf 'node is required for the native Tauri gate\n' >&2; exit 2; }
 command -v curl >/dev/null 2>&1 || { printf 'curl is required for the native Tauri gate\n' >&2; exit 2; }
 command -v rg >/dev/null 2>&1 || { printf 'ripgrep is required for the native artifact token scan\n' >&2; exit 2; }
+command -v plutil >/dev/null 2>&1 || { printf 'macOS plutil is required for the app bundle gate\n' >&2; exit 2; }
 command -v security >/dev/null 2>&1 || { printf 'macOS security CLI is required for the Keychain gate\n' >&2; exit 2; }
 cargo_bin=${CARGO_BIN:-}
 if [[ -z "$cargo_bin" && -x "/opt/homebrew/opt/rustup/bin/cargo" ]]; then
@@ -41,7 +42,23 @@ unset GLINT_AUTH_HMAC_SECRET GLINT_AUTH_ACCESS_TOKEN GLINT_AUTH_FORGED_TOKEN GLI
 printf '\n==> Tauri native build and Keychain unit boundary\n'
 "$cargo_bin" test --locked --manifest-path apps/mac/src-tauri/Cargo.toml
 pnpm --filter @glint/mac test -- --run
-pnpm --filter @glint/mac exec tauri build --debug --no-bundle -- --locked
+pnpm --filter @glint/mac exec tauri build --debug --bundles app --no-sign -- --locked
+native_app="$CARGO_TARGET_DIR/debug/bundle/macos/Glint.app"
+native_app_plist="$native_app/Contents/Info.plist"
+native_app_binary="$native_app/Contents/MacOS/glint"
+[[ -d "$native_app" && -f "$native_app_plist" && -x "$native_app_binary" ]] || {
+  printf 'Native gate did not produce a runnable Glint.app bundle.\n' >&2
+  exit 2
+}
+bundle_identifier=$(plutil -extract CFBundleIdentifier raw -o - "$native_app_plist")
+[[ "$bundle_identifier" == "com.glint.workbench" && "$bundle_identifier" != *.app ]] || {
+  printf 'Native Glint.app bundle identifier is invalid.\n' >&2
+  exit 2
+}
+if rg -n 'className="traffic"|>●[[:space:]]+●[[:space:]]+●<' apps/mac/src >/dev/null; then
+  printf 'Native gate found fake React traffic lights.\n' >&2
+  exit 2
+fi
 
 scan_native_artifacts() (
   local artifact
@@ -156,7 +173,7 @@ fixture_log=""
 tauri_log=""
 ready_marker=""
 cors_headers=""
-cache_path="$HOME/Library/Application Support/com.glint.app/offline-cache/workspace-${fixture_workspace}.json"
+cache_path="$HOME/Library/Application Support/com.glint.workbench/offline-cache/workspace-${fixture_workspace}.json"
 cache_backup=""
 cache_had_value=0
 cache_state_modified=0

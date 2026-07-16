@@ -302,6 +302,14 @@
       "license": "MIT OR Apache-2.0",
       "source": "https://crates.io/crates/tauri-build/2.6.3",
       "manifest_scope": "build"
+    },
+    {
+      "ecosystem": "rust",
+      "name": "tauri-plugin-window-state",
+      "version": "2.4.1",
+      "license": "Apache-2.0 OR MIT",
+      "source": "https://crates.io/crates/tauri-plugin-window-state/2.4.1",
+      "manifest_scope": "runtime"
     }
   ]
 }

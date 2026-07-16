@@ -43,6 +43,7 @@ the license text distributed by each package. Resolved versions are pinned by
 | rust | `sha2` | `0.10.9` | `MIT OR Apache-2.0` | [source](https://crates.io/crates/sha2/0.10.9) |
 | rust | `tauri` | `2.11.1` | `MIT OR Apache-2.0` | [source](https://crates.io/crates/tauri/2.11.1) |
 | rust | `tauri-build` | `2.6.3` | `MIT OR Apache-2.0` | [source](https://crates.io/crates/tauri-build/2.6.3) |
+| rust | `tauri-plugin-window-state` | `2.4.1` | `Apache-2.0 OR MIT` | [source](https://crates.io/crates/tauri-plugin-window-state/2.4.1) |
 
 ## Review notes
 
@@ -50,8 +51,9 @@ the license text distributed by each package. Resolved versions are pinned by
   artifacts under LGPL-3.0-only. Their source and replacement rights must remain
   available under that license; this entry is not approval to copy their source into
   Glint.
-- Tauri and `security-framework` use dual MIT/Apache-2.0 terms. Release packaging
-  must retain the upstream notices and license files supplied with those artifacts.
+- Tauri, `tauri-plugin-window-state`, and `security-framework` use dual
+  MIT/Apache-2.0 terms. Release packaging must retain the upstream notices and
+  license files supplied with those artifacts.
 - No shadcn/ui component or other third-party source is vendored in this baseline.
   If generated or vendored source is added, its exact generator/upstream provenance
   and required notices must be appended before the license gate can pass.

@@ -210,3 +210,11 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Verify native Tauri runtime
         run: ./scripts/verify_tauri_runtime.sh
+      - name: Package Glint.app artifact
+        run: ditto -c -k --sequesterRsrc --keepParent apps/mac/src-tauri/target/debug/bundle/macos/Glint.app "$RUNNER_TEMP/Glint.app.zip"
+      - name: Upload Glint.app bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: glint-macos-app-${{ github.sha }}
+          path: ${{ runner.temp }}/Glint.app.zip
+          if-no-files-found: error

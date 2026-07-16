@@ -22,8 +22,14 @@ def test_native_gate_uses_node_ports_and_actual_cargo_target_dir() -> None:
     assert "node:net" in script
     assert 'CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT_DIR/apps/mac/src-tauri/target}"' in script
     assert 'for artifact in apps/mac/dist "$CARGO_TARGET_DIR"' in script
+    assert "tauri build --debug --bundles app --no-sign -- --locked" in script
+    assert 'native_app="$CARGO_TARGET_DIR/debug/bundle/macos/Glint.app"' in script
+    assert "bundle_identifier=$(plutil -extract CFBundleIdentifier raw" in script
+    assert '[[ "$bundle_identifier" == "com.glint.workbench"' in script
+    assert "Native gate found fake React traffic lights" in script
     assert "pnpm --filter @glint/mac test -- --run" in script
     assert "ripgrep is required for the native artifact token scan" in script
+    assert "macOS plutil is required for the app bundle gate" in script
     assert "GLINT_FIXTURE_ALLOWED_ORIGIN=http://127.0.0.1:1420" in script
     assert "Native API CORS preflight failed before WebView startup" in script
     assert "Access-Control-Request-Headers: Authorization,X-Workspace-ID" in script
@@ -54,6 +60,35 @@ def test_native_gate_uses_node_ports_and_actual_cargo_target_dir() -> None:
     assert " -A" not in script
     assert " -U" not in script
     assert script.index('"$cargo_bin" test --locked') < script.index("tauri build")
+
+
+def test_native_shell_has_real_bundle_window_state_and_native_menu() -> None:
+    config = json.loads(Path("apps/mac/src-tauri/tauri.conf.json").read_text(encoding="utf-8"))
+    assert config["productName"] == "Glint"
+    assert config["identifier"] == "com.glint.workbench"
+    assert not config["identifier"].endswith(".app")
+    assert config["bundle"]["active"] is True
+    assert config["bundle"]["targets"] == ["app"]
+    assert "icons/icon.icns" in config["bundle"]["icon"]
+    assert config["app"]["windows"][0]["decorations"] is True
+
+    cargo_manifest = Path("apps/mac/src-tauri/Cargo.toml").read_text(encoding="utf-8")
+    native_source = Path("apps/mac/src-tauri/src/main.rs").read_text(encoding="utf-8")
+    workbench_source = Path("apps/mac/src/features/workbench/Workbench.tsx").read_text(
+        encoding="utf-8"
+    )
+    assert 'tauri-plugin-window-state = "=2.4.1"' in cargo_manifest
+    assert "StateFlags::SIZE | StateFlags::MAXIMIZED" in native_source
+    assert ".menu(native_menu)" in native_source
+    for real_native_item in (".about(", ".quit()", ".undo()", ".copy()", ".minimize()"):
+        assert real_native_item in native_source
+    assert 'className="traffic"' not in workbench_source
+    assert "● ● ●" not in workbench_source
+
+    workflow = Path(".github/workflows/verify.yml").read_text(encoding="utf-8")
+    assert "ditto -c -k --sequesterRsrc --keepParent" in workflow
+    assert "apps/mac/src-tauri/target/debug/bundle/macos/Glint.app" in workflow
+    assert "${{ runner.temp }}/Glint.app.zip" in workflow
 
 
 def test_tauri_dev_command_forwards_the_configured_dev_url_host_and_port() -> None:

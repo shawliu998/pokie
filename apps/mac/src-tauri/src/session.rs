@@ -85,7 +85,10 @@ mod tests {
 
     #[test]
     fn validates_opaque_tokens_without_logging_or_decoding_them() {
-        assert_eq!(validate_access_token("  opaque.jwt-or-provider-token  "), Ok("opaque.jwt-or-provider-token"));
+        assert_eq!(
+            validate_access_token("  opaque.jwt-or-provider-token  "),
+            Ok("opaque.jwt-or-provider-token")
+        );
         assert!(validate_access_token("").is_err());
         assert!(validate_access_token("line\nbreak").is_err());
         assert!(validate_access_token(&"x".repeat(MAX_ACCESS_TOKEN_BYTES + 1)).is_err());

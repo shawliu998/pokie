@@ -92,7 +92,9 @@ fn validate_projection(
     let projection: Value = serde_json::from_str(projection_json)
         .map_err(|_| "offline cache projection is invalid JSON".to_string())?;
     if contains_forbidden_key(&projection) {
-        return Err("offline cache projection contains a forbidden secret-bearing field".to_string());
+        return Err(
+            "offline cache projection contains a forbidden secret-bearing field".to_string(),
+        );
     }
     let object = projection
         .as_object()
@@ -222,7 +224,11 @@ mod tests {
     #[test]
     fn signed_session_claims_are_subject_and_expiry_scoped() {
         let subject = "00000000-0000-4000-8000-000000000002";
-        let expiry = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() + 300;
+        let expiry = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+            + 300;
         let payload = URL_SAFE_NO_PAD.encode(format!(r#"{{"sub":"{subject}","exp":{expiry}}}"#));
         let token = format!("header.{payload}.signature");
         assert_eq!(token_claims(&token).unwrap().0, subject);
@@ -235,9 +241,23 @@ mod tests {
         let workspace = "00000000-0000-4000-8000-000000000001";
         let principal = "00000000-0000-4000-8000-000000000002";
         let cached_at = "2026-07-15T05:00:00Z";
-        let valid = format!(r#"{{"schemaVersion":"{PROJECTION_CACHE_SCHEMA}","workspaceId":"{workspace}","principalId":"{principal}","cachedAt":"{cached_at}","projection":{{}}}}"#);
+        let valid = format!(
+            r#"{{"schemaVersion":"{PROJECTION_CACHE_SCHEMA}","workspaceId":"{workspace}","principalId":"{principal}","cachedAt":"{cached_at}","projection":{{}}}}"#
+        );
         assert!(validate_projection(&valid, workspace, principal, cached_at).is_ok());
-        assert!(validate_projection(&valid.replace(PROJECTION_CACHE_SCHEMA, "old-v0"), workspace, principal, cached_at).is_err());
-        assert!(validate_projection(&valid.replace("\"projection\":{}", "\"access_token\":\"secret\""), workspace, principal, cached_at).is_err());
+        assert!(validate_projection(
+            &valid.replace(PROJECTION_CACHE_SCHEMA, "old-v0"),
+            workspace,
+            principal,
+            cached_at
+        )
+        .is_err());
+        assert!(validate_projection(
+            &valid.replace("\"projection\":{}", "\"access_token\":\"secret\""),
+            workspace,
+            principal,
+            cached_at
+        )
+        .is_err());
     }
 }
