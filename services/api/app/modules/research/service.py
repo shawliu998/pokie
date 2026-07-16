@@ -357,7 +357,11 @@ def _resolve_signal_content_lineage(
                     ImportManifestContentVersion.import_manifest_id == ImportManifest.id,
                 )
                 .where(
-                    ImportManifest.id == source.current_import_manifest_id,
+                    # A SignalEvidence row freezes the ContentVersion that was
+                    # observed when the Signal was created. A later import may
+                    # advance the source's current manifest, but it must not
+                    # rewrite that immutable evidence origin.
+                    ImportManifest.id == raw.import_manifest_id,
                     ImportManifest.workspace_id == workspace_id,
                     ImportManifest.source_connection_id == source.id,
                     ImportManifestContentVersion.content_version_id == version.id,

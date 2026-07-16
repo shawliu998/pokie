@@ -1,13 +1,13 @@
 # Glint 90-second demo script
 
-Status: script ready; recording and publishable screenshots are **Pending**.
+Status: script and five reviewed real-app screenshots complete; recording is **Pending**.
 
 ## Before recording
 
 - Use a real `Glint.app` run at one consistent window size. Do not show browser
   developer tools, terminal windows, Keychain contents, tokens, or private data.
 - Choose exactly one evidence mode and say it aloud. Until live-smoke evidence is
-  recorded, use the deterministic synthetic fixture and call it a **fixture**.
+  recorded, use the **Imported Demo Fixture** and call it imported demo data.
 - Keep the visible authenticity badge in frame. A `Collected` lineage badge does
   not convert a fixture run into a live run.
 - Reset fixture state before the take. Do not splice screens from different data
@@ -21,7 +21,7 @@ Show the workbench shell and say:
 
 > Product teams see changes across feedback and public sources, but lose the
 > reasoning between a signal and a roadmap decision. Glint keeps that path
-> evidence-backed. This take uses deterministic synthetic fixture data—no live
+> evidence-backed. This take uses an Imported Demo Fixture—no live
 > network collection and no LLM.
 
 Point out Inbox, Investigations, Decisions, and Monitoring. Do not describe an
@@ -66,6 +66,7 @@ The portfolio requires real-app captures for:
 4. Decision Brief
 5. Monitoring
 
-Target paths under `docs/assets/` are reserved, but no files should be added
-until every capture passes the privacy/authenticity review. There is currently
-no recorded video artifact.
+All five files under `docs/assets/` were captured at 1440×960 from one local
+API/worker/Postgres demo run and passed the privacy/authenticity review. Their
+provenance is recorded in [the asset manifest](./assets/README.md). There is
+currently no recorded video artifact.

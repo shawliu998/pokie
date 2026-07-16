@@ -8,9 +8,9 @@ Glint watches approved product-research sources, turns versioned changes into
 explainable Signals, and keeps the evidence, counter-evidence, human reviews,
 and final recommendation connected through a Decision Brief.
 
-> Portfolio image status: real-application screenshots have not yet been
-> approved for publication. No mock or test-fixture image is presented here as
-> a product screenshot.
+> The screenshots below are 1440×960 captures of the real React workbench
+> backed by the local API, worker, Postgres, and object store. They use the
+> clearly labelled **Imported Demo Fixture**; they are not live-network proof.
 
 ## What Glint does
 
@@ -23,10 +23,19 @@ and final recommendation connected through a Decision Brief.
 ## Product walkthrough
 
 The pilot workflow is implemented in the Mac workbench: Inbox → Signal detail →
-Investigation evidence and Claim review → Decision Brief → Markdown export. A
-[90-second demo script](./docs/DEMO_SCRIPT.md) is ready, but the five required
-portfolio screenshots remain **Pending** until they are captured from a real app
-run with one consistent window size and reviewed for secrets and private data.
+Investigation evidence and Claim review → Decision Brief → Markdown export. The
+five real-app captures use one reviewed runtime and window size; the
+[90-second demo script](./docs/DEMO_SCRIPT.md) documents the matching narrative.
+
+![Glint Signal Inbox](./docs/assets/glint-inbox.png)
+
+![Glint Signal detail with explainable detection](./docs/assets/glint-signal-detail.png)
+
+![Glint Investigation business timeline](./docs/assets/glint-investigation.png)
+
+![Glint Decision Brief](./docs/assets/glint-decision-brief.png)
+
+![Glint source monitoring](./docs/assets/glint-monitoring.png)
 
 ## Core workflow
 
@@ -47,7 +56,7 @@ GitHub / RSS / CSV
 | GitHub and RSS connectors | Contract, security, pagination, dedupe, and deterministic fixture tests | **Deterministic synthetic fixtures**, not live | **No LLM** |
 | Captured public payloads | None committed | **Captured Fixture: not available** | **No LLM** |
 | Networked GitHub/RSS smoke | Opt-in read-only runner implemented | **Live verification: Pending** | **No LLM** |
-| Mac portfolio screenshots | Not yet published | Real-app capture review: **Pending** | Not applicable |
+| Mac portfolio screenshots | Real local API/worker/Postgres render at 1440×960 | **Imported Demo Fixture**, visibly labelled | Not applicable |
 
 “Collected” in the domain model describes connector lineage; it does not by
 itself prove that a particular demo or test contacted a live service. Live data
@@ -151,7 +160,7 @@ and [API contracts](./docs/API_CONTRACTS.md) for the technical detail.
 - The `.app` is not Developer ID signed or notarized.
 - Live GitHub and RSS smoke has not been recorded for the final P2.5 candidate.
 - No external pilot has run; there are no external user results to report.
-- Portfolio screenshots and a recorded demo video have not been produced.
+- A recorded demo video has not been produced.
 - Source support is limited to imported CSV plus GitHub/RSS boundaries.
 - Production SLOs, operations, disaster recovery, and GA readiness are not
   established.

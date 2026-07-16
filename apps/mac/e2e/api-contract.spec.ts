@@ -116,15 +116,19 @@ test('strict API mode covers CSV → Signal → SSE/reviews → Brief → termin
   await expect(page.locator('.detail-header h2')).not.toBeEmpty();
   if (fixtureMode) {
     await expect(page.getByRole('heading', { name: 'Permission friction rose in collected GitHub content' })).toBeVisible();
+    await page.getByText('Detection details').click();
     await expect(page.getByText('github_permission_mentions_delta >= 2', { exact: true })).toBeVisible();
     await expect(page.getByText('GitHub discussions scope is currently partial.')).toBeVisible();
     await expect(page.getByText(/Glint GitHub · last success/)).toBeVisible();
+    await page.getByText('Detection details').click();
   } else {
-    const importedSignal = page.locator('button.signal-row').filter({ hasText: 'static_import_content_count > 0' }).first();
+    const importedSignal = page.locator('button.signal-row').first();
     await expect(importedSignal).toBeVisible({ timeout: 120_000 });
     await importedSignal.click();
+    await page.getByText('Detection details').click();
     await expect(page.getByText('static_import_content_count > 0', { exact: true })).toBeVisible();
     await expect(page.getByText(/P1 Acceptance CSV · last success/)).toBeVisible();
+    await page.getByText('Detection details').click();
   }
   await page.keyboard.press('Meta+k');
   let commandPalette = page.getByRole('dialog', { name: 'Command Palette' });
@@ -179,9 +183,11 @@ test('strict API mode covers CSV → Signal → SSE/reviews → Brief → termin
   if (investigationOutcome === 'error') throw new Error(`Run Investigation failed: ${await investigationError.innerText()}`);
   if (fixtureMode) await expect(page.locator('.detail-header')).toContainText('collected');
   await runsTab.click();
-  await expect(page.getByText('Evidence and Claim proposal persisted.')).toBeVisible({ timeout: 120_000 });
+  await expect(page.getByText('Latest activity: Evidence and Claim proposal persisted.', { exact: true })).toBeVisible({ timeout: 120_000 });
+  await page.getByText('Advanced / Debug event stream').click();
   if (fixtureMode) await expect(page.getByText('BROKEN GAP EVENT MUST BE DISCARDED')).toHaveCount(0);
   await expect(page.getByText(/SSE connected/)).toBeVisible();
+  await page.getByText('Advanced / Debug event stream').click();
   await capture('03-investigation-runs');
 
   await page.getByRole('tab', { name: 'Evidence' }).click();
@@ -214,8 +220,10 @@ test('strict API mode covers CSV → Signal → SSE/reviews → Brief → termin
     await page.reload();
     await page.getByRole('button', { name: 'Investigations' }).click();
     await page.getByRole('tab', { name: 'Runs' }).click();
+    await page.getByText('Advanced / Debug event stream').click();
     await expect(page.locator('.run-event').filter({ hasText: 'Immutable run input accepted.' })).toBeVisible();
     await expect(page.locator('.run-event').filter({ hasText: 'Evidence and Claim proposal persisted.' })).toBeVisible();
+    await page.getByText('Advanced / Debug event stream').click();
   }
   await page.getByRole('tab', { name: 'Claims' }).click();
   await page.getByRole('button', { name: 'Verify' }).first().click();

@@ -6,11 +6,11 @@ Evidence snapshot: 2026-07-16 (Asia/Shanghai)
 
 **P2.5 Status: Conditionally Accepted**
 
-The repository trust baseline, deterministic P1/P2 path, and a local unsigned
-Mac bundle have evidence. Final P2.5 acceptance is withheld because the exact
-candidate commit has not completed remote CI, live GitHub/RSS verification and
-the required real-app portfolio captures have not been recorded, and no external
-pilot has run.
+The repository trust baseline, deterministic P1/P2 path, local unsigned Mac
+bundle, imported-demo vertical flow, and five reviewed real-app captures have
+evidence. Final P2.5 acceptance is withheld because the exact candidate commit
+has not completed remote CI, live GitHub/RSS verification has not been
+authorized/recorded, and no external pilot has run.
 
 Recommendation: **do not enter Phase 3 yet**. Close the candidate CI, live-data,
 vertical-flow, and portfolio evidence below first. This document must be updated
@@ -128,17 +128,20 @@ Required publishable paths and current state:
 
 | Artifact | Status |
 | --- | --- |
-| `docs/assets/glint-inbox.png` | Pending |
-| `docs/assets/glint-signal-detail.png` | Pending |
-| `docs/assets/glint-investigation.png` | Pending |
-| `docs/assets/glint-decision-brief.png` | Pending |
-| `docs/assets/glint-monitoring.png` | Pending |
+| `docs/assets/glint-inbox.png` | **Complete** — reviewed 1440×960 real-app render |
+| `docs/assets/glint-signal-detail.png` | **Complete** — reviewed 1440×960 real-app render |
+| `docs/assets/glint-investigation.png` | **Complete** — reviewed 1440×960 real-app render |
+| `docs/assets/glint-decision-brief.png` | **Complete** — reviewed 1440×960 real-app render |
+| `docs/assets/glint-monitoring.png` | **Complete** — reviewed 1440×960 real-app render |
 | [90-second demo script](./DEMO_SCRIPT.md) | Complete; no video claimed |
 | [Pilot plan](./PILOT_PLAN.md) | Complete; no sessions/results claimed |
 
-Existing files under `tests/artifacts/` are test evidence. They are not listed
-as portfolio screenshots and must not be copied into `docs/assets/` without a
-real-app capture and privacy/authenticity review.
+The five captures came from one real local application render backed by the
+API, worker, Postgres, and object store. The visible data mode is **Imported Demo
+Fixture**; the run verified 2 supporting and 1 opposing Evidence records, a
+`decision_ready` brief, and a terminal digest-bound export. No token, private
+path, terminal, browser tooling, or private customer data is visible. See the
+[asset manifest](./assets/README.md).
 
 ## Unresolved risks
 
@@ -147,10 +150,9 @@ real-app capture and privacy/authenticity review.
    lack an authorized acceptance run.
 3. Distribution is unsigned/not notarized; external pilot installation is not
    ready.
-4. There are no reviewed, secret-free real-app portfolio captures.
-5. No external pilot, production SLO, operations exercise, disaster recovery,
+4. No external pilot, production SLO, operations exercise, disaster recovery,
    security certification, or GA evidence exists.
-6. Source coverage remains limited, and model-assisted research is intentionally
+5. Source coverage remains limited, and model-assisted research is intentionally
    absent.
 
 ## Out of scope
@@ -173,5 +175,5 @@ update from the final published SHA:
   degraded checks (a skip cannot pass the corresponding requirement);
 - one complete live-collected vertical-flow result, if required by the P2.5
   definition of done;
-- five reviewed real-app screenshots; and
+- five reviewed real-app screenshots (completed for the imported-demo boundary); and
 - remaining risks plus the Phase 3 recommendation.

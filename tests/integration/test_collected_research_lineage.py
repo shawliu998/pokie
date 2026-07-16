@@ -557,6 +557,50 @@ def test_mixed_imported_and_collected_signal_freezes_exactly_one_origin_per_cont
                 data_authenticity="imported",
             )
         )
+        later_session = ImportSession(
+            workspace_id=workspace_id,
+            source_connection_id=source.id,
+            expected_source_row_version=2,
+            local_manifest_digest="sha256:later-local",
+            file_digest="sha256:later-file",
+            expected_upload_digest="sha256:later-upload",
+            client_file_name="later.csv",
+            file_size_bytes=11,
+            media_type="text/csv",
+            parser_version="csv-v1",
+            schema_version="mixed-v1",
+            selected_scope_json={"columns": ["body"]},
+            selected_scope_digest="sha256:later-scope",
+            state="finalized",
+            uploaded_object_key="imports/later.csv",
+            uploaded_object_digest="sha256:later-upload",
+            created_by=principal_id,
+            data_authenticity="imported",
+        )
+        db.add(later_session)
+        db.flush()
+        later_manifest = ImportManifest(
+            workspace_id=workspace_id,
+            import_session_id=later_session.id,
+            source_connection_id=source.id,
+            file_digest=later_session.file_digest,
+            uploaded_object_key="imports/later.csv",
+            uploaded_object_digest=later_session.expected_upload_digest,
+            parser_version="csv-v1",
+            schema_version="mixed-v1",
+            selected_scope_json={"columns": ["body"]},
+            selected_scope_digest=later_session.selected_scope_digest,
+            consent_record_id=str(fixture["signal_id"]),
+            normalized_payload_digest="sha256:later-normalized",
+            content_count=0,
+            finalized_at=fixture["now"],
+            data_authenticity="imported",
+        )
+        db.add(later_manifest)
+        db.flush()
+        later_session.terminal_manifest_id = later_manifest.id
+        source.current_import_manifest_id = later_manifest.id
+        later_manifest_id = later_manifest.id
         watchlist = db.get(Watchlist, str(fixture["watchlist"]["id"]))
         assert watchlist is not None
         watchlist.rules_json = {
@@ -634,6 +678,10 @@ def test_mixed_imported_and_collected_signal_freezes_exactly_one_origin_per_cont
         manifest_json = run.run_input_manifest_json
         assert manifest_json["schema_version"] == "run-input-manifest-v2"
         assert len(manifest_json["terminal_import_manifests"]) == 1
+        assert (
+            manifest_json["terminal_import_manifests"][0]["import_manifest_id"]
+            != later_manifest_id
+        )
         assert len(manifest_json["terminal_collection_runs"]) == 1
         assert {item["origin_type"] for item in manifest_json["content_versions"]} == {
             "imported",
