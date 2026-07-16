@@ -193,9 +193,18 @@ test('strict API mode covers CSV → Signal → SSE/reviews → Brief → termin
 
   await page.getByLabel('PM Judgment').fill('The owner PM recommends enterprise-admin validation.');
   const recommendation = page.getByLabel('Recommendation recommendation-1');
-  await expect(page.getByRole('button', { name: 'Accept' })).toBeDisabled();
+  const acceptRecommendation = page.getByRole('button', { name: /^(Accept|Save accepted)$/ });
+  await recommendation.fill('Temporary complete recommendation for guard verification.');
+  await expect(acceptRecommendation).toBeEnabled();
+  await recommendation.fill('TBD');
+  await expect(acceptRecommendation).toBeDisabled();
   await recommendation.fill('Validate a permission execution preview with enterprise administrators.');
-  await page.getByRole('button', { name: 'Accept' }).click();
+  const acceptedBriefResponse = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.request().method() === 'PATCH' && /^\/v1\/decision-briefs\/[^/]+$/.test(url.pathname);
+  });
+  await acceptRecommendation.click();
+  const acceptedBrief = await (await acceptedBriefResponse).json() as { current_version: { version_number: number } };
   await expect(page.getByRole('button', { name: 'Save accepted' })).toBeVisible();
   const counterEvidenceSearch = page.getByRole('region', { name: 'Counter-evidence search' });
   await counterEvidenceSearch.getByLabel('Counter-evidence search queries').fill('permission execution preview alternatives and objections');
@@ -216,7 +225,7 @@ test('strict API mode covers CSV → Signal → SSE/reviews → Brief → termin
       block_document: { no_counter_evidence_search: unknown };
     };
   };
-  expect(savedBrief.current_version.version_number).toBe(3);
+  expect(savedBrief.current_version.version_number).toBe(acceptedBrief.current_version.version_number + 1);
   expect(savedBrief.current_version.block_document.no_counter_evidence_search).toMatchObject({
     queries: ['permission execution preview alternatives and objections'],
   });
