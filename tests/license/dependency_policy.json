@@ -217,6 +217,14 @@
     },
     {
       "ecosystem": "javascript",
+      "name": "react-resizable-panels",
+      "version": "4.12.2",
+      "license": "MIT",
+      "source": "https://www.npmjs.com/package/react-resizable-panels/v/4.12.2",
+      "manifest_scope": "runtime"
+    },
+    {
+      "ecosystem": "javascript",
       "name": "typescript",
       "version": "5.9.2",
       "license": "Apache-2.0",

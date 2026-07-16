@@ -18,7 +18,8 @@
   "dependencies": {
     "@glint/ui": "workspace:*",
     "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "react-dom": "18.3.1",
+    "react-resizable-panels": "4.12.2"
   },
   "devDependencies": {
     "@eslint/js": "9.35.0",

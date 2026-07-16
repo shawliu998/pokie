@@ -10,7 +10,7 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [{ "title": "Glint", "width": 1180, "height": 760, "minWidth": 960, "minHeight": 640, "decorations": true, "resizable": true }],
+    "windows": [{ "title": "Glint", "width": 1180, "height": 760, "minWidth": 760, "minHeight": 640, "decorations": true, "resizable": true }],
     "security": {
       "capabilities": ["default"],
       "csp": "default-src 'none'; base-uri 'none'; connect-src 'self' ipc: http://ipc.localhost https:; font-src 'self'; form-action 'none'; frame-ancestors 'none'; img-src 'self' data:; script-src 'self'; style-src 'self'",

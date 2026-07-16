@@ -32,6 +32,7 @@ the license text distributed by each package. Resolved versions are pinned by
 | javascript | `jsdom` | `26.1.0` | `MIT` | [source](https://www.npmjs.com/package/jsdom/v/26.1.0) |
 | javascript | `react` | `18.3.1` | `MIT` | [source](https://www.npmjs.com/package/react/v/18.3.1) |
 | javascript | `react-dom` | `18.3.1` | `MIT` | [source](https://www.npmjs.com/package/react-dom/v/18.3.1) |
+| javascript | `react-resizable-panels` | `4.12.2` | `MIT` | [source](https://www.npmjs.com/package/react-resizable-panels/v/4.12.2) |
 | javascript | `typescript` | `5.9.2` | `Apache-2.0` | [source](https://www.npmjs.com/package/typescript/v/5.9.2) |
 | javascript | `typescript-eslint` | `8.42.0` | `MIT` | [source](https://www.npmjs.com/package/typescript-eslint/v/8.42.0) |
 | javascript | `vite` | `6.4.3` | `MIT` | [source](https://www.npmjs.com/package/vite/v/6.4.3) |
