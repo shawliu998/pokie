@@ -44,7 +44,10 @@ jobs:
           key: cargo-${{ runner.os }}-${{ hashFiles('apps/mac/src-tauri/Cargo.lock') }}
           restore-keys: cargo-${{ runner.os }}-
       - name: Install cargo-audit 0.22.2
-        run: cargo install cargo-audit --version 0.22.2 --locked
+        run: |
+          if ! cargo audit --version 2>/dev/null | grep -q '0\.22\.2'; then
+            cargo install cargo-audit --version 0.22.2 --locked --force
+          fi
       - uses: pnpm/action-setup@v4
         with:
           version: 10.28.0
@@ -100,7 +103,10 @@ jobs:
           key: cargo-${{ runner.os }}-${{ hashFiles('apps/mac/src-tauri/Cargo.lock') }}
           restore-keys: cargo-${{ runner.os }}-
       - name: Install cargo-audit 0.22.2
-        run: cargo install cargo-audit --version 0.22.2 --locked
+        run: |
+          if ! cargo audit --version 2>/dev/null | grep -q '0\.22\.2'; then
+            cargo install cargo-audit --version 0.22.2 --locked --force
+          fi
       - uses: pnpm/action-setup@v4
         with:
           version: 10.28.0
@@ -148,7 +154,10 @@ jobs:
           key: cargo-${{ runner.os }}-${{ hashFiles('apps/mac/src-tauri/Cargo.lock') }}
           restore-keys: cargo-${{ runner.os }}-
       - name: Install cargo-audit 0.22.2
-        run: cargo install cargo-audit --version 0.22.2 --locked
+        run: |
+          if ! cargo audit --version 2>/dev/null | grep -q '0\.22\.2'; then
+            cargo install cargo-audit --version 0.22.2 --locked --force
+          fi
       - uses: pnpm/action-setup@v4
         with:
           version: 10.28.0
