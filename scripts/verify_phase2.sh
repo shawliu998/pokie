@@ -39,7 +39,8 @@ fi
 
 if [[ "${GLINT_ENABLE_LIVE_SMOKE:-0}" == "1" ]]; then
   if has_python_module pytest; then
-    layer "explicit live smoke" env GLINT_ENABLE_LIVE_SMOKE=1 "$PYTHON_BIN" -m pytest tests/smoke -k live
+    layer "explicit live smoke" env GLINT_ENABLE_LIVE_SMOKE=1 PYTHON_BIN="$PYTHON_BIN" \
+      "$SCRIPT_DIR/verify_live_connectors.sh"
   else
     layer "explicit live smoke" false
   fi

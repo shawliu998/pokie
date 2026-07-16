@@ -17,7 +17,12 @@ from connectors.factory import (
 )
 from connectors.github.connector import GitHubConnector, GitHubConnectorConfig
 from connectors.rss.connector import RssConnector, RssConnectorConfig
-from connectors.shared.contracts import ConnectorPartialFailure, ConnectorStatus
+from connectors.shared.contracts import (
+    ConnectorPartialFailure,
+    ConnectorRateLimited,
+    ConnectorStatus,
+    ConnectorTimeout,
+)
 from connectors.shared.fixture_transport import FixtureTransport, json_route, xml_route
 from connectors.shared.http_transport import ProductionHttpTransport
 from connectors.shared.utils import canonicalize_url
@@ -192,6 +197,65 @@ def test_github_repository_404_is_failed_not_healthy_empty() -> None:
     assert page.health.details["failed_reasons"] == ["repository:404"]
 
 
+@pytest.mark.parametrize("status_code", [403, 429])
+def test_github_rate_limit_statuses_are_retryable_and_redacted(status_code: int) -> None:
+    repository = "https://api.github.com/repos/acme/glint"
+    connector = GitHubConnector(
+        GitHubConnectorConfig(
+            source_connection_id=SOURCE,
+            owner="acme",
+            repo="glint",
+            token_ref="env://github_token",
+        ),
+        FixtureTransport(
+            {
+                repository: json_route(
+                    "{}",
+                    status_code=status_code,
+                    headers={"retry-after": "60"},
+                )
+            }
+        ),
+        token_resolver=lambda _: "private-fixture-token",
+    )
+    with pytest.raises(ConnectorRateLimited) as raised:
+        connector.health()
+    assert raised.value.retry_after_seconds == 60
+    assert "private-fixture-token" not in str(raised.value)
+
+
+def test_github_modified_issue_creates_new_digest_and_unavailable_is_deleted() -> None:
+    issue_url = "https://api.github.com/repos/acme/glint/issues/42"
+    deleted_url = "https://api.github.com/repos/acme/glint/issues/404"
+    first = {
+        "number": 42,
+        "title": "Permission regression",
+        "body": "Initial report",
+        "html_url": "https://github.com/acme/glint/issues/42",
+    }
+    updated = {**first, "body": "Updated report"}
+    connector = GitHubConnector(
+        GitHubConnectorConfig(
+            source_connection_id=SOURCE,
+            owner="acme",
+            repo="glint",
+            cursor_secret=CURSOR_SECRET,
+        ),
+        FixtureTransport(
+            {
+                issue_url: [json_route(json.dumps(first)), json_route(json.dumps(updated))],
+                deleted_url: json_route("{}", status_code=404),
+            }
+        ),
+    )
+    first_fetch = connector.fetch("github:acme/glint:issue:42")
+    updated_fetch = connector.fetch("github:acme/glint:issue:42")
+    assert first_fetch.item is not None and updated_fetch.item is not None
+    assert first_fetch.item.external_id == updated_fetch.item.external_id
+    assert first_fetch.item.content_version_digest != updated_fetch.item.content_version_digest
+    assert connector.fetch("github:acme/glint:issue:404").deleted
+
+
 def test_rss_expanded_dc_creator_is_author() -> None:
     url = "https://feeds.example.test/rss.xml"
     xml = """
@@ -243,6 +307,125 @@ def test_rss_rejects_userinfo_and_oversized_response() -> None:
     )
     with pytest.raises(ConnectorPartialFailure, match="byte cap"):
         connector.search("")
+
+
+@pytest.mark.parametrize("content_type", ["text/html", "application/json", "text/plain"])
+def test_rss_rejects_non_feed_content_types(content_type: str) -> None:
+    url = "https://feeds.example.test/rss.xml"
+    connector = RssConnector(
+        RssConnectorConfig(
+            source_connection_id=SOURCE,
+            feed_url=url,
+            resolver=lambda _: ["93.184.216.34"],
+        ),
+        FixtureTransport(
+            {
+                url: xml_route(
+                    "<rss><channel /></rss>",
+                    headers={"content-type": content_type},
+                )
+            }
+        ),
+    )
+    with pytest.raises(ConnectorPartialFailure, match="content type"):
+        connector.health()
+
+
+def test_rss_requires_a_content_type_and_accepts_charset_parameters() -> None:
+    url = "https://feeds.example.test/rss.xml"
+    missing = RssConnector(
+        RssConnectorConfig(
+            source_connection_id=SOURCE,
+            feed_url=url,
+            resolver=lambda _: ["93.184.216.34"],
+        ),
+        FixtureTransport(
+            {
+                url: xml_route(
+                    "<rss><channel /></rss>",
+                    headers={"content-type": ""},
+                )
+            }
+        ),
+    )
+    with pytest.raises(ConnectorPartialFailure, match="missing"):
+        missing.health()
+
+    accepted = RssConnector(
+        RssConnectorConfig(
+            source_connection_id=SOURCE,
+            feed_url=url,
+            resolver=lambda _: ["93.184.216.34"],
+        ),
+        FixtureTransport(
+            {
+                url: xml_route(
+                    "<rss><channel /></rss>",
+                    headers={"content-type": "application/rss+xml; charset=utf-8"},
+                )
+            }
+        ),
+    )
+    assert accepted.health().status is ConnectorStatus.HEALTHY
+
+
+def test_rss_missing_guid_duplicate_url_and_updated_item_versioning() -> None:
+    url = "https://feeds.example.test/rss.xml"
+    first = """
+    <rss version="2.0"><channel>
+      <item><title>Release α</title><link>https://example.test/release</link>
+        <description>Initial notes.</description></item>
+      <item><title>Release repost</title><link>https://example.test/release</link>
+        <description>Duplicate URL.</description></item>
+    </channel></rss>
+    """
+    updated = """
+    <rss version="2.0"><channel>
+      <item><title>Release α</title><link>https://example.test/release</link>
+        <description>Updated notes.</description></item>
+    </channel></rss>
+    """
+    connector = RssConnector(
+        RssConnectorConfig(
+            source_connection_id=SOURCE,
+            feed_url=url,
+            resolver=lambda _: ["93.184.216.34"],
+        ),
+        FixtureTransport({url: [xml_route(first), xml_route(updated)]}),
+    )
+    first_page = connector.search("")
+    second_page = connector.search("")
+    assert len(first_page.items) == 2
+    assert first_page.items[0].external_id == first_page.items[1].external_id
+    assert first_page.items[0].content_version_digest != second_page.items[0].content_version_digest
+    assert "α" in second_page.items[0].title
+
+
+def test_rss_invalid_feed_and_slow_response_are_explicitly_degraded() -> None:
+    url = "https://feeds.example.test/rss.xml"
+    invalid = RssConnector(
+        RssConnectorConfig(
+            source_connection_id=SOURCE,
+            feed_url=url,
+            resolver=lambda _: ["93.184.216.34"],
+        ),
+        FixtureTransport({url: xml_route("<rss>")}),
+    )
+    assert invalid.health().status is ConnectorStatus.DEGRADED
+    with pytest.raises(ConnectorPartialFailure, match="invalid RSS/Atom XML"):
+        invalid.search("")
+
+    slow = RssConnector(
+        RssConnectorConfig(
+            source_connection_id=SOURCE,
+            feed_url=url,
+            resolver=lambda _: ["93.184.216.34"],
+            timeout_seconds=0.01,
+        ),
+        FixtureTransport({}, timeout_urls={url}),
+    )
+    with pytest.raises(ConnectorTimeout):
+        slow.health()
 
 
 def test_connector_factory_resolves_token_ref_without_inline_secret(

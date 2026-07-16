@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from ipaddress import ip_address
@@ -32,6 +32,14 @@ from connectors.shared.utils import (
 ATOM = "{http://www.w3.org/2005/Atom}"
 CONTENT = "{http://purl.org/rss/1.0/modules/content/}"
 DC = "{http://purl.org/dc/elements/1.1/}"
+FEED_CONTENT_TYPES = frozenset(
+    {
+        "application/atom+xml",
+        "application/rss+xml",
+        "application/xml",
+        "text/xml",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -169,6 +177,8 @@ class RssConnector:
                     return response
                 url = urljoin(url, location)
                 continue
+            if response.status_code < 400:
+                _validate_feed_content_type(response.headers)
             return response
         raise ConnectorPartialFailure("rss redirect limit exceeded", [])
 
@@ -348,3 +358,12 @@ def _resolve_host(host: str, resolver: Callable[[str], list[str]] | None) -> lis
         return sorted({str(info[4][0]) for info in getaddrinfo(host, 443, proto=0)})
     except OSError as exc:
         raise ConnectorPartialFailure("rss host resolution failed", []) from exc
+
+
+def _validate_feed_content_type(headers: Mapping[str, str]) -> None:
+    raw_value = headers.get("content-type") or headers.get("Content-Type")
+    if not raw_value or not raw_value.strip():
+        raise ConnectorPartialFailure("rss response content type is missing", [])
+    media_type = raw_value.partition(";")[0].strip().lower()
+    if media_type not in FEED_CONTENT_TYPES:
+        raise ConnectorPartialFailure("rss response content type is not an XML feed", [])
