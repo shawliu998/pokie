@@ -23,6 +23,7 @@ def test_native_gate_uses_node_ports_and_actual_cargo_target_dir() -> None:
     assert 'CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT_DIR/apps/mac/src-tauri/target}"' in script
     assert 'for artifact in apps/mac/dist "$CARGO_TARGET_DIR"' in script
     assert "pnpm --filter @glint/mac test -- --run" in script
+    assert "ripgrep is required for the native artifact token scan" in script
     assert "GLINT_FIXTURE_ALLOWED_ORIGIN=http://127.0.0.1:1420" in script
     assert "Native API CORS preflight failed before WebView startup" in script
     assert "Access-Control-Request-Headers: Authorization,X-Workspace-ID" in script
@@ -30,6 +31,7 @@ def test_native_gate_uses_node_ports_and_actual_cargo_target_dir() -> None:
     assert "security -i" in script
     assert "-T /usr/bin/security -X %s" in script
     assert "rg -a -F -f -" in script
+    assert 'rg -a -F -f - -- "$artifact" >/dev/null 2>&1' not in script
     assert 'rg -a -F -- "$token"' not in script
     assert 'FIXTURE_TOKEN="$fixture_token"' not in script
     assert 'AUTH_SECRET="$auth_secret"' not in script

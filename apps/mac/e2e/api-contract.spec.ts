@@ -5,9 +5,15 @@ declare const process: { env: Record<string, string | undefined> };
 test('strict API mode covers CSV → Signal → SSE/reviews → Brief → terminal export and P2 health', async ({ page, request }) => {
   test.setTimeout(180_000);
   const fixtureMode = process.env.GLINT_E2E_API_MODE === 'fixture';
-  const apiUrl = process.env.GLINT_E2E_API_URL ?? process.env.VITE_GLINT_API_URL ?? (fixtureMode ? 'http://127.0.0.1:4174' : undefined);
-  const workspaceId = process.env.GLINT_E2E_WORKSPACE_ID ?? process.env.VITE_GLINT_WORKSPACE_ID ?? (fixtureMode ? '00000000-0000-4000-8000-000000000001' : undefined);
-  const accessToken = process.env.GLINT_E2E_ACCESS_TOKEN ?? process.env.VITE_GLINT_ACCESS_TOKEN ?? (fixtureMode ? 'fixture-access-token' : undefined);
+  const apiUrl = fixtureMode
+    ? process.env.GLINT_E2E_API_URL ?? 'http://127.0.0.1:4174'
+    : process.env.GLINT_E2E_API_URL ?? process.env.VITE_GLINT_API_URL;
+  const workspaceId = fixtureMode
+    ? process.env.GLINT_E2E_WORKSPACE_ID ?? '00000000-0000-4000-8000-000000000001'
+    : process.env.GLINT_E2E_WORKSPACE_ID ?? process.env.VITE_GLINT_WORKSPACE_ID;
+  const accessToken = fixtureMode
+    ? process.env.GLINT_E2E_ACCESS_TOKEN ?? 'fixture-access-token'
+    : process.env.GLINT_E2E_ACCESS_TOKEN ?? process.env.VITE_GLINT_ACCESS_TOKEN;
   const captureDir = process.env.GLINT_E2E_CAPTURE_DIR;
   const capture = async (name: string) => {
     if (captureDir) await page.screenshot({ path: `${captureDir}/${name}.png`, fullPage: true });
@@ -41,6 +47,9 @@ test('strict API mode covers CSV → Signal → SSE/reviews → Brief → termin
   await createdGithub.getByRole('button', { name: 'Save Product feedback GitHub configuration' }).click();
   createdGithub = page.getByRole('article', { name: 'Configured product feedback GitHub source' });
   await expect(createdGithub.getByLabel('Configured product feedback GitHub GitHub repository')).toHaveValue('glint-ui-contracts');
+  await createdGithub.getByLabel('Configured product feedback GitHub schedule Watchlist').selectOption({
+    label: fixtureMode ? 'Permission friction watchlist' : 'P1 Acceptance Watchlist',
+  });
   await createdGithub.getByRole('button', { name: 'Activate Configured product feedback GitHub' }).click();
   await expect(createdGithub).toContainText('validating');
   await expect(createdGithub).toContainText('source will be bound before schedule creation');

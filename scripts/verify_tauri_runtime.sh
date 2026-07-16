@@ -12,6 +12,7 @@ fi
 command -v pnpm >/dev/null 2>&1 || { printf 'pnpm is required for the native Tauri gate\n' >&2; exit 2; }
 command -v node >/dev/null 2>&1 || { printf 'node is required for the native Tauri gate\n' >&2; exit 2; }
 command -v curl >/dev/null 2>&1 || { printf 'curl is required for the native Tauri gate\n' >&2; exit 2; }
+command -v rg >/dev/null 2>&1 || { printf 'ripgrep is required for the native artifact token scan\n' >&2; exit 2; }
 command -v security >/dev/null 2>&1 || { printf 'macOS security CLI is required for the Keychain gate\n' >&2; exit 2; }
 cargo_bin=${CARGO_BIN:-}
 if [[ -z "$cargo_bin" && -x "/opt/homebrew/opt/rustup/bin/cargo" ]]; then
@@ -48,7 +49,7 @@ scan_native_artifacts() (
   [[ -n "${native_scan_token:-}" ]] || return 0
   for artifact in apps/mac/dist "$CARGO_TARGET_DIR"; do
     [[ -d "$artifact" ]] || continue
-    if printf '%s' "$native_scan_token" | rg -a -F -f - -- "$artifact" >/dev/null 2>&1; then
+    if printf '%s' "$native_scan_token" | rg -a -F -f - -- "$artifact" >/dev/null; then
       printf 'Native artifact token scan failed for %s.\n' "$artifact" >&2
       return 1
     else

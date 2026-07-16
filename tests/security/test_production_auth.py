@@ -32,6 +32,7 @@ def _settings() -> Settings:
         s3_secret_access_key=SecretStr("object-secret"),
         auth_hmac_secret=SecretStr(SECRET),
         auth_audience="glint-api",
+        auth_issuer=None,
         allowed_origins=["http://localhost:3000"],
         create_schema_on_startup=False,
     )
