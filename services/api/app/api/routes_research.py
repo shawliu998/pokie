@@ -875,7 +875,7 @@ def preview_export(
     version = _row(db, DecisionBriefVersion, body.decision_brief_version_id, context.workspace_id)
     if version.decision_brief_id != brief.id:
         raise not_found("Decision Brief version")
-    rendered, reference_digest = render_export_preview(
+    rendered, reference_digest, export_timestamp = render_export_preview(
         db,
         brief=brief,
         version=version,
@@ -887,6 +887,7 @@ def preview_export(
         "export_type": body.export_type,
         "rendered_content": rendered,
         "reference_digest": reference_digest,
+        "export_timestamp": export_timestamp,
         "data_authenticity": version.data_authenticity,
     }
 
@@ -901,12 +902,14 @@ def post_export(
     version = _row(db, DecisionBriefVersion, body.decision_brief_version_id, context.workspace_id)
     if version.decision_brief_id != brief.id:
         raise not_found("Decision Brief version")
+    payload = body.model_dump(mode="json")
+    payload["export_timestamp"] = body.export_timestamp
     row = create_export(
         db,
         brief=brief,
         version=version,
         actor_id=context.principal_id,
-        payload=body.model_dump(mode="json"),
+        payload=payload,
         request_id=_request_id(request),
     )
     return {

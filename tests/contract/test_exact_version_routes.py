@@ -76,6 +76,14 @@ def test_exact_version_replay_and_revision_routes_use_canonical_contracts() -> N
         "rendered_snapshot_uri"
         not in spec["components"]["schemas"]["BriefExportResponse"]["properties"]
     )
+    preview_request = spec["components"]["schemas"]["BriefExportPreviewRequest"]
+    preview_response = spec["components"]["schemas"]["BriefExportPreviewResponse"]
+    create_request = spec["components"]["schemas"]["BriefExportCreateRequest"]
+    assert "export_timestamp" not in preview_request["properties"]
+    assert "export_timestamp" in preview_response["required"]
+    assert preview_response["properties"]["export_timestamp"]["format"] == "date-time"
+    assert "export_timestamp" in create_request["required"]
+    assert create_request["properties"]["export_timestamp"]["format"] == "date-time"
     for path in ("/v1/content-items", "/v1/content-items/{item_id}/versions"):
         content_query_parameters = {
             parameter["name"]

@@ -423,6 +423,7 @@ def test_collected_signal_creates_v2_run_with_terminal_collection_lineage(
                 "include_citations": True,
             },
             "reference_digest": preview["reference_digest"],
+            "export_timestamp": preview["export_timestamp"],
         },
     )
     assert export_response.status_code == 201, export_response.text

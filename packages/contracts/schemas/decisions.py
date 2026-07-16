@@ -229,12 +229,14 @@ class BriefExportPreviewResponse(ContractModel):
     export_type: BriefExportType
     rendered_content: str
     reference_digest: Digest
+    export_timestamp: AwareDatetime
     data_authenticity: DataAuthenticity
 
 
 class BriefExportCreateRequest(BriefExportPreviewRequest):
     destination: BriefExportDestination
     reference_digest: Digest
+    export_timestamp: AwareDatetime
 
 
 class BriefExportResponse(ImmutableResource):

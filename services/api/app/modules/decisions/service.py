@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import func, select
@@ -14,6 +15,7 @@ from services.api.app.db.models import (
     ClaimEvidence,
     ClaimReview,
     ClaimVersion,
+    ContentVersion,
     DecisionBrief,
     DecisionBriefFreshnessRecord,
     DecisionBriefReadinessReview,
@@ -25,7 +27,7 @@ from services.api.app.db.models import (
     SynthesisReview,
     new_id,
 )
-from services.api.app.modules.common import audit, digest, lock_investigation_lineage
+from services.api.app.modules.common import audit, digest, lock_investigation_lineage, utcnow
 from services.api.app.modules.evidence.service import claim_version_status, latest_evidence_review
 
 
@@ -1161,6 +1163,9 @@ def _render_export_markdown(
     export_type: str,
     selection_manifest: dict[str, Any],
     readiness_context: dict[str, Any],
+    export_timestamp: datetime,
+    source_reference_ids: list[str],
+    evidence_content_version_references: list[dict[str, str]],
 ) -> tuple[str, str]:
     if export_type != "prd_research_input_markdown":
         raise ApiError(422, "VALIDATION_ERROR", "Phase 1 exports Markdown only.")
@@ -1179,18 +1184,44 @@ def _render_export_markdown(
             422, "POLICY_BLOCKED", "Synthesis or unaccepted content cannot enter PRD input."
         )
     authenticity_label = version.data_authenticity.replace("_", " ").title()
+    timestamp_label = export_timestamp.astimezone(UTC).isoformat().replace("+00:00", "Z")
+    source_references = (
+        ", ".join(f"source:{value}" for value in source_reference_ids)
+        if source_reference_ids
+        else "None selected"
+    )
     lines = [
         "# PRD Research Input",
         "",
         f"> Data authenticity: {authenticity_label}",
         "",
-        "## Decision Context",
+        "## Export Metadata",
         "",
-        readiness_context["decision_question"],
-        "",
-        "## Limitations and counter-evidence",
-        "",
+        f"- Decision Brief Version: {version.version_number} ({version.id})",
+        f"- Data Authenticity: {authenticity_label}",
+        f"- Source References: {source_references}",
+        "- Evidence References / Content Versions:",
     ]
+    if evidence_content_version_references:
+        lines.extend(
+            "  - evidence:{evidence_id} -> content-version:{content_version_id}".format(**item)
+            for item in evidence_content_version_references
+        )
+    else:
+        lines.append("  - None selected")
+    lines.extend(
+        [
+            f"- Export Timestamp: {timestamp_label}",
+            f"- Readiness State: {readiness_context['readiness_state']}",
+            "",
+            "## Decision Context",
+            "",
+            readiness_context["decision_question"],
+            "",
+            "## Limitations and counter-evidence",
+            "",
+        ]
+    )
     lines.extend(f"- {item}" for item in readiness_context["limitations"])
     no_counter = readiness_context["no_counter_evidence_search"]
     if readiness_context["counter_evidence_ids"]:
@@ -1242,9 +1273,79 @@ def _render_export_markdown(
             "reference_snapshot": version.reference_snapshot_json,
             "readiness_context": readiness_context,
             "data_authenticity": version.data_authenticity,
+            "export_timestamp": timestamp_label,
+            "source_reference_ids": source_reference_ids,
+            "evidence_content_version_references": evidence_content_version_references,
         }
     )
     return rendered, reference_digest
+
+
+def _selected_export_references(
+    db: Session,
+    *,
+    version: DecisionBriefVersion,
+    selection_manifest: dict[str, Any],
+) -> tuple[list[str], list[dict[str, str]]]:
+    selected = set(selection_manifest["block_ids"])
+    blocks = [block for block in version.block_document["blocks"] if block["id"] in selected]
+    evidence_ids = sorted(
+        {
+            evidence_id
+            for block in blocks
+            if block["type"] == "fact"
+            for evidence_id in block["evidence_ids"]
+        }
+    )
+    evidence_rows = db.scalars(select(Evidence).where(Evidence.id.in_(evidence_ids))).all()
+    evidence_by_id = {row.id: row for row in evidence_rows}
+    if set(evidence_by_id) != set(evidence_ids):
+        raise ApiError(422, "LINEAGE_INTEGRITY_ERROR", "Export evidence lineage is incomplete.")
+    content_version_ids = sorted({row.content_version_id for row in evidence_rows})
+    content_versions = db.scalars(
+        select(ContentVersion).where(ContentVersion.id.in_(content_version_ids))
+    ).all()
+    content_by_id = {row.id: row for row in content_versions}
+    if set(content_by_id) != set(content_version_ids):
+        raise ApiError(
+            422, "LINEAGE_INTEGRITY_ERROR", "Export content-version lineage is incomplete."
+        )
+    source_reference_ids = sorted({row.source_connection_id for row in content_versions})
+    evidence_references = [
+        {
+            "evidence_id": evidence_id,
+            "content_version_id": evidence_by_id[evidence_id].content_version_id,
+        }
+        for evidence_id in evidence_ids
+    ]
+    return source_reference_ids, evidence_references
+
+
+def _render_export_at_timestamp(
+    db: Session,
+    *,
+    brief: DecisionBrief,
+    version: DecisionBriefVersion,
+    export_type: str,
+    selection_manifest: dict[str, Any],
+    export_timestamp: datetime,
+) -> tuple[str, str]:
+    readiness_context = _assert_exportable_exact_version(db, brief=brief, version=version)
+    readiness_context["readiness_state"] = "decision_ready/current"
+    source_reference_ids, evidence_references = _selected_export_references(
+        db,
+        version=version,
+        selection_manifest=selection_manifest,
+    )
+    return _render_export_markdown(
+        version=version,
+        export_type=export_type,
+        selection_manifest=selection_manifest,
+        readiness_context=readiness_context,
+        export_timestamp=export_timestamp,
+        source_reference_ids=source_reference_ids,
+        evidence_content_version_references=evidence_references,
+    )
 
 
 def render_export_preview(
@@ -1254,7 +1355,7 @@ def render_export_preview(
     version: DecisionBriefVersion,
     export_type: str,
     selection_manifest: dict[str, Any],
-) -> tuple[str, str]:
+) -> tuple[str, str, datetime]:
     lock_investigation_lineage(
         db,
         workspace_id=brief.workspace_id,
@@ -1262,13 +1363,16 @@ def render_export_preview(
     )
     db.refresh(brief)
     db.refresh(version)
-    readiness_context = _assert_exportable_exact_version(db, brief=brief, version=version)
-    return _render_export_markdown(
+    export_timestamp = utcnow()
+    rendered, reference_digest = _render_export_at_timestamp(
+        db,
+        brief=brief,
         version=version,
         export_type=export_type,
         selection_manifest=selection_manifest,
-        readiness_context=readiness_context,
+        export_timestamp=export_timestamp,
     )
+    return rendered, reference_digest, export_timestamp
 
 
 def create_export(
@@ -1280,12 +1384,23 @@ def create_export(
     payload: dict[str, Any],
     request_id: str,
 ) -> BriefExport:
-    rendered, reference_digest = render_export_preview(
+    lock_investigation_lineage(
+        db,
+        workspace_id=brief.workspace_id,
+        investigation_id=brief.investigation_id,
+    )
+    db.refresh(brief)
+    db.refresh(version)
+    export_timestamp = payload["export_timestamp"]
+    if not isinstance(export_timestamp, datetime):
+        raise ApiError(422, "VALIDATION_ERROR", "Export timestamp must be timezone-aware.")
+    rendered, reference_digest = _render_export_at_timestamp(
         db,
         brief=brief,
         version=version,
         export_type=payload["export_type"],
         selection_manifest=payload["selection_manifest"],
+        export_timestamp=export_timestamp,
     )
     if payload["reference_digest"] != reference_digest:
         raise ApiError(412, "VERSION_CONFLICT", "Export preview digest changed.")
@@ -1305,6 +1420,7 @@ def create_export(
         rendered_snapshot_uri=f"object://{relative}",
         output_digest=output_digest,
         created_by=actor_id,
+        created_at=export_timestamp,
         data_authenticity=brief.data_authenticity,
     )
     db.add(export)

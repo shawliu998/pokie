@@ -743,8 +743,41 @@ def test_exact_version_research_review_and_export(client: TestClient, principal_
         },
     )
     assert preview.status_code == 200, preview.text
-    assert "Synthetic" not in preview.json()["rendered_content"]
-    assert "> Data authenticity: Imported" in preview.json()["rendered_content"]
+    preview_body = preview.json()
+    rendered_content = preview_body["rendered_content"]
+    assert "Synthetic" not in rendered_content
+    assert "> Data authenticity: Imported" in rendered_content
+    assert (
+        f"- Decision Brief Version: {brief['current_version']['version_number']} ("
+        in rendered_content
+    )
+    assert "- Data Authenticity: Imported" in rendered_content
+    assert f"source:{bootstrap['source']['id']}" in rendered_content
+    assert all(f"evidence:{evidence_id}" in rendered_content for evidence_id in evidence_ids)
+    assert all(
+        f"content-version:{content_version_id}" in rendered_content
+        for content_version_id in imported["version_ids"]
+    )
+    assert f"- Export Timestamp: {preview_body['export_timestamp']}" in rendered_content
+    assert "- Readiness State: decision_ready/current" in rendered_content
+    tampered_timestamp = (
+        datetime.fromisoformat(preview_body["export_timestamp"].replace("Z", "+00:00"))
+        + timedelta(seconds=1)
+    ).isoformat()
+    tampered_export = client.post(
+        f"/v1/decision-briefs/{brief['id']}/exports",
+        headers=command_headers(principal_id, workspace_id),
+        json={
+            "decision_brief_version_id": brief["current_version"]["id"],
+            "export_type": "prd_research_input_markdown",
+            "destination": "local_download",
+            "selection_manifest": {"block_ids": selected, "include_citations": True},
+            "reference_digest": preview_body["reference_digest"],
+            "export_timestamp": tampered_timestamp,
+        },
+    )
+    assert tampered_export.status_code == 412, tampered_export.text
+    assert tampered_export.json()["error"]["code"] == "VERSION_CONFLICT"
     exported = client.post(
         f"/v1/decision-briefs/{brief['id']}/exports",
         headers=command_headers(principal_id, workspace_id),
@@ -753,16 +786,18 @@ def test_exact_version_research_review_and_export(client: TestClient, principal_
             "export_type": "prd_research_input_markdown",
             "destination": "local_download",
             "selection_manifest": {"block_ids": selected, "include_citations": True},
-            "reference_digest": preview.json()["reference_digest"],
+            "reference_digest": preview_body["reference_digest"],
+            "export_timestamp": preview_body["export_timestamp"],
         },
     )
     assert exported.status_code == 201, exported.text
-    assert exported.json()["reference_digest"] == preview.json()["reference_digest"]
+    assert exported.json()["reference_digest"] == preview_body["reference_digest"]
+    assert exported.json()["created_at"] == preview_body["export_timestamp"]
     with get_session_factory()() as db:
         export_row = db.get(BriefExport, exported.json()["id"])
         assert export_row is not None
         stored = get_object_store().get(export_row.rendered_snapshot_uri.removeprefix("object://"))
-        assert stored.body == preview.json()["rendered_content"].encode()
+        assert stored.body == rendered_content.encode()
         assert export_row.output_digest == digest(stored.body)
         assert exported.json()["output_digest"] == export_row.output_digest
     rejected_evidence = client.post(
@@ -809,6 +844,7 @@ def test_exact_version_research_review_and_export(client: TestClient, principal_
             "destination": "local_download",
             "selection_manifest": {"block_ids": selected, "include_citations": True},
             "reference_digest": preview.json()["reference_digest"],
+            "export_timestamp": preview.json()["export_timestamp"],
         },
     )
     assert stale_export.status_code == 409
