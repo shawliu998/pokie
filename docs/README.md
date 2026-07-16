@@ -48,6 +48,10 @@ Locked boundaries:
 - [Risk register](./RISK_REGISTER.md)
 - [Phase 0 acceptance](./PHASE0_ACCEPTANCE.md)
 - [Phase 1 / Phase 2 deterministic acceptance](./PHASE1_P2_ACCEPTANCE.md)
+- [P2.5 conditional acceptance](./P2_5_ACCEPTANCE.md)
+- [P2.5 demo script](./DEMO_SCRIPT.md)
+- [P2.5 pilot plan](./PILOT_PLAN.md)
+- [Live connector smoke](./LIVE_CONNECTOR_SMOKE.md)
 - [Independent Phase 0 review](./PHASE0_REVIEW.md)
 
 ## Architecture decisions
