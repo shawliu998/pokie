@@ -14,7 +14,9 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 DEFAULT_PRINCIPAL = "22222222-2222-5222-8222-222222222222"
@@ -24,6 +26,113 @@ CSV_BODY = (
     b"Permissions,Permission friction is rising across imported feedback\n"
     b"Pricing,Team plan is expensive\n"
 )
+REPO_ROOT = Path(__file__).resolve().parents[1]
+DEMO_FIXTURE_PATH = REPO_ROOT / "fixtures" / "demo" / "ai-coding-agents-interviews.csv"
+
+
+@dataclass(frozen=True, slots=True)
+class SeedProfile:
+    name: str
+    workspace_name: str | None
+    project_name: str
+    source_name: str
+    watchlist_name: str
+    objective: str
+    entities: tuple[str, ...]
+    topics: tuple[str, ...]
+    include_terms: tuple[str, ...]
+    csv_body: bytes
+    csv_file_name: str
+    csv_schema_version: str
+    csv_columns: tuple[str, ...]
+    decision_question: str
+    pm_judgment: str
+    recommendation: str
+    reason: str
+    require_counter_evidence: bool = False
+
+
+ACCEPTANCE_PROFILE = SeedProfile(
+    name="acceptance",
+    workspace_name=None,
+    project_name="P1 Acceptance",
+    source_name="P1 Acceptance CSV",
+    watchlist_name="P1 Acceptance Watchlist",
+    objective="Verify the API-mode runtime path from imported feedback to a terminal brief.",
+    entities=("Permission",),
+    topics=(),
+    include_terms=("permission",),
+    csv_body=CSV_BODY,
+    csv_file_name="p1-acceptance.csv",
+    csv_schema_version="p1-acceptance-v1",
+    csv_columns=("problem", "quote"),
+    decision_question="Should permission preview be prioritized?",
+    pm_judgment="Prioritize a permission preview in the next planning cycle.",
+    recommendation="Prototype the permission preview.",
+    reason="P1 runtime acceptance",
+)
+
+
+DEMO_PROFILE = SeedProfile(
+    name="demo",
+    workspace_name="Glint Demo",
+    project_name="AI Coding Agents",
+    source_name="AI Coding Agents Interviews · Imported Demo Fixture",
+    watchlist_name="AI Coding Agents",
+    objective=(
+        "Monitor decision-relevant permissions, pricing, reliability, context, enterprise, "
+        "migration, and integration signals across AI coding agents."
+    ),
+    entities=("Cursor", "Claude Code", "Codex", "Windsurf", "Zed"),
+    topics=(
+        "Permissions",
+        "Pricing",
+        "Reliability",
+        "Context",
+        "Enterprise",
+        "Migration",
+        "Integrations",
+    ),
+    include_terms=(
+        "permission",
+        "pricing",
+        "reliability",
+        "context",
+        "enterprise",
+        "migration",
+        "integration",
+    ),
+    csv_body=DEMO_FIXTURE_PATH.read_bytes(),
+    csv_file_name=DEMO_FIXTURE_PATH.name,
+    csv_schema_version="ai-coding-agents-demo-v1",
+    csv_columns=(
+        "id",
+        "problem",
+        "quote",
+        "url",
+        "author",
+        "published_at",
+        "fixture_date",
+        "content_type",
+        "cropping_note",
+    ),
+    decision_question=(
+        "Should Glint prioritize auditable permission previews for enterprise AI coding "
+        "agent rollouts?"
+    ),
+    pm_judgment=(
+        "The PM judges permission transparency to be material while retaining the recorded "
+        "counter-evidence about improved defaults."
+    ),
+    recommendation=(
+        "Prototype an auditable permission preview and validate it with enterprise platform teams."
+    ),
+    reason="Glint Demo imported-fixture owner review",
+    require_counter_evidence=True,
+)
+
+
+SEED_PROFILES = {profile.name: profile for profile in (ACCEPTANCE_PROFILE, DEMO_PROFILE)}
 
 
 class SeedError(RuntimeError):
@@ -147,11 +256,33 @@ def find_named(items: Any, name: str) -> dict[str, Any] | None:
     return next((row for row in rows if isinstance(row, dict) and row.get("name") == name), None)
 
 
-def ensure_project(base_url: str, principal: str, workspace: str) -> dict[str, Any]:
+def ensure_workspace_name(
+    base_url: str,
+    principal: str,
+    workspace: str,
+    current: dict[str, Any],
+    name: str | None,
+) -> dict[str, Any]:
+    if name is None or current.get("name") == name:
+        return current
+    _, _, updated = request_json(
+        base_url,
+        "PATCH",
+        f"/v1/workspaces/{workspace}",
+        principal=principal,
+        workspace=workspace,
+        payload={"name": name, "expected_row_version": current["row_version"]},
+    )
+    return updated
+
+
+def ensure_project(
+    base_url: str, principal: str, workspace: str, name: str = "P1 Acceptance"
+) -> dict[str, Any]:
     _, _, current = request_json(
         base_url, "GET", "/v1/projects", principal=principal, workspace=workspace
     )
-    project = find_named(current, "P1 Acceptance")
+    project = find_named(current, name)
     if project:
         return project
     _, _, project = request_json(
@@ -160,16 +291,22 @@ def ensure_project(base_url: str, principal: str, workspace: str) -> dict[str, A
         "/v1/projects",
         principal=principal,
         workspace=workspace,
-        payload={"name": "P1 Acceptance"},
+        payload={"name": name},
     )
     return project
 
 
-def ensure_source(base_url: str, principal: str, workspace: str) -> dict[str, Any]:
+def ensure_source(
+    base_url: str,
+    principal: str,
+    workspace: str,
+    name: str = "P1 Acceptance CSV",
+    reason: str = "P1 runtime acceptance",
+) -> dict[str, Any]:
     _, _, current = request_json(
         base_url, "GET", "/v1/sources", principal=principal, workspace=workspace
     )
-    source = find_named(current, "P1 Acceptance CSV")
+    source = find_named(current, name)
     if source is None:
         _, _, source = request_json(
             base_url,
@@ -178,7 +315,7 @@ def ensure_source(base_url: str, principal: str, workspace: str) -> dict[str, An
             principal=principal,
             workspace=workspace,
             payload={
-                "name": "P1 Acceptance CSV",
+                "name": name,
                 "source_kind": "imported_dataset",
                 "runtime": "static_import",
                 "connector_type": "csv",
@@ -195,20 +332,66 @@ def ensure_source(base_url: str, principal: str, workspace: str) -> dict[str, An
             workspace=workspace,
             payload={
                 "expected_row_version": source["row_version"],
-                "reason": "P1 runtime acceptance",
+                "reason": reason,
             },
         )
     return source
 
 
+def watchlist_rules(profile: SeedProfile) -> dict[str, Any]:
+    return {
+        "entities": list(profile.entities),
+        "topics": list(profile.topics),
+        "query_rules": {
+            "include_terms": list(profile.include_terms),
+            "exclude_terms": [],
+            "languages": [],
+            "regions": [],
+        },
+        "cadence": "manual",
+        "current_window_days": 7,
+        "baseline_window_days": 28,
+    }
+
+
 def ensure_watchlist(
-    base_url: str, principal: str, workspace: str, project: dict[str, Any], source: dict[str, Any]
+    base_url: str,
+    principal: str,
+    workspace: str,
+    project: dict[str, Any],
+    source: dict[str, Any],
+    profile: SeedProfile = ACCEPTANCE_PROFILE,
 ) -> dict[str, Any]:
     _, _, current = request_json(
         base_url, "GET", "/v1/watchlists", principal=principal, workspace=workspace
     )
-    watchlist = find_named(current, "P1 Acceptance Watchlist")
+    watchlist = find_named(current, profile.watchlist_name)
     if watchlist:
+        desired_rules = watchlist_rules(profile)
+        if profile.name == "demo" and (
+            watchlist.get("project_id") != project["id"]
+            or watchlist.get("source_connection_ids") != [source["id"]]
+            or watchlist.get("objective") != profile.objective
+            or watchlist.get("rules")
+            != {
+                "schema_version": "watchlist-rules-v1",
+                **desired_rules,
+                "notification_intent": False,
+            }
+        ):
+            _, _, watchlist = request_json(
+                base_url,
+                "PATCH",
+                f"/v1/watchlists/{watchlist['id']}",
+                principal=principal,
+                workspace=workspace,
+                payload={
+                    "objective": profile.objective,
+                    "source_connection_ids": [source["id"]],
+                    "rules": desired_rules,
+                    "expected_row_version": watchlist["row_version"],
+                },
+            )
         if watchlist.get("status") == "draft":
             _, _, watchlist = request_json(
                 base_url,
@@ -218,7 +401,7 @@ def ensure_watchlist(
                 workspace=workspace,
                 payload={
                     "expected_row_version": watchlist["row_version"],
-                    "reason": "P1 runtime acceptance",
+                    "reason": profile.reason,
                 },
             )
         return watchlist
@@ -230,23 +413,10 @@ def ensure_watchlist(
         workspace=workspace,
         payload={
             "project_id": project["id"],
-            "name": "P1 Acceptance Watchlist",
-            "objective": (
-                "Verify the API-mode runtime path from imported feedback to a terminal brief."
-            ),
+            "name": profile.watchlist_name,
+            "objective": profile.objective,
             "source_connection_ids": [source["id"]],
-            "rules": {
-                "entities": ["Permission"],
-                "query_rules": {
-                    "include_terms": ["permission"],
-                    "exclude_terms": [],
-                    "languages": [],
-                    "regions": [],
-                },
-                "cadence": "manual",
-                "current_window_days": 7,
-                "baseline_window_days": 28,
-            },
+            "rules": watchlist_rules(profile),
         },
     )
     if watchlist.get("status") in {"draft", "paused"}:
@@ -258,16 +428,21 @@ def ensure_watchlist(
             workspace=workspace,
             payload={
                 "expected_row_version": watchlist["row_version"],
-                "reason": "P1 runtime acceptance",
+                "reason": profile.reason,
             },
         )
     return watchlist
 
 
 def process_import(
-    base_url: str, principal: str, workspace: str, source: dict[str, Any]
+    base_url: str,
+    principal: str,
+    workspace: str,
+    source: dict[str, Any],
+    profile: SeedProfile = ACCEPTANCE_PROFILE,
 ) -> dict[str, Any]:
-    body_digest = digest(CSV_BODY)
+    csv_body = profile.csv_body
+    body_digest = digest(csv_body)
     _, _, session = request_json(
         base_url,
         "POST",
@@ -283,13 +458,13 @@ def process_import(
             "local_manifest_digest": body_digest,
             "file_digest": body_digest,
             "expected_upload_digest": body_digest,
-            "client_file_name": "p1-acceptance.csv",
-            "file_size_bytes": len(CSV_BODY),
+            "client_file_name": profile.csv_file_name,
+            "file_size_bytes": len(csv_body),
             "media_type": "text/csv",
             "parser_version": "csv-v1",
-            "schema_version": "p1-acceptance-v1",
-            "selected_scope_json": {"columns": ["problem", "quote"]},
-            "selected_scope_digest": digest(b"problem,quote"),
+            "schema_version": profile.csv_schema_version,
+            "selected_scope_json": {"columns": list(profile.csv_columns)},
+            "selected_scope_digest": digest(",".join(profile.csv_columns).encode()),
         },
     )
     _, _, preview = request_json(
@@ -324,7 +499,7 @@ def process_import(
         f"/v1/imports/{session['id']}/object",
         principal=principal,
         workspace=workspace,
-        body=CSV_BODY,
+        body=csv_body,
         extra_headers={"X-Upload-Grant": grant, "Content-Type": "text/csv"},
     )
     object_key = uploaded.get("object_key")
@@ -777,6 +952,8 @@ def seed_terminal_brief(
     *,
     preferred_signal_id: str | None = None,
     source_scope_sources: list[dict[str, Any]] | None = None,
+    profile: SeedProfile = ACCEPTANCE_PROFILE,
+    flow_artifact: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     signals = bootstrap.get("signals") or []
     signal = next(
@@ -803,12 +980,12 @@ def seed_terminal_brief(
                 "expected_signal_row_version": signal["row_version"],
                 "business_impact": {
                     "confirmed_level": "high",
-                    "reason": "P1 runtime acceptance",
+                    "reason": profile.reason,
                     "expected_assessment_version": dimensions["business_impact"].get("version", 0),
                 },
                 "urgency": {
                     "confirmed_level": "this_week",
-                    "reason": "P1 runtime acceptance",
+                    "reason": profile.reason,
                     "expected_assessment_version": dimensions["urgency"].get("version", 0),
                 },
             },
@@ -843,7 +1020,7 @@ def seed_terminal_brief(
         workspace=workspace,
         payload={
             "signal_id": signal["id"],
-            "decision_question": "Should permission preview be prioritized?",
+            "decision_question": profile.decision_question,
             **common,
             "stop_conditions": ["one verified claim"],
         },
@@ -897,6 +1074,16 @@ def seed_terminal_brief(
     claim = (claim_page.get("items") or [None])[0]
     if not claim or not claim.get("evidence_links"):
         raise SeedError("completed research run did not produce a grounded claim")
+    stance_counts = {
+        "supports": sum(1 for link in claim["evidence_links"] if link.get("stance") == "supports"),
+        "opposes": sum(1 for link in claim["evidence_links"] if link.get("stance") == "opposes"),
+    }
+    if profile.require_counter_evidence and (
+        stance_counts["supports"] < 2 or stance_counts["opposes"] < 1
+    ):
+        raise SeedError(
+            "demo research must produce at least two supporting and one opposing Evidence"
+        )
     review_ids: list[str] = []
     for link in claim["evidence_links"]:
         _, _, review = request_json(
@@ -907,7 +1094,7 @@ def seed_terminal_brief(
             workspace=workspace,
             payload={
                 "decision": "valid",
-                "reason": "P1 runtime acceptance",
+                "reason": profile.reason,
                 "policy_version": "evidence-review-v1",
             },
         )
@@ -937,7 +1124,7 @@ def seed_terminal_brief(
             "decision": "verify",
             "evidence_review_ids": review_ids,
             "expected_claim_evidence_snapshot_digest": canonical_digest(snapshot),
-            "reason": "P1 runtime acceptance",
+            "reason": profile.reason,
         },
     )
     _, _, synthesis = request_json(
@@ -959,7 +1146,7 @@ def seed_terminal_brief(
             "synthesis_version_id": synthesis_version["id"],
             "expected_row_version": synthesis["row_version"],
             "decision": "verify",
-            "reason": "P1 runtime acceptance",
+            "reason": profile.reason,
             "policy_version": "synthesis-review-v1",
         },
     )
@@ -978,21 +1165,27 @@ def seed_terminal_brief(
     document = brief_version["block_document"]
     for block in document["blocks"]:
         if block["type"] == "pm_judgment":
-            block["body"] = "Prioritize a permission preview in the next planning cycle."
+            block["body"] = profile.pm_judgment
         elif block["type"] == "recommendation":
-            block["body"] = "Prototype the permission preview."
+            block["body"] = profile.recommendation
             block["recommendation_status"] = "accepted"
-    document["no_counter_evidence_search"] = {
-        "queries": [
-            "permission preview counter evidence",
-            "permission execution onboarding objections",
-        ],
-        "source_connection_ids": sorted(scope_source_ids),
-        "window_start": start,
-        "window_end": end,
-        "exclusion_criteria": ["Records outside the approved source scope."],
-        "limitations": ["The acceptance fixture contains only the approved deterministic scope."],
-    }
+    document["no_counter_evidence_search"] = (
+        None
+        if profile.require_counter_evidence and stance_counts["opposes"]
+        else {
+            "queries": [
+                "permission preview counter evidence",
+                "permission execution onboarding objections",
+            ],
+            "source_connection_ids": sorted(scope_source_ids),
+            "window_start": start,
+            "window_end": end,
+            "exclusion_criteria": ["Records outside the approved source scope."],
+            "limitations": [
+                "The acceptance fixture contains only the approved deterministic scope."
+            ],
+        }
+    )
     _, _, brief = request_json(
         base_url,
         "PATCH",
@@ -1024,7 +1217,7 @@ def seed_terminal_brief(
             "decision_brief_version_id": brief_version["id"],
             "expected_row_version": brief["row_version"],
             "decision": "mark_decision_ready",
-            "reason": "P1 runtime acceptance",
+            "reason": profile.reason,
             "policy_version": "decision-readiness-v1",
             "checklist_digest": readiness_digest,
         },
@@ -1058,11 +1251,128 @@ def seed_terminal_brief(
             "selection_manifest": {"block_ids": selected, "include_citations": True},
             "destination": "local_download",
             "reference_digest": preview["reference_digest"],
+            "export_timestamp": preview["export_timestamp"],
         },
     )
     if not export.get("id") or export.get("decision_brief_version_id") != brief_version["id"]:
         raise SeedError("terminal BriefExport did not bind to the exact ready brief version")
+    if flow_artifact is not None:
+        flow_artifact.update(
+            {
+                "profile": profile.name,
+                "fixture_kind": "imported_demo_fixture",
+                "data_authenticity": brief_version.get("data_authenticity"),
+                "signal_id": signal["id"],
+                "signal_status": signal.get("status"),
+                "investigation_id": active["id"],
+                "research_run_id": run["id"],
+                "research_run_status": current_run["state"],
+                "evidence_counts": stance_counts,
+                "evidence_review_count": len(review_ids),
+                "claim_id": claim["id"],
+                "claim_status": "verified",
+                "synthesis_id": synthesis["id"],
+                "synthesis_status": "verified",
+                "decision_brief_id": brief["id"],
+                "decision_brief_version_id": brief_version["id"],
+                "decision_brief_status": "decision_ready",
+                "export_id": export["id"],
+                "export_status": "terminal",
+                "export_reference_digest": export["reference_digest"],
+                "export_output_digest": export["output_digest"],
+                "rendered_markdown_digest": digest(preview["rendered_content"].encode()),
+            }
+        )
     return export
+
+
+DEMO_ARTIFACT_KEYS = {
+    "profile",
+    "fixture_kind",
+    "data_authenticity",
+    "workspace_id",
+    "workspace_status",
+    "project_id",
+    "watchlist_id",
+    "watchlist_status",
+    "source_ids",
+    "import_job_id",
+    "import_manifest_id",
+    "signal_id",
+    "signal_status",
+    "investigation_id",
+    "research_run_id",
+    "research_run_status",
+    "evidence_counts",
+    "evidence_review_count",
+    "claim_id",
+    "claim_status",
+    "synthesis_id",
+    "synthesis_status",
+    "decision_brief_id",
+    "decision_brief_version_id",
+    "decision_brief_status",
+    "export_id",
+    "export_status",
+    "export_reference_digest",
+    "export_output_digest",
+    "rendered_markdown_digest",
+}
+
+
+def validate_demo_artifact(artifact: dict[str, Any]) -> None:
+    if set(artifact) != DEMO_ARTIFACT_KEYS:
+        raise SeedError(
+            "demo artifact fields differ from the reviewed IDs/counts/status/hash schema"
+        )
+    if artifact["profile"] != "demo" or artifact["fixture_kind"] != "imported_demo_fixture":
+        raise SeedError("demo artifact must identify the Imported Demo Fixture profile")
+    if artifact["data_authenticity"] != "imported":
+        raise SeedError("demo artifact must not label imported fixture data Live or collected")
+    if artifact["workspace_status"] != "active" or artifact["watchlist_status"] != "active":
+        raise SeedError("demo workspace and Watchlist must be active")
+    required_statuses = {
+        "signal_status": "triaged",
+        "research_run_status": "completed",
+        "claim_status": "verified",
+        "synthesis_status": "verified",
+        "decision_brief_status": "decision_ready",
+        "export_status": "terminal",
+    }
+    for field, expected in required_statuses.items():
+        if artifact[field] != expected:
+            raise SeedError(f"demo artifact {field} must be {expected}")
+    counts = artifact["evidence_counts"]
+    if (
+        not isinstance(counts, dict)
+        or set(counts) != {"supports", "opposes"}
+        or any(not isinstance(value, int) or isinstance(value, bool) for value in counts.values())
+        or counts["supports"] < 2
+        or counts["opposes"] < 1
+        or not isinstance(artifact["evidence_review_count"], int)
+        or isinstance(artifact["evidence_review_count"], bool)
+        or artifact["evidence_review_count"] < 3
+    ):
+        raise SeedError("demo artifact does not prove reviewed supporting and opposing Evidence")
+    for field in (
+        "export_reference_digest",
+        "export_output_digest",
+        "rendered_markdown_digest",
+    ):
+        value = artifact[field]
+        if not isinstance(value, str) or not value.startswith("sha256:") or len(value) != 71:
+            raise SeedError(f"demo artifact {field} is not a SHA-256 digest")
+    if artifact["export_output_digest"] != artifact["rendered_markdown_digest"]:
+        raise SeedError("demo artifact export and rendered Markdown hashes differ")
+
+
+def write_demo_artifact(path: str, artifact: dict[str, Any]) -> None:
+    validate_demo_artifact(artifact)
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with destination.open("w", encoding="utf-8") as output:
+        json.dump(artifact, output, indent=2, sort_keys=True)
+        output.write("\n")
 
 
 def main() -> int:
@@ -1076,7 +1386,12 @@ def main() -> int:
     )
     parser.add_argument("--access-token", default=os.environ.get("GLINT_AUTH_ACCESS_TOKEN"))
     parser.add_argument("--auth-output", required=True)
+    parser.add_argument("--profile", choices=sorted(SEED_PROFILES), default="acceptance")
+    parser.add_argument("--demo-output")
     args = parser.parse_args()
+    profile = SEED_PROFILES[args.profile]
+    if profile.name == "demo" and not args.demo_output:
+        parser.error("--demo-output is required when --profile demo")
 
     try:
         secret = os.environ.get("GLINT_AUTH_HMAC_SECRET")
@@ -1127,10 +1442,27 @@ def main() -> int:
         )
         if status != 200 or not isinstance(bootstrap, dict):
             raise SeedError("API bootstrap did not return a workspace document")
-        project = ensure_project(args.base_url, access_token, args.workspace)
-        source = ensure_source(args.base_url, access_token, args.workspace)
-        ensure_watchlist(args.base_url, access_token, args.workspace, project, source)
-        job = process_import(args.base_url, access_token, args.workspace, source)
+        workspace_record = ensure_workspace_name(
+            args.base_url,
+            access_token,
+            args.workspace,
+            bootstrap["workspace"],
+            profile.workspace_name,
+        )
+        project = ensure_project(
+            args.base_url, access_token, args.workspace, name=profile.project_name
+        )
+        source = ensure_source(
+            args.base_url,
+            access_token,
+            args.workspace,
+            name=profile.source_name,
+            reason=profile.reason,
+        )
+        watchlist = ensure_watchlist(
+            args.base_url, access_token, args.workspace, project, source, profile=profile
+        )
+        job = process_import(args.base_url, access_token, args.workspace, source, profile=profile)
         _, _, final_bootstrap = request_json(
             args.base_url,
             "GET",
@@ -1147,13 +1479,21 @@ def main() -> int:
             raise SeedError("bootstrap has no signal after worker processing")
         cloud_sources: list[dict[str, Any]] = []
         cloud_signal: dict[str, Any] | None = None
-        if os.environ.get("GLINT_ACCEPTANCE_CLOUD_OWNER_LOOP") == "1":
+        if (
+            profile.name == "acceptance"
+            and os.environ.get("GLINT_ACCEPTANCE_CLOUD_OWNER_LOOP") == "1"
+        ):
             cloud_sources, cloud_signal = ensure_cloud_collection(
                 args.base_url,
                 access_token,
                 args.workspace,
                 watchlist=ensure_watchlist(
-                    args.base_url, access_token, args.workspace, project, source
+                    args.base_url,
+                    access_token,
+                    args.workspace,
+                    project,
+                    source,
+                    profile=profile,
                 ),
             )
             _, _, final_bootstrap = request_json(
@@ -1164,6 +1504,18 @@ def main() -> int:
                 workspace=args.workspace,
             )
             write_source_validation_artifact()
+        flow_artifact: dict[str, Any] | None = None
+        if profile.name == "demo":
+            flow_artifact = {
+                "workspace_id": args.workspace,
+                "workspace_status": workspace_record["status"],
+                "project_id": project["id"],
+                "watchlist_id": watchlist["id"],
+                "watchlist_status": watchlist["status"],
+                "source_ids": [source["id"]],
+                "import_job_id": job["id"],
+                "import_manifest_id": job["result_manifest_id"],
+            }
         export = seed_terminal_brief(
             args.base_url,
             access_token,
@@ -1172,7 +1524,12 @@ def main() -> int:
             final_bootstrap,
             preferred_signal_id=cloud_signal.get("id") if cloud_signal else None,
             source_scope_sources=cloud_sources or None,
+            profile=profile,
+            flow_artifact=flow_artifact,
         )
+        if flow_artifact is not None:
+            assert args.demo_output is not None
+            write_demo_artifact(args.demo_output, flow_artifact)
         with open(args.auth_output, "w", encoding="utf-8") as output:
             json.dump(
                 {

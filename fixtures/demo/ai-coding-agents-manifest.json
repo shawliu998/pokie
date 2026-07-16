@@ -1,0 +1,35 @@
+{
+  "authenticity": "Imported Demo Fixture",
+  "captured_fixture": false,
+  "fixture_date": "2026-07-15",
+  "fixture_file": "ai-coding-agents-interviews.csv",
+  "content_type": "synthetic_interview_excerpt",
+  "content_cropping": "Short curated excerpts only; no private or verbatim customer content.",
+  "entities": ["Cursor", "Claude Code", "Codex", "Windsurf", "Zed"],
+  "topics": [
+    "Permissions",
+    "Pricing",
+    "Reliability",
+    "Context",
+    "Enterprise",
+    "Migration",
+    "Integrations"
+  ],
+  "public_source_catalog": {
+    "github": [
+      "https://github.com/getcursor/cursor",
+      "https://github.com/openai/codex",
+      "https://github.com/zed-industries/zed"
+    ],
+    "rss": [
+      "https://github.blog/feed/",
+      "https://github.com/openai/codex/releases.atom",
+      "https://blog.cloudflare.com/rss/"
+    ]
+  },
+  "source_catalog_policy": "Discovery references only. The demo profile does not call these URLs or label their content Live.",
+  "expected_evidence": {
+    "supports_minimum": 2,
+    "opposes_minimum": 1
+  }
+}
