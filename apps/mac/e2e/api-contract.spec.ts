@@ -249,6 +249,14 @@ test('strict API mode covers CSV → Signal → SSE/reviews → Brief → termin
   await expect(preview).toContainText('# PRD Research Input');
   await expect(preview).toContainText('prd_research_input_markdown');
   await expect(preview).toContainText(fixtureMode ? 'Data authenticity: Collected' : 'Data authenticity:');
+  if (fixtureMode) {
+    await expect(preview).toContainText('Decision Brief Version: 3 (00000000-0000-4000-8000-000000000084)');
+    await expect(preview).toContainText('Data Authenticity: Collected');
+    await expect(preview).toContainText('Source References: source:00000000-0000-4000-8000-000000000011');
+    await expect(preview).toContainText('evidence:00000000-0000-4000-8000-000000000050 -> content-version:00000000-0000-4000-8000-000000000052');
+    await expect(preview).toContainText('Export Timestamp: 2026-07-15T05:05:00Z');
+    await expect(preview).toContainText('Readiness State: decision_ready/current');
+  }
   await capture('07-export-preview');
   if (fixtureMode) {
     await page.getByRole('button', { name: 'Copy Markdown' }).click();
@@ -268,6 +276,7 @@ test('strict API mode covers CSV → Signal → SSE/reviews → Brief → termin
     expect(fixtureState.export_post_count).toBe(2);
     expect(fixtureState.export_terminal_count).toBe(1);
     expect(new Set(fixtureState.export_idempotency_keys).size).toBe(1);
+    expect(fixtureState.export_timestamps).toEqual(['2026-07-15T05:05:00Z', '2026-07-15T05:05:00Z']);
   } else {
     const download = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Export .md' }).click();

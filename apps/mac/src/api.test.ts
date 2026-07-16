@@ -262,20 +262,25 @@ describe('BriefExport audit idempotency', () => {
 
   it('sends the caller-owned idempotency key unchanged on an audit retry', async () => {
     const briefDto = { id: 'brief-1', workspace_id: 'workspace-1', investigation_id: 'investigation-1', current_version: { id: 'brief-version-1', decision_brief_id: 'brief-1', investigation_id: 'investigation-1', version_number: 1, synthesis_version_id: 'synthesis-version-1', synthesis_review_id: 'synthesis-review-1', block_document: { schema_version: 'decision-brief-blocks-v1', blocks: [{ id: 'fact-1', type: 'fact', body: 'Fact.', claim_version_ids: ['claim-version-1'], evidence_ids: ['evidence-1'], content_version_ids: ['content-version-1'] }, { id: 'judgment-1', type: 'pm_judgment', body: 'Proceed.', actor_id: 'owner-1' }, { id: 'recommendation-1', type: 'recommendation', body: 'Ship safely.', recommendation_status: 'accepted' }], no_counter_evidence_search: null }, reference_snapshot_json: { synthesis_version_id: 'synthesis-version-1', synthesis_review_id: 'synthesis-review-1', claim_version_ids: ['claim-version-1'], claim_review_ids: ['claim-review-1'], claim_evidence_ids: ['claim-evidence-1'], evidence_review_ids: ['evidence-review-1'], evidence_ids: ['evidence-1'], content_version_ids: ['content-version-1'] }, template_version: 'brief-v1', human_edit_digest: `sha256:${'a'.repeat(64)}`, readiness: 'decision_ready', freshness: 'current', created_by: 'owner-1', created_at: '2026-07-15T05:00:00Z', data_authenticity: 'collected' }, status: 'decision_ready', owner_id: 'owner-1', decision_outcome: null, next_checkpoint_at: null, row_version: 2, data_authenticity: 'collected', created_at: '2026-07-15T05:00:00Z', updated_at: '2026-07-15T05:00:00Z' };
+    const exportTimestamp = '2026-07-15T05:01:00Z';
+    const renderedContent = '# PRD Research Input\n\n> Data authenticity: Collected\n\n## Export Metadata\n\n- Decision Brief Version: 1 (brief-version-1)\n- Data Authenticity: Collected\n- Source References: source:source-1\n- Evidence References / Content Versions:\n  - evidence:evidence-1 -> content-version:content-version-1\n- Export Timestamp: 2026-07-15T05:01:00Z\n- Readiness State: decision_ready/current\n';
     let auditAttempts = 0;
     const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
       if (url.endsWith('/decision-briefs/brief-1') && !init?.method) return response(briefDto);
+      if (url.endsWith('/decision-briefs/brief-1/exports/preview')) return response({ decision_brief_version_id: 'brief-version-1', export_type: 'prd_research_input_markdown', rendered_content: renderedContent, reference_digest: `sha256:${'c'.repeat(64)}`, export_timestamp: exportTimestamp, data_authenticity: 'collected' });
       if (url.endsWith('/decision-briefs/brief-1/exports')) {
+        expect(JSON.parse(String(init?.body))).toMatchObject({ export_timestamp: exportTimestamp });
         auditAttempts += 1;
         if (auditAttempts === 1) return new Response(JSON.stringify({ error: { message: 'audit unavailable' } }), { status: 503, headers: { 'Content-Type': 'application/json' } });
-        return response({ id: 'export-1', decision_brief_version_id: 'brief-version-1', export_type: 'prd_research_input_markdown', destination: 'copy_markdown', output_digest: 'sha256:0063ca4546ac82e2b33f97ae38ee5197a9bfda52149f10129c1cf735e71d63d2', created_at: '2026-07-15T05:01:00Z', data_authenticity: 'collected' });
+        return response({ id: 'export-1', decision_brief_version_id: 'brief-version-1', export_type: 'prd_research_input_markdown', destination: 'copy_markdown', output_digest: 'sha256:b5886fad80f3e7ac0eb910ef3fcec7498f93ecfff0d02b49d7ea1b5c61e6bb28', created_at: exportTimestamp, data_authenticity: 'collected' });
       }
       throw new Error(`Unexpected request ${url}`);
     });
     vi.stubGlobal('fetch', fetchMock);
     const adapter = new RestAdapter('http://api.test', 'workspace-1', 'access-token');
-    const preview = { renderedContent: '# PRD', referenceDigest: `sha256:${'c'.repeat(64)}`, exportType: 'prd_research_input_markdown' as const, selectionManifest: { block_ids: ['fact-1'], include_citations: true }, authenticity: 'collected' as const };
+    const preview = await adapter.previewExport('brief-1');
+    expect(preview).toMatchObject({ renderedContent, exportTimestamp, authenticity: 'collected' });
     await expect(adapter.executeExport('brief-1', preview, 'copy_markdown', 'stable-export-key')).rejects.toThrow('audit unavailable');
     await expect(adapter.executeExport('brief-1', preview, 'copy_markdown', 'stable-export-key')).resolves.toMatchObject({ id: 'export-1', authenticity: 'collected' });
     const exportCalls = fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/exports'));

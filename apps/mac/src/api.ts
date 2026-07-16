@@ -41,6 +41,7 @@ import { resolveAccessToken, SessionExpiredError } from './session';
 export interface ExportPreview {
   renderedContent: string;
   referenceDigest: string;
+  exportTimestamp: string;
   exportType: 'prd_research_input_markdown';
   selectionManifest: { block_ids: string[]; include_citations: boolean };
   authenticity: WorkspaceState['authenticity'];
@@ -856,14 +857,16 @@ export class RestAdapter implements GlintApi {
     if (exportType !== 'prd_research_input_markdown') throw new Error('Unexpected BriefExportPreview export_type.');
     const renderedContent = typeof response.rendered_content === 'string' ? response.rendered_content : (() => { throw new Error('Invalid BriefExportPreview.rendered_content DTO.'); })();
     const authenticity = mapAuthenticity(response.data_authenticity, 'BriefExportPreview.data_authenticity');
+    const exportTimestamp = asString(response.export_timestamp, 'BriefExportPreview.export_timestamp');
     const marker = { seed: 'Seed', imported: 'Imported', collected: 'Collected', generated: 'Generated', human_authored: 'Human Authored' }[authenticity];
     if (!renderedContent.includes(`Data authenticity: ${marker}`)) throw new Error('Canonical export Markdown omitted its data authenticity marker.');
-    return { renderedContent, referenceDigest: asString(response.reference_digest, 'BriefExportPreview.reference_digest'), exportType, selectionManifest, authenticity };
+    if (!renderedContent.includes(`Export Timestamp: ${exportTimestamp}`)) throw new Error('Canonical export Markdown omitted its server-issued timestamp.');
+    return { renderedContent, referenceDigest: asString(response.reference_digest, 'BriefExportPreview.reference_digest'), exportTimestamp, exportType, selectionManifest, authenticity };
   }
 
   async executeExport(briefId: string, preview: ExportPreview, destination: BriefExport['destination'], idempotencyKey: string): Promise<BriefExport> {
     const brief = await this.getBrief(briefId);
-    const response = asObject(await this.request(`/decision-briefs/${briefId}/exports`, { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, body: JSON.stringify({ decision_brief_version_id: brief.versionId, export_type: preview.exportType, selection_manifest: preview.selectionManifest, destination, reference_digest: preview.referenceDigest }) }), 'BriefExport');
+    const response = asObject(await this.request(`/decision-briefs/${briefId}/exports`, { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, body: JSON.stringify({ decision_brief_version_id: brief.versionId, export_type: preview.exportType, selection_manifest: preview.selectionManifest, destination, reference_digest: preview.referenceDigest, export_timestamp: preview.exportTimestamp }) }), 'BriefExport');
     const responseDestination = asString(response.destination, 'BriefExport.destination');
     const responseType = asString(response.export_type, 'BriefExport.export_type');
     if (responseDestination !== destination || responseType !== preview.exportType || asString(response.decision_brief_version_id, 'BriefExport.decision_brief_version_id') !== brief.versionId) throw new Error('BriefExport is not terminal for the exact previewed version and destination.');
@@ -871,7 +874,9 @@ export class RestAdapter implements GlintApi {
     if (authenticity !== preview.authenticity) throw new Error('Terminal BriefExport authenticity differs from the canonical preview.');
     const outputDigest = asString(response.output_digest, 'BriefExport.output_digest');
     if (outputDigest !== await sha256(preview.renderedContent)) throw new Error('Terminal BriefExport output_digest differs from the canonical local Markdown bytes.');
-    return { id: asString(response.id, 'BriefExport.id'), decisionBriefVersionId: brief.versionId, exportType: preview.exportType, destination, outputDigest, createdAt: asString(response.created_at, 'BriefExport.created_at'), authenticity };
+    const createdAt = asString(response.created_at, 'BriefExport.created_at');
+    if (createdAt !== preview.exportTimestamp) throw new Error('Terminal BriefExport timestamp differs from the canonical preview.');
+    return { id: asString(response.id, 'BriefExport.id'), decisionBriefVersionId: brief.versionId, exportType: preview.exportType, destination, outputDigest, createdAt, authenticity };
   }
 }
 
