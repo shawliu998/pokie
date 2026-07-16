@@ -444,8 +444,14 @@ export class RestAdapter implements GlintApi {
     const sourceConnectionIds = eligible.map((source) => source.id);
     const common = this.researchPayload(signal, question, sourceConnectionIds);
     const created = mapInvestigation(await this.request('/investigations', { method: 'POST', body: JSON.stringify({ signal_id: signalId, decision_question: question, source_scope: common.source_scope, time_range: common.time_range, budget: common.budget, stop_conditions: ['Evidence and counter-evidence have both been reviewed.'] }) }));
-    await this.request('/research-runs', { method: 'POST', body: JSON.stringify({ investigation_id: created.id, investigation_scope_version_id: created.scopeVersionId, ...common, expected_investigation_row_version: created.rowVersion }) });
-    return this.loadInvestigation(created.id, created);
+    const pinned = await this.loadInvestigation(created.id, created);
+    if (!pinned.timeRange || pinned.sourceConnectionIds.length === 0) throw new Error('Pinned Investigation scope is unavailable.');
+    const pinnedRun = {
+      ...this.researchPayload(signal, pinned.question, pinned.sourceConnectionIds, pinned.contentVersionIds),
+      time_range: pinned.timeRange,
+    };
+    await this.request('/research-runs', { method: 'POST', body: JSON.stringify({ investigation_id: pinned.id, investigation_scope_version_id: pinned.scopeVersionId, ...pinnedRun, expected_investigation_row_version: pinned.rowVersion }) });
+    return this.loadInvestigation(pinned.id, pinned);
   }
 
   async cancelRun(investigationId: string): Promise<Investigation> {

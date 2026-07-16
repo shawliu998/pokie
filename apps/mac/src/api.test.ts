@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { eligibleResearchSources, RestAdapter, type ImportProgress } from './api';
 import type { PreparedCsvImport } from './imports';
-import type { SourceHealth } from './domain';
+import type { Signal, SourceHealth, WorkspaceState } from './domain';
 
 const response = (body: unknown, headers?: HeadersInit) => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json', ...Object.fromEntries(new Headers(headers)) } });
 const session = (state: string, rowVersion: number, extras: Record<string, unknown> = {}) => ({ id: 'import-1', state, row_version: rowVersion, retryable: false, terminal_manifest_id: null, failure_code: null, data_authenticity: 'imported', ...extras });
@@ -129,6 +129,43 @@ describe('Signal-linked research source eligibility', () => {
     const adapter = new RestAdapter('http://api.test', 'workspace-1', 'access-token');
     const manualCloud = { ...source, id: 'cloud-1', sourceKind: 'cloud' as const, connectorType: 'github' as const, runtime: 'cloud' as const, status: 'healthy' as const, cadence: 'manual' as const, timezone: 'UTC', sourceConfig: { connectorType: 'github' as const, repositories: [{ owner: 'openai', repository: 'glint', includeIssues: true, includeDiscussions: true, includeReleases: true }] } };
     await expect(adapter.createSchedule(manualCloud, { id: 'watchlist-1', projectId: 'project-1', name: 'Watchlist', objective: 'Monitor signals.', status: 'active', sourceConnectionIds: ['cloud-1'], rules: { entities: ['product'], includeTerms: [], excludeTerms: [], languages: [], regions: [], cadence: 'daily', currentWindowDays: 7, baselineWindowDays: 28 }, initialBaseline: { status: 'ready', currentCount: 2, requiredCount: 2, candidateCount: 2, expectedDetectableAt: null, reason: null, lastTerminalRunAt: '2026-07-15T05:00:00Z' }, rowVersion: 1 }, 'query')).rejects.toThrow(/manual cadence/i);
+  });
+
+  it('starts a reused Investigation from its authoritative pinned scope', async () => {
+    const adapter = new RestAdapter('http://api.test', 'workspace-1', 'access-token');
+    const signal = {
+      id: 'signal-1',
+      perSourceFreshness: [{ sourceConnectionId: 'source-current', state: 'current', lastSuccessAt: '2026-07-15T05:00:00Z' }],
+      window: { currentStart: '2026-07-01T00:00:00Z', currentEnd: '2026-07-15T00:00:00Z' },
+    } as unknown as Signal;
+    const currentSource = { ...source, id: 'source-current', currentImportManifestId: 'manifest-current' };
+    (adapter as unknown as { latestWorkspace: WorkspaceState }).latestWorkspace = { signals: [signal], sources: [currentSource] } as WorkspaceState;
+    const investigationDto = { id: 'investigation-1', signal_id: signal.id, decision_question: 'Pinned decision question', status: 'draft', current_scope_version_id: 'scope-1', row_version: 3, data_authenticity: 'imported' };
+    const scopeDto = { id: 'scope-1', source_scope_json: { source_connection_ids: ['source-pinned'], content_version_ids: ['content-pinned'], allow_cloud_model: false }, time_range: { start: '2026-06-01T00:00:00Z', end: '2026-06-30T00:00:00Z' } };
+    let runBody: Record<string, unknown> | null = null;
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/investigations') && init?.method === 'POST') return response(investigationDto);
+      if (url.endsWith('/investigations/investigation-1')) return response(investigationDto);
+      if (url.endsWith('/research-runs') && init?.method === 'POST') { runBody = JSON.parse(String(init.body)); return response({}); }
+      if (url.endsWith('/research-runs')) return response({ items: [], page: { next_cursor: null, has_more: false } });
+      if (url.includes('/claims?investigation_id=')) return response({ items: [], page: { next_cursor: null, has_more: false } });
+      if (url.endsWith('/investigations/investigation-1/synthesis')) return new Response(JSON.stringify({ error: { message: 'not found' } }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+      if (url.endsWith('/investigations/investigation-1/scope-versions')) return response({ items: [scopeDto], page: { next_cursor: null, has_more: false } });
+      throw new Error(`Unexpected request ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await adapter.createInvestigation(signal.id, 'A newer UI question');
+
+    expect(runBody).toMatchObject({
+      investigation_id: 'investigation-1',
+      investigation_scope_version_id: 'scope-1',
+      question: 'Pinned decision question',
+      source_scope: scopeDto.source_scope_json,
+      time_range: scopeDto.time_range,
+      expected_investigation_row_version: 3,
+    });
   });
 });
 
