@@ -7,11 +7,13 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from packages.contracts.schemas import DecisionBriefBlockDocument
+from services.api.app.core.config import get_settings
 from services.api.app.core.object_store import get_object_store
 from services.api.app.db.models import (
     BriefExport,
     Claim,
     ClaimEvidence,
+    ClaimVersion,
     ContentItem,
     ContentVersion,
     DecisionBriefVersion,
@@ -39,7 +41,12 @@ def _brief_document_digest(document: dict[str, Any]) -> str:
 
 
 def _create_investigation_and_run(
-    client: TestClient, principal_id: str, fixture: dict[str, Any]
+    client: TestClient,
+    principal_id: str,
+    fixture: dict[str, Any],
+    *,
+    allow_cloud_model: bool = False,
+    expected_run_status: int = 202,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     workspace = fixture["workspace"]
     source = fixture["source"]
@@ -48,7 +55,7 @@ def _create_investigation_and_run(
     source_scope = {
         "source_connection_ids": [fixture["source"]["id"]],
         "content_version_ids": [fixture["content_version_id"]],
-        "allow_cloud_model": False,
+        "allow_cloud_model": allow_cloud_model,
     }
     now = fixture["now"]
     question = "Should collected permission friction be prioritized?"
@@ -111,8 +118,107 @@ def _create_investigation_and_run(
             "expected_investigation_row_version": investigation["row_version"],
         },
     )
-    assert run_response.status_code == 202, run_response.text
+    assert run_response.status_code == expected_run_status, run_response.text
     return investigation, run_response.json()
+
+
+def test_model_run_is_blocked_when_server_runtime_policy_is_disabled(
+    client: TestClient, principal_id: str, monkeypatch: Any
+) -> None:
+    monkeypatch.setenv("GLINT_MODEL_RUNTIME_ENABLED", "false")
+    get_settings.cache_clear()
+    fixture = seed_collected_signal_scope(client, principal_id)
+
+    _investigation, error = _create_investigation_and_run(
+        client,
+        principal_id,
+        fixture,
+        allow_cloud_model=True,
+        expected_run_status=403,
+    )
+
+    assert error["error"]["code"] == "MODEL_RUNTIME_DISABLED"
+    get_settings.cache_clear()
+
+
+def test_authorized_model_run_freezes_provider_and_exposes_redacted_metadata(
+    client: TestClient, principal_id: str, monkeypatch: Any
+) -> None:
+    monkeypatch.setenv("GLINT_MODEL_RUNTIME_ENABLED", "true")
+    monkeypatch.setenv("GLINT_DEEPSEEK_MODEL", "deepseek-v4-flash")
+    get_settings.cache_clear()
+    fixture = seed_collected_signal_scope(client, principal_id)
+
+    _investigation, run = _create_investigation_and_run(
+        client, principal_id, fixture, allow_cloud_model=True
+    )
+
+    assert run["generation_method"] == "model"
+    assert run["provider"] == "deepseek"
+    assert run["model"] == "deepseek-v4-flash"
+    assert run["prompt_refs"] == ["model-research-system-v1", "model-research-json-v1"]
+    assert run["trace_ref"].startswith("glint:")
+    assert "secret" not in run["trace_ref"].lower()
+    workspace_id = str(fixture["workspace"]["id"])
+    with get_session_factory()() as db:
+        stored = db.get(ResearchRun, str(run["id"]))
+        assert stored is not None
+        assert stored.run_input_manifest_json["tool_policy_version"] == (
+            "no-tools-model-research-v1"
+        )
+        assert stored.run_input_manifest_json["provider"] == "deepseek"
+        claimed = ResearchRunResultRepository.claim_queued(
+            db,
+            workspace_id=workspace_id,
+            run_id=str(run["id"]),
+            worker_id="model-worker",
+            worker_attempt_id="model-attempt",
+        )
+        assert claimed is not None
+    with get_session_factory()() as db:
+        ResearchRunResultRepository.mark_started(
+            db,
+            workspace_id=workspace_id,
+            run_id=str(run["id"]),
+            worker_attempt_id="model-attempt",
+        )
+        version = db.get(ContentVersion, str(fixture["content_version_id"]))
+        assert version is not None
+        evidence_rows, claim_version = ResearchRunResultRepository.persist_deterministic_result(
+            db,
+            workspace_id=workspace_id,
+            run_id=str(run["id"]),
+            actor_id=principal_id,
+            request_id="model-test-request",
+            worker_attempt_id="model-attempt",
+            evidence_proposals=[
+                {
+                    "content_version_id": version.id,
+                    "quote_start": 0,
+                    "quote_end": len(version.normalized_body),
+                    "stance": "supports",
+                    "relevance": 0.9,
+                    "reliability": 0.8,
+                    "independence": 0.7,
+                    "recency": 0.8,
+                    "specificity": 0.9,
+                }
+            ],
+            claim_proposal={
+                "claim_type": "observation",
+                "text": "Collected permission friction merits PM review.",
+                "limitations": ["One model-analyzed source."],
+                "generation_method": "model",
+                "generator_version": "deepseek-v4-flash",
+                "suggestion_origin": "model",
+            },
+        )
+        assert evidence_rows[0].extraction_method == "model_deepseek_json_v1"
+        assert claim_version.generation_method == "model"
+        assert claim_version.suggestion_origin == "model"
+        assert claim_version.model_run_id == str(run["id"])
+        assert db.get(ClaimVersion, claim_version.id) is claim_version
+    get_settings.cache_clear()
 
 
 def test_untriaged_signal_cannot_create_investigation(

@@ -7,6 +7,7 @@ from uuid import uuid4
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
+from services.api.app.core.config import get_settings
 from services.api.app.core.errors import ApiError, invalid_state, not_found, version_conflict
 from services.api.app.db.models import (
     Claim,
@@ -471,8 +472,6 @@ def _validate_source_scope(
     signal: Signal,
     watchlist: Watchlist,
 ) -> tuple[dict[str, SourceConnection], dict[str, list[dict[str, Any]]]]:
-    if source_scope.get("allow_cloud_model"):
-        raise ApiError(403, "POLICY_BLOCKED", "Deterministic research forbids cloud models.")
     source_ids = [str(value) for value in source_scope.get("source_connection_ids", [])]
     if not source_ids or len(source_ids) != len(set(source_ids)):
         raise ApiError(422, "SOURCE_SCOPE_BLOCKED", "At least one source is required.")
@@ -665,7 +664,21 @@ def create_research_run(
             422, "SOURCE_SCOPE_BLOCKED", "Run question must match the pinned scope version."
         )
     v2 = any(source.source_kind == "cloud" for source in sources.values())
-    graph_version = "deterministic-content-v2" if v2 else "deterministic-import-v1"
+    model_authorized = bool(payload["source_scope"].get("allow_cloud_model"))
+    settings = get_settings()
+    if model_authorized and not settings.model_runtime_enabled:
+        raise ApiError(
+            403,
+            "MODEL_RUNTIME_DISABLED",
+            "Cloud-model research is disabled by the server runtime policy.",
+        )
+    provider = "deepseek" if model_authorized else "deterministic"
+    model = settings.deepseek_model if model_authorized else None
+    graph_version = (
+        "deepseek-model-research-v1"
+        if model_authorized
+        else ("deterministic-content-v2" if v2 else "deterministic-import-v1")
+    )
     content_snapshots = lineage["content_versions"]
     if not v2:
         content_snapshots = [
@@ -677,6 +690,8 @@ def create_research_run(
             for item in content_snapshots
         ]
     content_ids = [item["content_version_id"] for item in content_snapshots]
+    trace_id = uuid4().hex
+    prompt_refs = ["model-research-system-v1", "model-research-json-v1"] if model_authorized else []
     manifest = {
         "schema_version": "run-input-manifest-v2" if v2 else "run-input-manifest-v1",
         "investigation_scope_version_id": scope.id,
@@ -687,16 +702,19 @@ def create_research_run(
         "content_versions": content_snapshots,
         "time_range": payload["time_range"],
         "budget": payload["budget"],
-        "provider": "deterministic",
+        "generation_method": "model" if model_authorized else "deterministic",
+        "provider": provider,
+        "model": model,
+        "prompt_refs": prompt_refs,
+        "trace_ref": f"glint:{trace_id}",
         "graph_version": graph_version,
-        "tool_policy_version": "read-only-v1",
+        "tool_policy_version": "no-tools-model-research-v1" if model_authorized else "read-only-v1",
     }
     if v2:
         manifest["terminal_collection_runs"] = lineage["terminal_collection_runs"]
     attempt = db.scalar(
         select(func.count(ResearchRun.id)).where(ResearchRun.investigation_id == investigation.id)
     )
-    trace_id = uuid4().hex
     run = ResearchRun(
         workspace_id=workspace_id,
         investigation_id=investigation.id,
@@ -859,7 +877,14 @@ class ResearchRunResultRepository:
             investigation_id=run.investigation_id,
             run_id=run.id,
             event_type="run.started",
-            payload={"state": "running", "safe_summary": "Deterministic worker started."},
+            payload={
+                "state": "running",
+                "safe_summary": (
+                    "Bounded model worker started."
+                    if run.run_input_manifest_json.get("generation_method") == "model"
+                    else "Deterministic worker started."
+                ),
+            },
             trace_id=run.trace_id,
             event_idempotency_key=f"worker:{worker_attempt_id}:started",
         )
@@ -985,6 +1010,9 @@ class ResearchRunResultRepository:
             ]
             if any(score < 0 or score > 1 for score in scores):
                 raise ApiError(422, "VALIDATION_ERROR", "Evidence scores must be within 0..1.")
+            generation_method = str(
+                run.run_input_manifest_json.get("generation_method") or "deterministic"
+            )
             evidence = Evidence(
                 workspace_id=workspace_id,
                 investigation_id=run.investigation_id,
@@ -1001,9 +1029,13 @@ class ResearchRunResultRepository:
                 recency=scores[3],
                 specificity=scores[4],
                 extraction_method=(
-                    "deterministic_content_v2"
-                    if run.graph_version == "deterministic-content-v2"
-                    else "deterministic_import_v1"
+                    "model_deepseek_json_v1"
+                    if generation_method == "model"
+                    else (
+                        "deterministic_content_v2"
+                        if run.graph_version == "deterministic-content-v2"
+                        else "deterministic_import_v1"
+                    )
                 ),
                 data_authenticity=run.data_authenticity,
             )
@@ -1046,6 +1078,9 @@ class ResearchRunResultRepository:
             item.get("origin_type", "imported")
             for item in run.run_input_manifest_json["content_versions"]
         }
+        run_generation_method = str(
+            run.run_input_manifest_json.get("generation_method") or "deterministic"
+        )
         limitations.extend(
             item
             for item in (
@@ -1055,7 +1090,11 @@ class ResearchRunResultRepository:
                 "Collected content is pinned to terminal CollectionRun snapshots."
                 if "collected" in frozen_origins
                 else None,
-                "Deterministic output; not model-generated research.",
+                (
+                    "Model-generated proposal; requires human review."
+                    if run_generation_method == "model"
+                    else "Deterministic output; not model-generated research."
+                ),
                 "Untrusted instruction-like text was flagged for human review."
                 if injection_flag
                 else None,
@@ -1064,11 +1103,12 @@ class ResearchRunResultRepository:
         )
         generation_method = str(claim_proposal.get("generation_method", "deterministic"))
         suggestion_origin = str(claim_proposal.get("suggestion_origin", "deterministic_rule"))
-        if generation_method != "deterministic" or suggestion_origin != "deterministic_rule":
+        expected_origin = "model" if run_generation_method == "model" else "deterministic_rule"
+        if generation_method != run_generation_method or suggestion_origin != expected_origin:
             raise ApiError(
                 422,
                 "VALIDATION_ERROR",
-                "The deterministic ResearchRun cannot persist model or human Claim provenance.",
+                "Claim provenance does not match the immutable ResearchRun provider.",
             )
         claim_version = ClaimVersion(
             workspace_id=workspace_id,
@@ -1085,6 +1125,7 @@ class ResearchRunResultRepository:
             generation_method=generation_method,
             generator_version=str(claim_proposal.get("generator_version", run.graph_version)),
             suggestion_origin=suggestion_origin,
+            model_run_id=run.id if generation_method == "model" else None,
             created_by=actor_id,
             data_authenticity=run.data_authenticity,
         )

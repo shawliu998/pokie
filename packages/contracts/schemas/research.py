@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import Literal
 from uuid import UUID
 
 from pydantic import AwareDatetime, Field, model_validator
@@ -107,6 +108,11 @@ class ResearchRunResponse(MutableResource):
     state: ResearchRunState
     waiting_for_input_reason: WaitingForInputReason | None = None
     graph_version: VersionString
+    generation_method: Literal["deterministic", "model"]
+    provider: NonEmptyString
+    model: NonEmptyString | None = None
+    prompt_refs: list[VersionString] = Field(default_factory=list)
+    trace_ref: NonEmptyString | None = None
     run_input_manifest_digest: Digest
     budget: ResearchBudget
     used_cost_usd: Decimal = Field(ge=0, max_digits=10, decimal_places=4)

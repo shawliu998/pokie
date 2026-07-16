@@ -136,7 +136,7 @@ export interface GlintApi {
   triage(signalId: string, impact: Impact, urgency: Urgency): Promise<Signal>;
   transitionSignal(signalId: string, action: 'monitor' | 'dismiss' | 'undo', details?: { cooldownUntil?: string; dismissReason?: SignalDismissReason; note?: string }): Promise<Signal>;
   canUndoSignal(signal: Signal): boolean;
-  createInvestigation(signalId: string, question: string): Promise<Investigation>;
+  createInvestigation(signalId: string, question: string, allowCloudModel?: boolean): Promise<Investigation>;
   cancelRun(investigationId: string): Promise<Investigation>;
   retryRun(investigationId: string): Promise<Investigation>;
   signalSamples(signalId: string): Promise<SignalSample[]>;
@@ -387,10 +387,12 @@ export class RestAdapter implements GlintApi {
     const currentScope = scopes.find((scope) => scope.id === investigation.scopeVersionId);
     const sourceScope = currentScope ? asObject(currentScope.source_scope_json, 'InvestigationScope.source_scope_json') : null;
     const timeRange = currentScope ? asObject(currentScope.time_range, 'InvestigationScope.time_range') : null;
+    const allowCloudModel = sourceScope ? (() => { if (typeof sourceScope.allow_cloud_model !== 'boolean') throw new Error('Invalid ResearchSourceScope.allow_cloud_model DTO.'); return sourceScope.allow_cloud_model; })() : false;
     return {
       ...investigation,
       sourceConnectionIds: sourceScope ? asArray(sourceScope.source_connection_ids, 'ResearchSourceScope.source_connection_ids').map((item, index) => asString(item, `ResearchSourceScope.source_connection_ids[${index}]`)) : [],
       contentVersionIds: sourceScope ? asArray(sourceScope.content_version_ids, 'ResearchSourceScope.content_version_ids').map((item, index) => asString(item, `ResearchSourceScope.content_version_ids[${index}]`)) : [],
+      allowCloudModel,
       timeRange: timeRange ? { start: asString(timeRange.start, 'InvestigationScope.time_range.start'), end: asString(timeRange.end, 'InvestigationScope.time_range.end') } : null,
       run: latestRun,
       claims,
@@ -431,11 +433,11 @@ export class RestAdapter implements GlintApi {
 
   canUndoSignal(signal: Signal): boolean { return Boolean(signal.disposition && signal.disposition.sessionId === signalSessionId() && signal.disposition.undoneAt === null && (signal.status === 'monitoring' || signal.status === 'dismissed')); }
 
-  private researchPayload(signal: Signal, question: string, sourceConnectionIds: string[], contentVersionIds: string[] = []) {
-    return { question, source_scope: { source_connection_ids: sourceConnectionIds, content_version_ids: contentVersionIds, allow_cloud_model: false }, time_range: { start: signal.window.currentStart, end: signal.window.currentEnd }, budget: { max_cost_usd: '4.0000', max_duration_seconds: 900 } };
+  private researchPayload(signal: Signal, question: string, sourceConnectionIds: string[], contentVersionIds: string[] = [], allowCloudModel = false) {
+    return { question, source_scope: { source_connection_ids: sourceConnectionIds, content_version_ids: contentVersionIds, allow_cloud_model: allowCloudModel }, time_range: { start: signal.window.currentStart, end: signal.window.currentEnd }, budget: { max_cost_usd: '4.0000', max_duration_seconds: 900 } };
   }
 
-  async createInvestigation(signalId: string, question: string): Promise<Investigation> {
+  async createInvestigation(signalId: string, question: string, allowCloudModel = false): Promise<Investigation> {
     if (!question.trim()) throw new Error('A decision question is required.');
     const workspace = this.latestWorkspace ?? await this.bootstrap();
     const signal = workspace.signals.find((item) => item.id === signalId);
@@ -443,12 +445,12 @@ export class RestAdapter implements GlintApi {
     const eligible = eligibleResearchSources(signal, workspace.sources);
     if (eligible.length === 0) throw new Error('No Signal-linked source has eligible terminal imported content or successful cloud freshness.');
     const sourceConnectionIds = eligible.map((source) => source.id);
-    const common = this.researchPayload(signal, question, sourceConnectionIds);
+    const common = this.researchPayload(signal, question, sourceConnectionIds, [], allowCloudModel);
     const created = mapInvestigation(await this.request('/investigations', { method: 'POST', body: JSON.stringify({ signal_id: signalId, decision_question: question, source_scope: common.source_scope, time_range: common.time_range, budget: common.budget, stop_conditions: ['Evidence and counter-evidence have both been reviewed.'] }) }));
     const pinned = await this.loadInvestigation(created.id, created);
     if (!pinned.timeRange || pinned.sourceConnectionIds.length === 0) throw new Error('Pinned Investigation scope is unavailable.');
     const pinnedRun = {
-      ...this.researchPayload(signal, pinned.question, pinned.sourceConnectionIds, pinned.contentVersionIds),
+      ...this.researchPayload(signal, pinned.question, pinned.sourceConnectionIds, pinned.contentVersionIds, pinned.allowCloudModel),
       time_range: pinned.timeRange,
     };
     await this.request('/research-runs', { method: 'POST', body: JSON.stringify({ investigation_id: pinned.id, investigation_scope_version_id: pinned.scopeVersionId, ...pinnedRun, expected_investigation_row_version: pinned.rowVersion }) });
@@ -467,7 +469,7 @@ export class RestAdapter implements GlintApi {
     const investigation = await this.refreshInvestigation(investigationId);
     const signal = workspace.signals.find((item) => item.id === investigation.signalId);
     if (!signal || investigation.sourceConnectionIds.length === 0) throw new Error('Pinned Investigation scope is unavailable.');
-    const common = this.researchPayload(signal, investigation.question, investigation.sourceConnectionIds, investigation.contentVersionIds);
+    const common = this.researchPayload(signal, investigation.question, investigation.sourceConnectionIds, investigation.contentVersionIds, investigation.allowCloudModel);
     await this.request('/research-runs', { method: 'POST', body: JSON.stringify({ investigation_id: investigation.id, investigation_scope_version_id: investigation.scopeVersionId, ...common, expected_investigation_row_version: investigation.rowVersion }) });
     return this.refreshInvestigation(investigationId);
   }

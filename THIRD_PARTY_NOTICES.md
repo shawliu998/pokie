@@ -11,6 +11,7 @@ the license text distributed by each package. Resolved versions are pinned by
 | python | `boto3` | `1.43.48` | `Apache-2.0` | [source](https://pypi.org/project/boto3/1.43.48/) |
 | python | `fastapi` | `0.138.2` | `MIT` | [source](https://pypi.org/project/fastapi/0.138.2/) |
 | python | `httpx` | `0.28.1` | `BSD-3-Clause` | [source](https://pypi.org/project/httpx/0.28.1/) |
+| python | `langgraph` | `1.2.9` | `MIT` | [source](https://pypi.org/project/langgraph/1.2.9/) |
 | python | `psycopg` | `3.3.4` | `LGPL-3.0-only` | [source](https://pypi.org/project/psycopg/3.3.4/) |
 | python | `psycopg-binary` | `3.3.4` | `LGPL-3.0-only` | [source](https://pypi.org/project/psycopg-binary/3.3.4/) |
 | python | `pydantic` | `2.13.4` | `MIT` | [source](https://pypi.org/project/pydantic/2.13.4/) |

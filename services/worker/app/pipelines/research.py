@@ -132,7 +132,7 @@ class DeterministicResearchRunner:
     ) -> list[EvidenceProposal]:
         proposals: list[EvidenceProposal] = []
         for version in versions:
-            flags = _scan_injection(version.normalized_body)
+            flags = scan_injection(version.normalized_body)
             quote_start, quote_end = _quote_span(version.normalized_body)
             quote = version.normalized_body[quote_start:quote_end]
             if not quote:
@@ -192,6 +192,7 @@ class DeterministicResearchRunner:
             generation_method="deterministic",
             generator_version=self.generator_version,
             data_authenticity=run.data_authenticity,
+            suggestion_origin="deterministic_rule",
         )
 
 
@@ -205,7 +206,7 @@ def _quote_span(body: str) -> tuple[int, int]:
     return (max(start, 0), max(start, 0) + len(quote))
 
 
-def _scan_injection(body: str) -> tuple[str, ...]:
+def scan_injection(body: str) -> tuple[str, ...]:
     return tuple(
         sorted(name for name, pattern in INJECTION_PATTERNS.items() if pattern.search(body))
     )

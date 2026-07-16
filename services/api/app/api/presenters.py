@@ -649,6 +649,9 @@ def scope(row: m.InvestigationScopeVersion) -> dict[str, Any]:
 
 
 def research_run(row: m.ResearchRun) -> dict[str, Any]:
+    manifest = row.run_input_manifest_json or {}
+    provider = str(manifest.get("provider") or "deterministic")
+    prompt_refs = [str(item) for item in manifest.get("prompt_refs", []) if item]
     return {
         "id": row.id,
         "workspace_id": row.workspace_id,
@@ -657,6 +660,14 @@ def research_run(row: m.ResearchRun) -> dict[str, Any]:
         "state": row.state,
         "waiting_for_input_reason": None,
         "graph_version": row.graph_version,
+        "generation_method": str(
+            manifest.get("generation_method")
+            or ("model" if provider != "deterministic" else "deterministic")
+        ),
+        "provider": provider,
+        "model": manifest.get("model"),
+        "prompt_refs": prompt_refs,
+        "trace_ref": manifest.get("trace_ref"),
         "run_input_manifest_digest": row.run_input_manifest_digest,
         "budget": row.budget_json,
         "used_cost_usd": row.used_cost,

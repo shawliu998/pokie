@@ -131,7 +131,7 @@ describe('Signal-linked research source eligibility', () => {
     await expect(adapter.createSchedule(manualCloud, { id: 'watchlist-1', projectId: 'project-1', name: 'Watchlist', objective: 'Monitor signals.', status: 'active', sourceConnectionIds: ['cloud-1'], rules: { entities: ['product'], includeTerms: [], excludeTerms: [], languages: [], regions: [], cadence: 'daily', currentWindowDays: 7, baselineWindowDays: 28 }, initialBaseline: { status: 'ready', currentCount: 2, requiredCount: 2, candidateCount: 2, expectedDetectableAt: null, reason: null, lastTerminalRunAt: '2026-07-15T05:00:00Z' }, rowVersion: 1 }, 'query')).rejects.toThrow(/manual cadence/i);
   });
 
-  it('starts a reused Investigation from its authoritative pinned scope', async () => {
+  it('requests model egress on the scope and starts the run from the authoritative pinned scope', async () => {
     const adapter = new RestAdapter('http://api.test', 'workspace-1', 'access-token');
     const signal = {
       id: 'signal-1',
@@ -142,10 +142,11 @@ describe('Signal-linked research source eligibility', () => {
     (adapter as unknown as { latestWorkspace: WorkspaceState }).latestWorkspace = { signals: [signal], sources: [currentSource] } as WorkspaceState;
     const investigationDto = { id: 'investigation-1', signal_id: signal.id, decision_question: 'Pinned decision question', status: 'draft', current_scope_version_id: 'scope-1', row_version: 3, data_authenticity: 'imported' };
     const scopeDto = { id: 'scope-1', source_scope_json: { source_connection_ids: ['source-pinned'], content_version_ids: ['content-pinned'], allow_cloud_model: false }, time_range: { start: '2026-06-01T00:00:00Z', end: '2026-06-30T00:00:00Z' } };
+    let createBody: Record<string, unknown> | null = null;
     let runBody: Record<string, unknown> | null = null;
     const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
-      if (url.endsWith('/investigations') && init?.method === 'POST') return response(investigationDto);
+      if (url.endsWith('/investigations') && init?.method === 'POST') { createBody = JSON.parse(String(init.body)); return response(investigationDto); }
       if (url.endsWith('/investigations/investigation-1')) return response(investigationDto);
       if (url.endsWith('/research-runs') && init?.method === 'POST') { runBody = JSON.parse(String(init.body)); return response({}); }
       if (url.endsWith('/research-runs')) return response({ items: [], page: { next_cursor: null, has_more: false } });
@@ -156,8 +157,9 @@ describe('Signal-linked research source eligibility', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    await adapter.createInvestigation(signal.id, 'A newer UI question');
+    await adapter.createInvestigation(signal.id, 'A newer UI question', true);
 
+    expect(createBody).toMatchObject({ source_scope: { source_connection_ids: ['source-current'], content_version_ids: [], allow_cloud_model: true } });
     expect(runBody).toMatchObject({
       investigation_id: 'investigation-1',
       investigation_scope_version_id: 'scope-1',

@@ -17,6 +17,7 @@ dependencies = [
   "psycopg[binary]>=3.2.9,<4",
   "sqlalchemy>=2.0.41,<3",
   "uvicorn[standard]>=0.35,<1",
+  "langgraph==1.2.9",
 ]
 
 [project.optional-dependencies]

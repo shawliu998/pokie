@@ -297,6 +297,10 @@ class ResearchRun:
     content_version_ids: tuple[str, ...]
     data_authenticity: DataAuthenticity
     row_version: int = 1
+    provider: str = "deterministic"
+    model: str | None = None
+    prompt_refs: tuple[str, ...] = ()
+    question: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -324,6 +328,11 @@ class EvidenceProposal:
     extraction_method: str
     injection_flags: tuple[str, ...]
     data_authenticity: DataAuthenticity
+    relevance: float = 0.8
+    reliability: float = 0.7
+    independence: float = 0.7
+    recency: float = 0.6
+    specificity: float = 0.75
 
 
 @dataclass(frozen=True, slots=True)
@@ -339,6 +348,7 @@ class ClaimVersionProposal:
     generation_method: str
     generator_version: str
     data_authenticity: DataAuthenticity
+    suggestion_origin: str = "deterministic_rule"
 
 
 @dataclass(frozen=True, slots=True)

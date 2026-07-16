@@ -171,16 +171,24 @@ test('strict API mode covers CSV → Signal → SSE/reviews → Brief → termin
   await page.keyboard.press('Escape');
 
   await page.getByRole('button', { name: 'Start Investigation' }).click();
-  await expect(page.getByRole('dialog', { name: 'Investigation plan' })).toContainText('No model egress is authorized');
-  await expect(page.getByRole('dialog', { name: 'Investigation plan' })).toContainText(fixtureMode ? 'Glint GitHub · Cloud github collection' : 'P1 Acceptance CSV');
-  await page.getByRole('button', { name: 'Run Investigation' }).click();
+  const investigationPlan = page.getByRole('dialog', { name: 'Investigation plan' });
+  await expect(investigationPlan).toContainText('No source content is sent to a model provider');
+  await expect(investigationPlan).toContainText(fixtureMode ? 'Glint GitHub · Cloud github collection' : 'P1 Acceptance CSV');
+  await investigationPlan.getByRole('radio', { name: /Model-assisted research/ }).check();
+  await expect(investigationPlan.getByRole('region', { name: 'Model egress confirmation' })).toContainText('configured DeepSeek provider');
+  await expect(investigationPlan.getByRole('button', { name: 'Run model-assisted research' })).toBeDisabled();
+  await investigationPlan.getByRole('checkbox', { name: /I confirm this run-scoped model egress/ }).check();
+  await expect(investigationPlan.getByRole('button', { name: 'Run model-assisted research' })).toBeEnabled();
+  await investigationPlan.getByRole('radio', { name: /Deterministic research/ }).check();
+  await expect(investigationPlan.getByRole('region', { name: 'Model egress confirmation' })).toHaveCount(0);
+  await investigationPlan.getByRole('button', { name: 'Run deterministic research' }).click();
   const runsTab = page.getByRole('tab', { name: 'Runs' });
   const investigationError = page.locator('.error-banner');
   const investigationOutcome = await Promise.race([
     runsTab.waitFor({ state: 'visible', timeout: 60_000 }).then(() => 'ready' as const),
     investigationError.waitFor({ state: 'visible', timeout: 60_000 }).then(() => 'error' as const),
   ]);
-  if (investigationOutcome === 'error') throw new Error(`Run Investigation failed: ${await investigationError.innerText()}`);
+  if (investigationOutcome === 'error') throw new Error(`Run deterministic research failed: ${await investigationError.innerText()}`);
   if (fixtureMode) await expect(page.locator('.detail-header')).toContainText('collected');
   await runsTab.click();
   await expect(page.getByText('Latest activity: Evidence and Claim proposal persisted.', { exact: true })).toBeVisible({ timeout: 120_000 });

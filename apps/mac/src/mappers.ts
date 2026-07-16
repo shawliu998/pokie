@@ -250,13 +250,35 @@ export function mapSynthesis(value: unknown): Synthesis {
     verifiedClaimVersionIds: asStrings(version.verified_claim_version_snapshot_json, 'InvestigationSynthesisVersion.verified_claim_version_snapshot_json'),
     generationMethod: enumValue(version.generation_method, ['deterministic', 'model'] as const, 'InvestigationSynthesisVersion.generation_method'),
     generatorVersion: asString(version.generator_version, 'InvestigationSynthesisVersion.generator_version'),
+    modelPromptRefs: asStrings(version.model_prompt_refs_json, 'InvestigationSynthesisVersion.model_prompt_refs_json'),
     authenticity: mapAuthenticity(dto.data_authenticity),
   };
 }
 
 export function mapRun(value: unknown): Investigation['run'] {
   const dto = asObject(value, 'ResearchRun');
-  return { id: asString(dto.id, 'ResearchRun.id'), state: enumValue(dto.state, ['queued', 'running', 'waiting_for_input', 'completed', 'failed', 'cancelled'] as const, 'ResearchRun.state') as RunState, rowVersion: asNumber(dto.row_version, 'ResearchRun.row_version'), latestSequence: asNumber(dto.latest_sequence, 'ResearchRun.latest_sequence'), attemptNumber: asNumber(dto.attempt_number, 'ResearchRun.attempt_number') };
+  const graphVersion = asString(dto.graph_version, 'ResearchRun.graph_version');
+  const budget = asObject(dto.budget, 'ResearchRun.budget');
+  const generationMethod = enumValue(dto.generation_method, ['deterministic', 'model'] as const, 'ResearchRun.generation_method');
+  return {
+    id: asString(dto.id, 'ResearchRun.id'),
+    state: enumValue(dto.state, ['queued', 'running', 'waiting_for_input', 'completed', 'failed', 'cancelled'] as const, 'ResearchRun.state') as RunState,
+    rowVersion: asNumber(dto.row_version, 'ResearchRun.row_version'),
+    latestSequence: asNumber(dto.latest_sequence, 'ResearchRun.latest_sequence'),
+    attemptNumber: asNumber(dto.attempt_number, 'ResearchRun.attempt_number'),
+    graphVersion,
+    generationMethod,
+    provider: asString(dto.provider, 'ResearchRun.provider'),
+    model: dto.model === undefined || dto.model === null ? null : asString(dto.model, 'ResearchRun.model'),
+    promptRefs: asStrings(dto.prompt_refs, 'ResearchRun.prompt_refs'),
+    traceRef: dto.trace_ref === undefined || dto.trace_ref === null ? null : asString(dto.trace_ref, 'ResearchRun.trace_ref'),
+    usedCostUsd: asString(dto.used_cost_usd, 'ResearchRun.used_cost_usd'),
+    budget: {
+      maxCostUsd: asString(budget.max_cost_usd, 'ResearchBudget.max_cost_usd'),
+      maxDurationSeconds: asNumber(budget.max_duration_seconds, 'ResearchBudget.max_duration_seconds'),
+    },
+    waitingForInputReason: dto.waiting_for_input_reason === undefined || dto.waiting_for_input_reason === null ? null : asString(dto.waiting_for_input_reason, 'ResearchRun.waiting_for_input_reason'),
+  };
 }
 
 export function mapInvestigation(value: unknown): Investigation {
@@ -269,6 +291,7 @@ export function mapInvestigation(value: unknown): Investigation {
     scopeVersionId: asString(dto.current_scope_version_id, 'Investigation.current_scope_version_id'),
     sourceConnectionIds: [],
     contentVersionIds: [],
+    allowCloudModel: false,
     timeRange: null,
     run: null,
     evidence: [],

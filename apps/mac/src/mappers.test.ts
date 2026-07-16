@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mapBrief, mapEvidence, mapSignal, mapSource } from './mappers';
+import { mapBrief, mapEvidence, mapRun, mapSignal, mapSource, mapSynthesis } from './mappers';
 
 const timestamps = { created_at: '2026-07-15T05:00:00Z', updated_at: '2026-07-15T05:01:00Z' };
 
@@ -33,5 +33,17 @@ describe('strict REST DTO mappers', () => {
   it('maps the durable latest EvidenceReview projection after a reload', () => {
     const evidence = mapEvidence({ id: 'evidence-1', workspace_id: 'workspace-1', investigation_id: 'investigation-1', research_run_id: 'run-1', content_version_id: 'content-1', quote_start: 0, quote_end: 10, quote_text: 'Exact quote', quote_text_digest: `sha256:${'a'.repeat(64)}`, stance: 'supports', status: 'valid', latest_review: { id: 'evidence-review-1', decision: 'valid', policy_version: 'evidence-review-v1', reviewed_at: timestamps.updated_at }, relevance: 1, reliability: 1, independence: 1, recency: 1, specificity: 1, provenance: { research_run_id: 'run-1', extraction_method: 'deterministic-v1' }, data_authenticity: 'collected', ...timestamps });
     expect(evidence.latestReviewId).toBe('evidence-review-1');
+  });
+
+  it('requires and maps authoritative model run provenance without graph-name inference', () => {
+    const base = { id: 'run-1', state: 'completed', graph_version: 'bounded-research-v1', budget: { max_cost_usd: '4.0000', max_duration_seconds: 900 }, used_cost_usd: '0.1200', attempt_number: 1, latest_sequence: 12, row_version: 2 };
+    expect(() => mapRun(base)).toThrow(/generation_method/);
+    const model = mapRun({ ...base, generation_method: 'model', provider: 'deepseek', model: 'deepseek-chat', prompt_refs: ['planner-v1', 'analyst-v1'], trace_ref: 'trace-opaque-1' });
+    expect(model).toMatchObject({ generationMethod: 'model', provider: 'deepseek', model: 'deepseek-chat', promptRefs: ['planner-v1', 'analyst-v1'], traceRef: 'trace-opaque-1', budget: { maxCostUsd: '4.0000', maxDurationSeconds: 900 } });
+  });
+
+  it('retains synthesis prompt references for visible model provenance', () => {
+    const synthesis = mapSynthesis({ id: 'synthesis-1', row_version: 1, data_authenticity: 'generated', current_version: { id: 'synthesis-version-1', status: 'needs_review', executive_summary: 'A bounded model proposal.', business_implications: ['Review before acting.'], limitations: ['Source scope is bounded.'], verified_claim_version_snapshot_json: ['claim-version-1'], generation_method: 'model', generator_version: 'synthesis-graph-v1', model_prompt_refs_json: ['synthesis-prompt-v1'] } });
+    expect(synthesis).toMatchObject({ generationMethod: 'model', modelPromptRefs: ['synthesis-prompt-v1'] });
   });
 });

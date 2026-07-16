@@ -1208,6 +1208,7 @@ class SQLAlchemyWorkerDomainAdapter:
             if run is None:
                 raise ProductionAdapterError("research run not found")
             content_version_ids, manifest_ids = self._validate_run_input_lineage(db, run)
+            manifest = run.run_input_manifest_json or {}
             return ResearchRun(
                 id=run.id,
                 workspace_id=run.workspace_id,
@@ -1220,6 +1221,10 @@ class SQLAlchemyWorkerDomainAdapter:
                 content_version_ids=tuple(content_version_ids),
                 data_authenticity=DataAuthenticity(run.data_authenticity),
                 row_version=run.row_version,
+                provider=str(manifest.get("provider") or "deterministic"),
+                model=str(manifest["model"]) if manifest.get("model") else None,
+                prompt_refs=tuple(str(item) for item in manifest.get("prompt_refs", [])),
+                question=str(manifest.get("question") or ""),
             )
 
     def claim_next_research_run_command(
@@ -1381,7 +1386,7 @@ class SQLAlchemyWorkerDomainAdapter:
             raise ProductionAdapterError("research run worker attempt is required")
         if not evidence or not claims:
             raise ProductionAdapterError(
-                "deterministic research must persist evidence and claim proposals together"
+                "research must persist evidence and claim proposals together"
             )
         with self.session_factory() as db:
             self._set_workspace(db)
@@ -1409,11 +1414,11 @@ class SQLAlchemyWorkerDomainAdapter:
                         "quote_start": proposal.quote_start,
                         "quote_end": proposal.quote_end,
                         "stance": proposal.stance,
-                        "relevance": 0.8,
-                        "reliability": 0.7,
-                        "independence": 0.7,
-                        "recency": 0.6,
-                        "specificity": 0.75,
+                        "relevance": proposal.relevance,
+                        "reliability": proposal.reliability,
+                        "independence": proposal.independence,
+                        "recency": proposal.recency,
+                        "specificity": proposal.specificity,
                     }
                 )
             claim = claims[0]
@@ -1433,6 +1438,7 @@ class SQLAlchemyWorkerDomainAdapter:
                     "limitations": list(claim.limitations),
                     "generation_method": claim.generation_method,
                     "generator_version": claim.generator_version,
+                    "suggestion_origin": claim.suggestion_origin,
                 },
             )
 

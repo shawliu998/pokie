@@ -47,6 +47,14 @@
     },
     {
       "ecosystem": "python",
+      "name": "langgraph",
+      "version": "1.2.9",
+      "license": "MIT",
+      "source": "https://pypi.org/project/langgraph/1.2.9/",
+      "manifest_scope": "runtime"
+    },
+    {
+      "ecosystem": "python",
       "name": "psycopg",
       "version": "3.3.4",
       "license": "LGPL-3.0-only",

@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     allowed_origins: list[str] = Field(default_factory=list)
     create_schema_on_startup: bool = True
     sse_poll_interval_seconds: float = Field(default=0.1, ge=0.01, le=5)
+    model_runtime_enabled: bool = False
+    deepseek_model: str = Field(default="deepseek-v4-flash", min_length=1, max_length=128)
 
     @model_validator(mode="after")
     def production_requires_postgres(self) -> Settings:

@@ -1,6 +1,7 @@
 # Glint document index
 
-> Status: Phase 0 accepted; Phase 1 and Phase 2 deterministic local acceptance complete.
+> Status: Phase 0 accepted; Phase 1 and Phase 2 deterministic local acceptance complete; the first
+> Phase 3 model-assisted Evidence/Claim slice is implemented but Phase 3 is not accepted.
 >
 > Verification date: 2026-07-16
 >
@@ -49,6 +50,8 @@ Locked boundaries:
 - [Phase 0 acceptance](./PHASE0_ACCEPTANCE.md)
 - [Phase 1 / Phase 2 deterministic acceptance](./PHASE1_P2_ACCEPTANCE.md)
 - [P2.5 conditional acceptance](./P2_5_ACCEPTANCE.md)
+- [Phase 3 model research runtime](./MODEL_RESEARCH.md)
+- [Phase 3 model-quality provisional acceptance](./PHASE3_QUALITY_ACCEPTANCE.md)
 - [P2.5 demo script](./DEMO_SCRIPT.md)
 - [P2.5 pilot plan](./PILOT_PLAN.md)
 - [Live connector smoke](./LIVE_CONNECTOR_SMOKE.md)

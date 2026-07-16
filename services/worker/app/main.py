@@ -12,12 +12,18 @@ from typing import Any
 
 from connectors.factory import SourceConnectorFactory, create_connector_factory
 from services.worker.app.adapter_wiring import load_domain_adapter
+from services.worker.app.contracts import ResearchRunState
 from services.worker.app.jobs.collection import ConnectorCollectionJob
 from services.worker.app.jobs.import_finalization import (
     ImportFinalizationHandledError,
     ImportFinalizationJob,
 )
 from services.worker.app.jobs.source_validation import SourceValidationJob
+from services.worker.app.pipelines.digests import deterministic_id
+from services.worker.app.pipelines.model_research import (
+    DeepSeekResearchRunner,
+    ModelProviderError,
+)
 from services.worker.app.pipelines.research import DeterministicResearchRunner
 from services.worker.app.schedules.scheduler import RepositoryCollectionScheduler
 from services.worker.app.storage import MemoryObjectStore
@@ -134,9 +140,30 @@ def _run_research_once(domain: Any, worker_id: str, lease_for: timedelta) -> boo
     if claim is None:
         return False
     versions = domain.get_content_versions_for_research_run(claim.run_id)
-    DeterministicResearchRunner(domain).run(
-        claim.run_id, versions, claim.worker_attempt_id, lease_for
-    )
+    run = domain.get_research_run(claim.run_id)
+    if run.provider == "deepseek":
+        try:
+            runner = DeepSeekResearchRunner.from_env(domain)
+        except ModelProviderError:
+            trace_id = deterministic_id(
+                "model-config-failure", run.id, run.run_input_manifest_digest
+            )
+            domain.append_run_event(
+                run.id,
+                "task.failed",
+                {
+                    "task_id": deterministic_id("task", run.id, "bounded_model_research"),
+                    "task_type": "bounded_model_research",
+                    "status": "failed",
+                    "safe_summary": "Model provider configuration is unavailable or invalid.",
+                },
+                trace_id,
+            )
+            domain.transition_research_run(run.id, ResearchRunState.FAILED, claim.worker_attempt_id)
+            return True
+    else:
+        runner = DeterministicResearchRunner(domain)
+    runner.run(claim.run_id, versions, claim.worker_attempt_id, lease_for)
     return True
 
 

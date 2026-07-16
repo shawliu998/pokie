@@ -96,6 +96,8 @@ services:
       GLINT_AUTH_ISSUER: ${GLINT_AUTH_ISSUER:?set GLINT_AUTH_ISSUER}
       GLINT_AUTH_AUDIENCE: ${GLINT_AUTH_AUDIENCE:?set GLINT_AUTH_AUDIENCE}
       GLINT_ALLOWED_ORIGINS: '["http://127.0.0.1:1420","http://localhost:3000"]'
+      GLINT_MODEL_RUNTIME_ENABLED: ${GLINT_MODEL_RUNTIME_ENABLED:-false}
+      GLINT_DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-v4-flash}
     ports:
       - "127.0.0.1:8000:8000"
     healthcheck:
@@ -136,6 +138,9 @@ services:
       GLINT_API_OBJECT_STORE: services.api.app.core.object_store:get_object_store
       GLINT_CONNECTOR_FACTORY: connectors.factory:create_connector_factory
       GLINT_CONNECTOR_CURSOR_SECRET: ${GLINT_CONNECTOR_CURSOR_SECRET:?set GLINT_CONNECTOR_CURSOR_SECRET}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-v4-flash}
     healthcheck:
       test: ["CMD-SHELL", "/opt/glint-venv/bin/python -m services.worker.app.main health >/dev/null"]
       interval: 30s

@@ -57,14 +57,19 @@ GitHub / RSS / CSV
 | Captured public payloads | None committed | **Captured Fixture: not available** | **No LLM** |
 | Networked GitHub/RSS smoke | Opt-in read-only runner implemented | **Live verification: Pending** | **No LLM** |
 | Mac portfolio screenshots | Real local API/worker/Postgres render at 1440×960 | **Imported Demo Fixture**, visibly labelled | Not applicable |
+| Phase 3 Evidence/Claim proposals | Fixed-node LangGraph, DeepSeek adapter, mocked provider tests, and synthetic replay gate | **Generated proposals** over exact pinned ContentVersions; live provider run pending | **Opt-in; disabled by default** |
 
 “Collected” in the domain model describes connector lineage; it does not by
 itself prove that a particular demo or test contacted a live service. Live data
 must be accompanied by the separately recorded live-smoke evidence.
 
-Glint P2.5 is a pilot candidate, not a production or GA release. The current
-research path is deterministic and contains no LLM generation. Model-assisted
-research remains Phase 3 work.
+Glint P2.5 is a pilot candidate, not a production or GA release. Its accepted
+research path remains deterministic. The first Phase 3 slice can generate
+model-assisted Evidence and ClaimVersion proposals, but it is disabled by
+default, still requires the existing human review gates, and has not been run
+against a live provider in the recorded acceptance evidence. See the
+[model research runtime](./docs/MODEL_RESEARCH.md) and
+[provisional quality record](./docs/PHASE3_QUALITY_ACCEPTANCE.md).
 
 ## Run locally
 
@@ -165,8 +170,9 @@ and [API contracts](./docs/API_CONTRACTS.md) for the technical detail.
 - Source support is limited to imported CSV plus GitHub/RSS boundaries.
 - Production SLOs, operations, disaster recovery, and GA readiness are not
   established.
-- Phase 3 model-assisted research and full collaboration/RBAC UI are out of
-  scope.
+- Phase 3 model-assisted synthesis after reviewed claims, live-provider quality
+  evidence, Langfuse deployment, and full collaboration/RBAC UI remain out of
+  scope for the current accepted slice.
 
 The proposed 3–5 person study is documented in the [pilot
 plan](./docs/PILOT_PLAN.md). No participant outcomes are claimed.

@@ -6,6 +6,7 @@ export type Priority = 'P0' | 'P1' | 'P2' | 'P3' | null;
 export type EvidenceStatus = 'proposed' | 'valid' | 'weak' | 'rejected';
 export type ClaimStatus = 'proposed' | 'needs_review' | 'verified' | 'rejected' | 'superseded';
 export type RunState = 'queued' | 'running' | 'waiting_for_input' | 'completed' | 'failed' | 'cancelled';
+export type ResearchGenerationMethod = 'deterministic' | 'model';
 
 export interface SourceFreshness {
   state: 'current' | 'stale' | 'never';
@@ -163,7 +164,25 @@ export interface Synthesis {
   verifiedClaimVersionIds: string[];
   generationMethod: 'deterministic' | 'model';
   generatorVersion: string;
+  modelPromptRefs: string[];
   authenticity: Authenticity;
+}
+
+export interface ResearchRun {
+  id: string;
+  state: RunState;
+  rowVersion: number;
+  latestSequence: number;
+  attemptNumber: number;
+  graphVersion: string;
+  generationMethod: ResearchGenerationMethod;
+  provider: string;
+  model: string | null;
+  promptRefs: string[];
+  traceRef: string | null;
+  usedCostUsd: string;
+  budget: { maxCostUsd: string; maxDurationSeconds: number };
+  waitingForInputReason: string | null;
 }
 
 export interface Investigation {
@@ -174,8 +193,9 @@ export interface Investigation {
   scopeVersionId: string;
   sourceConnectionIds: string[];
   contentVersionIds: string[];
+  allowCloudModel: boolean;
   timeRange: { start: string; end: string } | null;
-  run: { id: string; state: RunState; rowVersion: number; latestSequence: number; attemptNumber: number } | null;
+  run: ResearchRun | null;
   evidence: Evidence[];
   claims: Claim[];
   synthesis: Synthesis | null;
