@@ -679,8 +679,7 @@ def test_mixed_imported_and_collected_signal_freezes_exactly_one_origin_per_cont
         assert manifest_json["schema_version"] == "run-input-manifest-v2"
         assert len(manifest_json["terminal_import_manifests"]) == 1
         assert (
-            manifest_json["terminal_import_manifests"][0]["import_manifest_id"]
-            != later_manifest_id
+            manifest_json["terminal_import_manifests"][0]["import_manifest_id"] != later_manifest_id
         )
         assert len(manifest_json["terminal_collection_runs"]) == 1
         assert {item["origin_type"] for item in manifest_json["content_versions"]} == {
