@@ -131,12 +131,13 @@ authorization and configured credentials:
 GLINT_ENABLE_LIVE_SMOKE=1 ./scripts/verify_live_connectors.sh
 ```
 
-The latest fully green remote trust baseline is [GitHub Actions run
-29468568771](https://github.com/shawliu998/Glint/actions/runs/29468568771).
-That run predates the complete P2.5 candidate, so it is a baseline rather than
-final acceptance. See [P2.5 acceptance](./docs/P2_5_ACCEPTANCE.md) for the exact
-evidence gaps and [live-smoke instructions](./docs/LIVE_CONNECTOR_SMOKE.md) for
-credential and redaction rules.
+The final implementation candidate (`be6998d`) passed all four required remote
+jobs in [GitHub Actions run
+29474562575](https://github.com/shawliu998/Glint/actions/runs/29474562575):
+Phase 1, Phase 2, security audit, and macOS native. See [P2.5
+acceptance](./docs/P2_5_ACCEPTANCE.md) for the remaining live/pilot evidence gaps
+and [live-smoke instructions](./docs/LIVE_CONNECTOR_SMOKE.md) for credential and
+redaction rules.
 
 ## Architecture
 

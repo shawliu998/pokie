@@ -6,29 +6,30 @@ Evidence snapshot: 2026-07-16 (Asia/Shanghai)
 
 **P2.5 Status: Conditionally Accepted**
 
-The repository trust baseline, deterministic P1/P2 path, local unsigned Mac
-bundle, imported-demo vertical flow, and five reviewed real-app captures have
-evidence. Final P2.5 acceptance is withheld because the exact candidate commit
-has not completed remote CI, live GitHub/RSS verification has not been
-authorized/recorded, and no external pilot has run.
+The repository trust baseline, final-candidate remote CI, deterministic P1/P2
+path, local unsigned Mac bundle, imported-demo vertical flow, and five reviewed
+real-app captures have evidence. Final P2.5 acceptance is withheld because live
+GitHub/RSS verification has not been authorized/recorded and no external pilot
+has run.
 
-Recommendation: **do not enter Phase 3 yet**. Close the candidate CI, live-data,
-vertical-flow, and portfolio evidence below first. This document must be updated
-from the final published commit; no `Pending` item may be inferred as passing.
+Recommendation: **do not enter Phase 3 yet**. Complete the authorized live-data
+verification and pilot evidence below first. No `Pending` item may be inferred
+as passing.
 
 ## Candidate identity and repository
 
 | Item | Evidence | Status |
 | --- | --- | --- |
-| Final commit SHA | Pending; the workspace continued changing after the latest pushed connector commit | **Pending** |
+| Final implementation candidate SHA | `be6998d942cb0d1cc0f83f4c26ce1f02fd756eb6` | **Verified** |
 | Branch | `feat/p2-5-pilot-workbench` | Recorded |
 | Public repository/default branch | Public repository; default branch `main` | Verified in [repository audit](./P2_5_REPOSITORY_AUDIT.md) |
 | Branch protection | Strict required `phase1`, `phase2`, `security-audit`, and `macos-native`; admin enforcement enabled | Verified in repository audit |
-| Trusted remote baseline | Commit `82a206aceb6ad213582a33323708e0ee500b3dcd`; [Actions run 29468568771](https://github.com/shawliu998/Glint/actions/runs/29468568771), all four jobs successful | **Accepted baseline only** |
-| Latest pushed P2.5 evidence at snapshot | Commit `30a423db94694467fac7c3474955c8351388b833`; [Actions run 29471470028](https://github.com/shawliu998/Glint/actions/runs/29471470028) was in progress when inspected | **Pending final result** |
+| Historical trusted baseline | Commit `82a206aceb6ad213582a33323708e0ee500b3dcd`; [Actions run 29468568771](https://github.com/shawliu998/Glint/actions/runs/29468568771), all four jobs successful | Accepted historical baseline |
+| Final P2.5 remote evidence | Commit `be6998d942cb0d1cc0f83f4c26ce1f02fd756eb6`; [Actions run 29474562575](https://github.com/shawliu998/Glint/actions/runs/29474562575), `phase1`, `phase2`, `security-audit`, and `macos-native` all successful | **Verified** |
 
-The green run is a real remote CI baseline, but it predates later P2.5 commits
-and therefore cannot accept the final candidate.
+The final green run is real remote CI on the implementation candidate. It
+accepts the deterministic and native-build boundaries; it does not convert
+unrun live or pilot checks into passing evidence.
 
 ## Mac build
 
@@ -46,30 +47,29 @@ CFBundleIdentifier = com.glint.workbench
 executable = Mach-O 64-bit arm64
 ```
 
-The local bundle exists and the native gate covers real traffic lights, Keychain,
+The local bundle exists and the final-candidate native gate covers real traffic lights, Keychain,
 offline cache/restart, WebView startup, token scanning, and clean exit. The
 artifact is explicitly built with `--no-sign`; local inspection reports only an
 ad-hoc/linker signature, no Team Identifier. It is **not Developer ID signed and
-not notarized**. Rebuild and rerun the native gate at the final SHA before
-changing this item from conditional to accepted.
+not notarized**. Signing and notarization remain distribution blockers.
 
 ## Deterministic verification
 
-The recorded 2026-07-16 combined gate:
+The recorded 2026-07-16 combined gate and final remote Phase 1/Phase 2 jobs:
 
 ```bash
 ./scripts/verify_phase2.sh
 ```
 
-exited `0` with no failed layers. It covered locked dependencies, static checks,
+exited `0` with no failed layers. The final implementation candidate also
+passed both required remote jobs. Coverage includes locked dependencies, static checks,
 contracts, RLS/security, deterministic GitHub/RSS fixtures, imported CSV,
 API/worker/Postgres, Mac unit/build, fixture and external-API E2E, native runtime,
 and the reviewed vertical path. Full commands and per-layer counts are in
 [Phase 1 / Phase 2 deterministic acceptance](./PHASE1_P2_ACCEPTANCE.md).
 
-This evidence accepts the deterministic boundary only. It must be rerun at the
-final candidate SHA because later P2.5 work is not covered by the historical
-record.
+This evidence accepts the deterministic boundary at the final implementation
+candidate SHA only.
 
 ## Authenticity matrix
 
@@ -145,14 +145,13 @@ path, terminal, browser tooling, or private customer data is visible. See the
 
 ## Unresolved risks
 
-1. Final candidate remote CI and native rebuild are not recorded.
-2. GitHub and RSS live behavior, freshness, rate limits, and incremental cursors
+1. GitHub and RSS live behavior, freshness, rate limits, and incremental cursors
    lack an authorized acceptance run.
-3. Distribution is unsigned/not notarized; external pilot installation is not
+2. Distribution is unsigned/not notarized; external pilot installation is not
    ready.
-4. No external pilot, production SLO, operations exercise, disaster recovery,
+3. No external pilot, production SLO, operations exercise, disaster recovery,
    security certification, or GA evidence exists.
-5. Source coverage remains limited, and model-assisted research is intentionally
+4. Source coverage remains limited, and model-assisted research is intentionally
    absent.
 
 ## Out of scope
@@ -168,7 +167,7 @@ path, terminal, browser tooling, or private customer data is visible. See the
 Before changing the decision to `Accepted`, record all of the following in one
 update from the final published SHA:
 
-- final commit SHA and successful, non-cancelled remote Actions URL;
+- final implementation candidate SHA and successful, non-cancelled remote Actions URL (recorded);
 - rebuilt `.app` path and successful native gate at that SHA;
 - deterministic `verify_phase2.sh` result at that SHA;
 - authorized GitHub and RSS live-smoke outcomes, including explicit skips or
