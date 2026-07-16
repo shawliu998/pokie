@@ -17,7 +17,7 @@ export function SignalRow({ item, watchlist, sources, selected, onClick }: { ite
   const boundSourceIds = new Set([...(watchlist?.sourceConnectionIds ?? []), ...item.perSourceFreshness.map((freshness) => freshness.sourceConnectionId)]);
   const sourceTypes = [...new Set(sources.filter((source) => boundSourceIds.has(source.id)).map((source) => label(source.connectorType)))];
   const topic = watchlist?.rules.includeTerms[0] ?? watchlist?.rules.entities[0] ?? 'Topic not named';
-  return <button className={selected ? 'signal-row selected' : 'signal-row'} onClick={onClick}>
+  return <button className={selected ? 'signal-row selected' : 'signal-row'} data-signal-status={item.status} onClick={onClick}>
     <div className="signal-row-main"><div className="signal-row-badges"><Status tone={item.status === 'new' ? 'warning' : 'info'}>{label(item.status)}</Status><Badge tone="info">{authenticityLabel(item.authenticity)}</Badge></div><strong>{item.title}</strong><small>{watchlist?.name ?? 'Watchlist unavailable'} · {topic}</small><small>Detection confidence: {item.confidence} · {signalChangeSummary(item)}</small><small>{item.independentSources} independent sources · {sourceTypes.length ? sourceTypes.join(' + ') : 'Source type unavailable'} · snapshot {displayTime(item.snapshotAt)}</small></div>
     <span className={item.priority ? 'priority assessed' : 'priority needs-triage'}>{item.priority ? priorityLabel(item) : 'Needs triage'}</span>
   </button>;

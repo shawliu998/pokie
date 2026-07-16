@@ -122,7 +122,7 @@ test('strict API mode covers CSV → Signal → SSE/reviews → Brief → termin
     await expect(page.getByText(/Glint GitHub · last success/)).toBeVisible();
     await page.getByText('Detection details').click();
   } else {
-    const importedSignal = page.locator('button.signal-row').first();
+    const importedSignal = page.locator('button.signal-row[data-signal-status="new"]').first();
     await expect(importedSignal).toBeVisible({ timeout: 120_000 });
     await importedSignal.click();
     await page.getByText('Detection details').click();
