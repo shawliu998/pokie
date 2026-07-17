@@ -1,12 +1,14 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { QuantActivityFeed, QuantArtifactCards, QuantKernelCheckCard } from './QuantActivity';
+import { QuantDataPage } from './QuantDataPage';
 import { QuantGoalComposer } from './QuantGoalComposer';
 import { QuantMarketWorkspace } from './QuantMarketWorkspace';
 import { QuantPlanRail } from './QuantPlanRail';
 import { presentQuantWorkspace } from './quant-presentation';
 import { QuantStrategyReport } from './QuantStrategyReport';
 import { quantFixtureSnapshot } from './quant-fixtures';
+import { createFixtureQuantApi } from '../../quant-api';
 
 const presentation = presentQuantWorkspace(quantFixtureSnapshot);
 
@@ -59,5 +61,28 @@ describe('Quant Workspace components', () => {
     expect(markup).toContain('Candidate A is rejected');
     expect(markup).toContain('Synthetic Demo Fixture');
     expect(markup).not.toContain('Start Paper Trading');
+  });
+
+  it('uses imported provenance and symbol copy for imported evidence', () => {
+    const importedSnapshot = {
+      ...quantFixtureSnapshot,
+      authenticity: 'imported_fixture' as const,
+      scope: { ...quantFixtureSnapshot.scope, symbol: 'ACME' },
+      dataset: { ...quantFixtureSnapshot.dataset, symbol: 'ACME', authenticity: 'imported_fixture' as const },
+    };
+    const market = renderToStaticMarkup(<QuantMarketWorkspace snapshot={importedSnapshot} onInspect={vi.fn()} />);
+    const report = renderToStaticMarkup(<QuantStrategyReport snapshot={importedSnapshot} candidates={presentation.candidates} selectedCandidateId="candidate-b" onSelectCandidate={vi.fn()} />);
+    expect(market).toContain('ACME daily market chart');
+    expect(market).toContain('workspace-imported dataset');
+    expect(report).toContain('Imported Demo Fixture');
+    expect(report).not.toContain('Synthetic Demo Fixture');
+  });
+
+  it('renders an immutable CSV import boundary and dataset eligibility', () => {
+    const markup = renderToStaticMarkup(<QuantDataPage api={createFixtureQuantApi()} snapshot={quantFixtureSnapshot} selectedDataset={quantFixtureSnapshot.dataset} onSelect={vi.fn()} onInspect={vi.fn()} />);
+    expect(markup).toContain('OHLCV CSV file');
+    expect(markup).toContain('Import immutable dataset');
+    expect(markup).toContain('Ready for Auto Research');
+    expect(markup).toContain(quantFixtureSnapshot.dataset.digest.slice(0, 19));
   });
 });

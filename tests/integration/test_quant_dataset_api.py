@@ -169,6 +169,23 @@ def test_imported_ohlcv_dataset_is_listed_pinned_and_exposed_to_agent_context(
     assert completed_snapshot["kernelCheck"]["strategies"]
     assert completed_snapshot["trades"]
     assert any("marker" in bar for bar in completed_snapshot["bars"])
+    assert completed_snapshot["composerLegalCommands"] == ["start_auto_research"]
+
+    next_run = client.post(
+        "/v1/quant/workspace-snapshot/commands",
+        headers=_headers(principal_id, workspace_id),
+        json={
+            "command": "start_auto_research",
+            "expected_row_version": completed_snapshot["run"]["rowVersion"],
+            "payload": {
+                "goal": "Run a second bounded study on the selected ACME dataset.",
+                "dataset_id": dataset["dataset_id"],
+            },
+        },
+    )
+    assert next_run.status_code == 200, next_run.text
+    assert next_run.json()["run"]["id"] != completed_snapshot["run"]["id"]
+    assert next_run.json()["dataset"]["id"] == dataset["dataset_id"]
 
 
 def test_changed_csv_creates_new_dataset_while_existing_run_remains_pinned(
