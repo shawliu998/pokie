@@ -214,6 +214,10 @@ def import_dataset_csv(
             name=body.name,
             symbol=body.symbol,
             csv_text=body.csv_text,
+            file_name=body.file_name,
+            source_name=body.source_name,
+            source_reference=body.source_reference,
+            price_adjustment=body.price_adjustment,
         )
     except ValueError as exc:
         raise invalid_state(str(exc)) from exc

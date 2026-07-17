@@ -50,6 +50,7 @@ from .schemas import (
     QuantArtifactResponse,
     QuantDatasetImportRequest,
     QuantDatasetResponse,
+    QuantDatasetSourceMetadata,
     QuantExperimentResponse,
     QuantFixtureCommandRequest,
     QuantPlanApproveRequest,

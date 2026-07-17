@@ -87,6 +87,13 @@ def test_comparison_includes_difference_fields(
         assert candidate["return_difference"] == round(
             candidate["total_return_pct"] - benchmark["total_return_pct"], 4
         )
+        walk_forward = candidate["walk_forward"]
+        assert walk_forward["evaluation_partition"] == "train"
+        assert walk_forward["rule_version"] == "expanding-3fold-20pct-v1"
+        assert walk_forward["fold_count"] == 3
+        assert len(walk_forward["folds"]) == 3
+        assert walk_forward["aggregate"]["evaluated_folds"] == 3
+        assert all("holdout" not in fold for fold in walk_forward["folds"])
 
     research_report = next(
         item for item in artifacts if item.kind.value == "research_report"
@@ -97,3 +104,9 @@ def test_comparison_includes_difference_fields(
     assert generalization["train"]["benchmark"] == comparison["benchmark"]
     assert generalization["holdout"]["candidate"]
     assert generalization["holdout"]["benchmark"]
+    selected_walk_forward = next(
+        item["walk_forward"]
+        for item in comparison["candidates"]
+        if item["candidate_id"] == research_report["selected_candidate_id"]
+    )
+    assert research_report["walk_forward"] == selected_walk_forward

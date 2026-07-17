@@ -4,10 +4,13 @@ import os
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import Enum
+from hashlib import sha256
+from statistics import median
 from threading import RLock
 from typing import Any
 from uuid import NAMESPACE_URL, UUID, uuid5
 
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -17,6 +20,7 @@ from packages.contracts.quant import (
     QuantAgentDecision,
     QuantAgentPlan,
     QuantDailyBarDataset,
+    QuantDatasetSourceMetadata,
     QuantToolObservation,
     parse_ohlcv_csv,
 )
@@ -47,6 +51,8 @@ from services.api.app.db.session import get_session_factory, set_rls_context
 MIN_AUTONOMOUS_RESEARCH_BARS = 252
 AGENT_TRAIN_PERCENT = 80
 AGENT_SPLIT_RULE_VERSION = "chronological-80-20-v1"
+AGENT_WALK_FORWARD_RULE_VERSION = "expanding-3fold-20pct-v1"
+AGENT_WALK_FORWARD_FOLDS = 3
 
 
 def _utcnow() -> datetime:
@@ -64,6 +70,8 @@ def _text(*parts: object) -> str:
 
 
 def _json_value(value: Any) -> Any:
+    if isinstance(value, BaseModel):
+        return _json_value(value.model_dump(mode="json"))
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, Enum):
@@ -93,12 +101,19 @@ class QuantProjectRecord:
     data_authenticity: DataAuthenticity = DataAuthenticity.GENERATED
 
 
+def _legacy_dataset_source_metadata() -> QuantDatasetSourceMetadata:
+    return QuantDatasetSourceMetadata(source_name="Legacy CSV import")
+
+
 @dataclass(frozen=True, slots=True)
 class QuantDatasetRecord:
     id: str
     workspace_id: str
     name: str
     dataset: QuantDailyBarDataset
+    source_metadata: QuantDatasetSourceMetadata = field(
+        default_factory=_legacy_dataset_source_metadata
+    )
     parser_version: str = QUANT_OHLCV_CSV_PARSER_VERSION
     created_at: datetime = field(default_factory=_utcnow)
     data_authenticity: DataAuthenticity = DataAuthenticity.IMPORTED
@@ -261,6 +276,12 @@ class QuantStore:
                     **{
                         **item,
                         "dataset": QuantDailyBarDataset.model_validate(item["dataset"]),
+                        "source_metadata": QuantDatasetSourceMetadata.model_validate(
+                            item.get(
+                                "source_metadata",
+                                _legacy_dataset_source_metadata().model_dump(mode="json"),
+                            )
+                        ),
                         "created_at": _datetime(item["created_at"]),
                         "data_authenticity": DataAuthenticity(item["data_authenticity"]),
                     }
@@ -1085,6 +1106,11 @@ class QuantStore:
                     ),
                     "trade_count_difference": item.metrics["trade_count"]
                     - benchmark["trade_count"],
+                    "walk_forward": self._walk_forward_candidate(
+                        self._agent_split(run)[1],
+                        self._strategy_spec(item.template, item.parameters),
+                        ExecutionConfig(fee_rate=0.001, slippage_rate=0.0005),
+                    ),
                 }
                 for item in completed
             ]
@@ -1158,6 +1184,11 @@ class QuantStore:
             }
             if selected is not None:
                 execution = ExecutionConfig(fee_rate=0.001, slippage_rate=0.0005)
+                walk_forward = self._walk_forward_candidate(
+                    training_bars,
+                    self._strategy_spec(selected.template, selected.parameters),
+                    execution,
+                )
                 holdout_result = run_backtest(
                     all_bars,
                     self._strategy_spec(selected.template, selected.parameters),
@@ -1217,6 +1248,7 @@ class QuantStore:
                 "conclusion": conclusion,
                 "next_step": next_step,
                 "generalization": generalization,
+                "walk_forward": walk_forward if selected is not None else None,
                 "limitations": [
                     source_limitation,
                     (
@@ -1336,6 +1368,110 @@ class QuantStore:
         }
         return bars, bars[:split_index], split_index, split
 
+    def _walk_forward_candidate(
+        self,
+        training_bars: tuple[DailyBar, ...],
+        strategy: StrategySpec,
+        execution: ExecutionConfig,
+    ) -> dict[str, Any]:
+        """Evaluate a fixed candidate in repeated, expanding training-only windows.
+
+        The helper deliberately accepts only the chronological training partition.
+        Each measurement window starts with fresh cash while earlier bars remain
+        available solely for indicator history; the sealed final holdout cannot
+        enter this calculation.
+        """
+        count = len(training_bars)
+        window_size = max(20, count // 5)
+        initial_train_end = count - AGENT_WALK_FORWARD_FOLDS * window_size
+        if initial_train_end < 1:
+            return {
+                "method": "expanding",
+                "rule_version": AGENT_WALK_FORWARD_RULE_VERSION,
+                "evaluation_partition": "train",
+                "fold_count": 0,
+                "window_bar_count": window_size,
+                "status": "not_evaluated",
+                "reason": "Training partition is too short for three walk-forward windows.",
+                "folds": [],
+                "aggregate": {"evaluated_folds": 0},
+            }
+
+        folds: list[dict[str, Any]] = []
+        for fold_index in range(AGENT_WALK_FORWARD_FOLDS):
+            evaluation_start = initial_train_end + fold_index * window_size
+            evaluation_end = evaluation_start + window_size
+            measured = run_backtest(
+                training_bars[:evaluation_end],
+                strategy,
+                execution,
+                measurement_start_index=evaluation_start,
+            )
+            benchmark = backtest_buy_and_hold(
+                training_bars[evaluation_start:evaluation_end], execution
+            )
+            candidate_metrics = self._metrics_projection(measured.metrics)
+            benchmark_metrics = self._metrics_projection(benchmark.metrics)
+            if measured.metrics.exposure == 0:
+                status = "inconclusive"
+            elif (
+                measured.metrics.total_return > 0
+                and measured.metrics.max_drawdown > benchmark.metrics.max_drawdown
+            ):
+                status = "pass"
+            else:
+                status = "fail"
+            folds.append(
+                {
+                    "fold_index": fold_index + 1,
+                    "history_start": training_bars[0].date.isoformat(),
+                    "history_end": training_bars[evaluation_start - 1].date.isoformat(),
+                    "evaluation_start": training_bars[evaluation_start].date.isoformat(),
+                    "evaluation_end": training_bars[evaluation_end - 1].date.isoformat(),
+                    "candidate": candidate_metrics,
+                    "benchmark": benchmark_metrics,
+                    "status": status,
+                }
+            )
+
+        candidate_returns = [float(item["candidate"]["total_return_pct"]) for item in folds]
+        benchmark_returns = [float(item["benchmark"]["total_return_pct"]) for item in folds]
+        candidate_drawdowns = [
+            float(item["candidate"]["maximum_drawdown_pct"]) for item in folds
+        ]
+        benchmark_drawdowns = [
+            float(item["benchmark"]["maximum_drawdown_pct"]) for item in folds
+        ]
+        candidate_sharpes = [float(item["candidate"]["sharpe_ratio"]) for item in folds]
+        benchmark_sharpes = [float(item["benchmark"]["sharpe_ratio"]) for item in folds]
+        aggregate = {
+            "evaluated_folds": len(folds),
+            "candidate_positive_return_folds": sum(value > 0 for value in candidate_returns),
+            "candidate_lower_drawdown_folds": sum(
+                candidate > benchmark
+                for candidate, benchmark in zip(
+                    candidate_drawdowns, benchmark_drawdowns, strict=True
+                )
+            ),
+            "candidate_median_return_pct": round(median(candidate_returns), 4),
+            "benchmark_median_return_pct": round(median(benchmark_returns), 4),
+            "candidate_median_drawdown_pct": round(median(candidate_drawdowns), 4),
+            "benchmark_median_drawdown_pct": round(median(benchmark_drawdowns), 4),
+            "candidate_median_sharpe_ratio": round(median(candidate_sharpes), 4),
+            "benchmark_median_sharpe_ratio": round(median(benchmark_sharpes), 4),
+        }
+        return {
+            "method": "expanding",
+            "rule_version": AGENT_WALK_FORWARD_RULE_VERSION,
+            "evaluation_partition": "train",
+            "fold_count": AGENT_WALK_FORWARD_FOLDS,
+            "window_bar_count": window_size,
+            "status": "completed",
+            "reason": "Fixed candidate evaluated in three expanding training-only windows.",
+            "folds": folds,
+            "aggregate": aggregate,
+        }
+
     @staticmethod
     def _strategy_spec(template: str, parameters: dict[str, Any]) -> StrategySpec:
         if template == "sma_crossover":
@@ -1364,7 +1500,16 @@ class QuantStore:
 
     # Immutable datasets
     def import_dataset_csv(
-        self, *, workspace_id: str, name: str, symbol: str, csv_text: str
+        self,
+        *,
+        workspace_id: str,
+        name: str,
+        symbol: str,
+        csv_text: str,
+        file_name: str | None = None,
+        source_name: str = "User-provided CSV",
+        source_reference: str | None = None,
+        price_adjustment: str = "unknown",
     ) -> QuantDatasetRecord:
         dataset = parse_ohlcv_csv(csv_text, name=name, symbol=symbol)
         with self._lock:
@@ -1378,6 +1523,15 @@ class QuantStore:
                 workspace_id=workspace_id,
                 name=name.strip(),
                 dataset=dataset,
+                source_metadata=QuantDatasetSourceMetadata(
+                    file_name=file_name,
+                    source_name=source_name,
+                    source_reference=source_reference,
+                    submitted_csv_digest=(
+                        "sha256:" + sha256(csv_text.encode("utf-8")).hexdigest()
+                    ),
+                    price_adjustment=price_adjustment,
+                ),
             )
             self._datasets[key] = record
             self._persist_workspace(workspace_id)
@@ -1845,7 +1999,10 @@ class QuantStore:
     @staticmethod
     def _configured_agent_provider() -> str:
         provider = os.environ.get("POKIEQUANT_AGENT_PROVIDER", "mock").strip().lower()
-        if provider == "deepseek" and os.environ.get("DEEPSEEK_API_KEY"):
+        key = os.environ.get("POKIEQUANT_AGENT_API_KEY") or os.environ.get(
+            "DEEPSEEK_API_KEY"
+        )
+        if provider in {"deepseek", "openai_compatible"} and key:
             return "deepseek"
         return "mock"
 
@@ -1853,7 +2010,11 @@ class QuantStore:
     def _configured_agent_model() -> str | None:
         if QuantStore._configured_agent_provider() != "deepseek":
             return None
-        return os.environ.get("DEEPSEEK_MODEL", "deepseek-chat").strip() or "deepseek-chat"
+        return (
+            os.environ.get("POKIEQUANT_AGENT_MODEL")
+            or os.environ.get("DEEPSEEK_MODEL")
+            or "deepseek-chat"
+        ).strip() or "deepseek-chat"
 
     def _finish_run(self, run: QuantRunRecord, fixture_state: str) -> None:
         # Import inside the fixture-only path so normal quant-agent worker code
@@ -2036,6 +2197,7 @@ class QuantStore:
 
     def agent_dataset_summary(self, run: QuantRunRecord) -> dict[str, Any]:
         dataset = self.dataset_for_run(run)
+        record = self.get_dataset(workspace_id=run.workspace_id, dataset_id=run.dataset_id)
         split = self._agent_split(run)[3]
         return {
             "dataset_id": dataset.dataset_id,
@@ -2046,6 +2208,14 @@ class QuantStore:
             "end": dataset.covered_end.isoformat(),
             "digest": dataset.digest,
             "authenticity": dataset.provenance.value,
+            "source_metadata": (
+                record.source_metadata.model_dump(mode="json")
+                if record is not None
+                else {
+                    "kind": "synthetic_fixture",
+                    "generator": "deterministic-weekday-generator-v2",
+                }
+            ),
             "evaluation_partition": "train",
             "split": split,
         }
@@ -2227,6 +2397,7 @@ class QuantStore:
             "schema_version": dataset.schema_version,
             "parser_version": record.parser_version,
             "digest": dataset.digest,
+            "source_metadata": record.source_metadata.model_dump(mode="json"),
             "data_authenticity": record.data_authenticity,
             "created_at": record.created_at,
         }

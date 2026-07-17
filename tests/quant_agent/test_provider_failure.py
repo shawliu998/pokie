@@ -17,6 +17,8 @@ from services.worker.app.quant_agent.runner import QuantAgentRunner
 
 _PROVIDER_ENV_KEYS = (
     "POKIEQUANT_AGENT_PROVIDER",
+    "POKIEQUANT_AGENT_API_KEY",
+    "POKIEQUANT_AGENT_MODEL",
     "DEEPSEEK_API_KEY",
     "POKIEQUANT_AGENT_ALLOW_MOCK_FALLBACK",
 )
@@ -43,6 +45,15 @@ class _FailingProvider:
 
     def decide(self, context: Any) -> QuantAgentDecision:
         raise self._error
+
+
+def test_openai_compatible_key_and_model_are_recorded_as_deepseek_provenance() -> None:
+    os.environ["POKIEQUANT_AGENT_PROVIDER"] = "openai_compatible"
+    os.environ["POKIEQUANT_AGENT_API_KEY"] = "test-placeholder"
+    os.environ["POKIEQUANT_AGENT_MODEL"] = "deepseek-v4-flash"
+
+    assert QuantStore._configured_agent_provider() == "deepseek"
+    assert QuantStore._configured_agent_model() == "deepseek-v4-flash"
 
 
 def _headers(principal_id: str, workspace_id: str | None = None) -> dict[str, str]:

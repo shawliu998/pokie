@@ -232,6 +232,73 @@ def _generalization_projection(value: object) -> dict[str, Any] | None:
     }
 
 
+def _walk_forward_projection(value: object) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    folds = value.get("folds")
+    aggregate = value.get("aggregate")
+    if not isinstance(folds, list) or not isinstance(aggregate, dict):
+        return None
+
+    def metrics(item: object) -> dict[str, float | int] | None:
+        return _report_metrics_projection(item)
+
+    projected_folds: list[dict[str, Any]] = []
+    for fold in folds:
+        if not isinstance(fold, dict):
+            continue
+        candidate = metrics(fold.get("candidate"))
+        benchmark = metrics(fold.get("benchmark"))
+        if candidate is None or benchmark is None:
+            continue
+        projected_folds.append(
+            {
+                "foldIndex": fold.get("fold_index", 0),
+                "historyStart": fold.get("history_start", ""),
+                "historyEnd": fold.get("history_end", ""),
+                "evaluationStart": fold.get("evaluation_start", ""),
+                "evaluationEnd": fold.get("evaluation_end", ""),
+                "candidate": candidate,
+                "benchmark": benchmark,
+                "status": fold.get("status", "not_evaluated"),
+            }
+        )
+    aggregate_projection = {
+        "evaluatedFolds": int(aggregate.get("evaluated_folds", 0)),
+        "candidatePositiveReturnFolds": int(
+            aggregate.get("candidate_positive_return_folds", 0)
+        ),
+        "candidateLowerDrawdownFolds": int(
+            aggregate.get("candidate_lower_drawdown_folds", 0)
+        ),
+        "candidateMedianReturn": float(aggregate.get("candidate_median_return_pct", 0)),
+        "benchmarkMedianReturn": float(aggregate.get("benchmark_median_return_pct", 0)),
+        "candidateMedianDrawdown": float(
+            aggregate.get("candidate_median_drawdown_pct", 0)
+        ),
+        "benchmarkMedianDrawdown": float(
+            aggregate.get("benchmark_median_drawdown_pct", 0)
+        ),
+        "candidateMedianSharpe": float(
+            aggregate.get("candidate_median_sharpe_ratio", 0)
+        ),
+        "benchmarkMedianSharpe": float(
+            aggregate.get("benchmark_median_sharpe_ratio", 0)
+        ),
+    }
+    return {
+        "method": value.get("method", "expanding"),
+        "ruleVersion": value.get("rule_version", ""),
+        "evaluationPartition": value.get("evaluation_partition", "train"),
+        "foldCount": int(value.get("fold_count", 0)),
+        "windowBarCount": int(value.get("window_bar_count", 0)),
+        "status": value.get("status", "not_evaluated"),
+        "reason": value.get("reason", "Walk-forward evaluation was not available."),
+        "folds": projected_folds,
+        "aggregate": aggregate_projection,
+    }
+
+
 def apply_fixture_command(
     *,
     workspace_id: str,
@@ -705,6 +772,22 @@ def quant_agent_workspace_snapshot(*, workspace_id: str) -> dict[str, Any] | Non
         ),
         "digest": dataset.digest,
         "authenticity": dataset_authenticity,
+        **(
+            {
+                "source": {
+                    "kind": dataset_record.source_metadata.kind,
+                    "fileName": dataset_record.source_metadata.file_name,
+                    "sourceName": dataset_record.source_metadata.source_name,
+                    "sourceReference": dataset_record.source_metadata.source_reference,
+                    "submittedCsvDigest": (
+                        dataset_record.source_metadata.submitted_csv_digest
+                    ),
+                    "priceAdjustment": dataset_record.source_metadata.price_adjustment,
+                }
+            }
+            if dataset_record is not None
+            else {}
+        ),
     }
     snapshot["bars"] = _chart_sample(dataset, [])
     snapshot["trades"] = []
@@ -929,6 +1012,7 @@ def quant_agent_workspace_snapshot(*, workspace_id: str) -> dict[str, Any] | Non
             "generalization": _generalization_projection(
                 report_artifact.content.get("generalization")
             ),
+            "walkForward": _walk_forward_projection(report_artifact.content.get("walk_forward")),
             "disclaimer": (
                 "Imported-data results are not investment advice or evidence of future "
                 "performance."

@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import math
 from datetime import date, timedelta
+from hashlib import sha256
 from typing import Any
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
 from services.api.app.modules.quant.store import QuantStore, get_quant_store
 from services.worker.app.pipelines.quant_agent import run_quant_agent_once
@@ -74,7 +77,15 @@ def _import(
     response = client.post(
         "/v1/quant/datasets/import-csv",
         headers=_headers(principal_id, workspace_id),
-        json={"name": "Acme daily bars", "symbol": "acme", "csv_text": csv_text},
+        json={
+            "name": "Acme daily bars",
+            "symbol": "acme",
+            "csv_text": csv_text,
+            "file_name": "acme-daily.csv",
+            "source_name": "ACME Research Export",
+            "source_reference": "internal-export:acme-daily-v1",
+            "price_adjustment": "split_adjusted",
+        },
     )
     assert response.status_code == 201, response.text
     return response.json()
@@ -113,6 +124,15 @@ def test_imported_ohlcv_dataset_is_listed_pinned_and_exposed_to_agent_context(
     assert dataset["symbol"] == "ACME"
     assert dataset["bar_count"] == 300
     assert dataset["digest"].startswith("sha256:")
+    assert dataset["source_metadata"] == {
+        "kind": "csv_upload",
+        "file_name": "acme-daily.csv",
+        "source_name": "ACME Research Export",
+        "source_reference": "internal-export:acme-daily-v1",
+        "submitted_csv_digest": "sha256:"
+        + sha256(CSV_V1.strip().encode("utf-8")).hexdigest(),
+        "price_adjustment": "split_adjusted",
+    }
 
     project = _project(client, principal_id, workspace_id)
     created = _create_run(client, principal_id, workspace_id, project, dataset["dataset_id"])
@@ -133,6 +153,7 @@ def test_imported_ohlcv_dataset_is_listed_pinned_and_exposed_to_agent_context(
         "end": "2023-10-27",
         "digest": dataset["digest"],
         "authenticity": "imported_fixture",
+        "source_metadata": dataset["source_metadata"],
         "evaluation_partition": "train",
         "split": {
             "method": "chronological",
@@ -165,6 +186,14 @@ def test_imported_ohlcv_dataset_is_listed_pinned_and_exposed_to_agent_context(
         "parserVersion": "quant-ohlcv-csv-v1",
         "digest": dataset["digest"],
         "authenticity": "imported_fixture",
+        "source": {
+            "kind": "csv_upload",
+            "fileName": "acme-daily.csv",
+            "sourceName": "ACME Research Export",
+            "sourceReference": "internal-export:acme-daily-v1",
+            "submittedCsvDigest": dataset["source_metadata"]["submitted_csv_digest"],
+            "priceAdjustment": "split_adjusted",
+        },
     }
     assert snapshot.json()["kernelCheck"]["datasetId"] == dataset["dataset_id"]
     assert snapshot.json()["kernelCheck"]["datasetDigest"] == dataset["digest"]
@@ -204,15 +233,41 @@ def test_imported_ohlcv_dataset_is_listed_pinned_and_exposed_to_agent_context(
     assert generalization["train"]["benchmark"]
     assert generalization["holdout"]["candidate"]
     assert generalization["holdout"]["benchmark"]
+    walk_forward = completed_snapshot["report"]["walkForward"]
+    assert walk_forward["evaluationPartition"] == "train"
+    assert walk_forward["ruleVersion"] == "expanding-3fold-20pct-v1"
+    assert walk_forward["foldCount"] == 3
+    assert walk_forward["windowBarCount"] == 48
+    assert [
+        (fold["historyEnd"], fold["evaluationStart"], fold["evaluationEnd"])
+        for fold in walk_forward["folds"]
+    ] == [
+        ("2023-04-06", "2023-04-07", "2023-05-24"),
+        ("2023-05-24", "2023-05-25", "2023-07-11"),
+        ("2023-07-11", "2023-07-12", "2023-08-28"),
+    ]
 
     persisted_artifacts = QuantStore().artifacts_for_run(
         workspace_id=workspace_id, run_id=run["id"]
     )
+    restored_dataset = QuantStore().get_dataset(
+        workspace_id=workspace_id, dataset_id=dataset["dataset_id"]
+    )
+    assert restored_dataset is not None
+    assert restored_dataset.source_metadata.model_dump(mode="json") == dataset[
+        "source_metadata"
+    ]
+    with pytest.raises(ValidationError):
+        restored_dataset.source_metadata.source_name = "Mutated provenance"
     research_reports = [
         item for item in persisted_artifacts if item.kind.value == "research_report"
     ]
     assert len(research_reports) == 1
     assert research_reports[0].content["dataset"]["digest"] == dataset["digest"]
+    assert (
+        research_reports[0].content["dataset"]["source_metadata"]
+        == dataset["source_metadata"]
+    )
     assert research_reports[0].content["generalization"]["split"]["train_bar_count"] == 240
     assert not run_quant_agent_once(
         provider=MockQuantAgentProvider(), workspace_id=workspace_id
@@ -313,6 +368,9 @@ def test_holdout_changes_do_not_change_training_selection(
         }
 
     assert training_evidence(baseline_comparison) == training_evidence(changed_comparison)
+    assert [item["walk_forward"] for item in baseline_comparison["candidates"]] == [
+        item["walk_forward"] for item in changed_comparison["candidates"]
+    ]
     baseline_selected = next(
         item["name"]
         for item in baseline_report["candidates_tested"]

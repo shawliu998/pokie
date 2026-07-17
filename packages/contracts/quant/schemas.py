@@ -6,7 +6,7 @@ from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from ..base import ContractModel, Digest, NonEmptyString, VersionString
 from ..enums import DataAuthenticity
@@ -27,6 +27,25 @@ class QuantDatasetImportRequest(ContractModel):
     name: NonEmptyString = Field(max_length=200)
     symbol: NonEmptyString = Field(pattern=r"^[A-Za-z][A-Za-z0-9.\-]{0,15}$")
     csv_text: NonEmptyString = Field(max_length=10_000_000)
+    file_name: NonEmptyString | None = Field(default=None, max_length=255)
+    source_name: NonEmptyString = Field(default="User-provided CSV", max_length=200)
+    source_reference: NonEmptyString | None = Field(default=None, max_length=2000)
+    price_adjustment: Literal[
+        "unknown", "unadjusted", "split_adjusted", "total_return_adjusted"
+    ] = "unknown"
+
+
+class QuantDatasetSourceMetadata(ContractModel):
+    model_config = ConfigDict(frozen=True)
+
+    kind: Literal["csv_upload"] = "csv_upload"
+    file_name: NonEmptyString | None = Field(default=None, max_length=255)
+    source_name: NonEmptyString = Field(default="User-provided CSV", max_length=200)
+    source_reference: NonEmptyString | None = Field(default=None, max_length=2000)
+    submitted_csv_digest: Digest | None = None
+    price_adjustment: Literal[
+        "unknown", "unadjusted", "split_adjusted", "total_return_adjusted"
+    ] = "unknown"
 
 
 class QuantDatasetResponse(ContractModel):
@@ -41,6 +60,7 @@ class QuantDatasetResponse(ContractModel):
     schema_version: VersionString
     parser_version: VersionString
     digest: Digest
+    source_metadata: QuantDatasetSourceMetadata
     data_authenticity: DataAuthenticity
     created_at: datetime
 
