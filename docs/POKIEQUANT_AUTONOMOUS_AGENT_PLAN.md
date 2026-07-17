@@ -41,6 +41,14 @@ required for recovery.
     partition, keeping the final 20% holdout sealed until selection is frozen.
 13. Verify the complete imported-data lifecycle with the real DeepSeek provider, mock fallback
     disabled, and persisted provider/model/fallback evidence.
+14. Generate a frozen, digest-verified data-quality report for every imported dataset. Retain
+    rejected imports for inspection while preventing blocking calendar/timezone or long-gap findings
+    from entering autonomous execution.
+15. Classify every expanding fold from only the preceding training history, persist deterministic
+    trend/volatility regime evidence, and report insufficient regime diversity instead of implying
+    coverage that the data does not contain.
+16. Verify a blocked dirty import and a completed quality-passed import in one real DeepSeek run,
+    with Mock fallback disabled and quality/regime evidence retained in the Mac report.
 
 ## Bounded scope
 

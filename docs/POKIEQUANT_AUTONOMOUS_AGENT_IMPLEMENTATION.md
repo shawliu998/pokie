@@ -201,15 +201,15 @@ Result: **all functional layers passed in one full-gate invocation**.
 
 | Gate layer | Actual result |
 | --- | --- |
-| Quant contracts, daily-bar/CSV contracts, API, dataset lifecycle, fixture runtime, kernel, research evaluation, OpenAPI drift | 85 Python tests passed |
+| Quant contracts, daily-bar/CSV/quality contracts, API, dataset lifecycle, fixture runtime, kernel, research evaluation, OpenAPI drift | 87 Python tests passed |
 | Shared registry/model primitives, autonomous Agent lifecycle, goal differentiation, revision lineage, cancellation, provider failure/fallback, comparison differences, transport, and inherited Model Research regression | 56 Python tests passed |
-| Mac API/presentation/component tests | 20 Vitest tests across 3 files passed |
+| Mac API/presentation/component tests | 22 Vitest tests across 3 files passed |
 | Mac lint | ESLint passed with zero warnings |
 | Mac typecheck | TypeScript compiler passed |
 | Mac production build | Vite built 55 modules successfully |
 | Completed-state browser E2E | 1 Playwright test passed; 2 conditionally skipped |
 | API-owned ready-command browser E2E | 2 Playwright tests passed; 1 screenshot-only test skipped |
-| Loopback API + Vite DeepSeek report smoke | Opened the persisted real-provider Run, verified the report-selected revised candidate, declared source/adjustment metadata, three training walk-forward folds, 336/84 train/holdout split, and `pass` status |
+| Secret-gated DeepSeek verification | Rejected a retained blocked-gap dataset, then completed a quality-passed imported Run with regime-labelled training folds, 336/84 train/holdout split, no provider failure, no Mock fallback, and `pass` status |
 | Reviewed workbench assets | Six required 1440×960 PNGs validated |
 | Dependency-license policy | 5 tests passed |
 | Truth/capability assertions, no active Glint product copy, dependency/notice drift, whitespace | All passed |
@@ -222,23 +222,30 @@ report.
 
 An additional secret-gated, complete DeepSeek Run was executed outside the gate on 2026-07-18 with
 `scripts/verify_quant_deepseek_run.py`. The ignored local environment supplied the credential; it was
-not printed or placed on the command line. Provider `deepseek`, model `deepseek-v4-flash`, completed
-the imported 420-bar Run in nine Agent iterations with three created candidates, no provider failure,
-and no Mock fallback. The provider received compact dataset/source metadata, training benchmark,
-candidate metrics, budgets and safe event summaries; it did not receive CSV/OHLCV rows or holdout
-metrics.
+not printed or placed on the command line. The Phase 1B verification first retained a deliberately
+gapped import with quality status `blocked` and proved that Run creation returned HTTP `409`. Provider
+`deepseek`, model `deepseek-v4-flash`, then completed the quality-passed 420-bar Run in eight Agent
+iterations with three created candidates, no provider failure, and no Mock fallback. The provider
+received compact dataset/source/quality metadata, training benchmark, candidate metrics, budgets and
+safe event summaries; it did not receive CSV/OHLCV rows or holdout metrics.
 
+The accepted dataset retained quality report digest
+`sha256:91a4bf3eaa1f0ab7cd870441a656b1a3b4837828dadb72ce8addef126b305d6e`.
 The model selected a revised SMA 10/30 candidate. Its training metrics were `26.4031%` total return,
 `-1.7851%` maximum drawdown and Sharpe `7.2014`. The three training-only expanding windows produced
-three positive-return folds and two lower-drawdown folds. Only after selection, the sealed 84-bar
+three positive-return folds and two lower-drawdown folds. All three were classified from preceding
+history as `uptrend_normal_volatility`, so the report truthfully retained
+`insufficient_regime_diversity`. Only after selection, the sealed 84-bar
 holdout produced `6.0533%` total return and `-1.3777%` maximum drawdown versus buy-and-hold
 `5.3912%` and `-3.7909%`; the deterministic generalization status was `pass`. This demonstrates the
 complete transport/decision/tool/persistence/report path, not strategy quality or investment merit.
 
 ## Known Gaps
 
-- Imported CSV provenance is user-supplied. There is no live/historical market-provider retrieval,
-  provider verification, corporate-action validation, or news/web research.
+- Imported CSV provenance remains user-supplied. Deterministic quality checks now detect declared
+  calendar/timezone mismatches, weekday gaps, weekend sessions, price jumps and adjustment-policy
+  limitations, but there is no live provider attestation, exchange-holiday reference feed,
+  corporate-action reference feed, or news/web research.
 - The demonstration metrics above use the synthetic pinned fixture. Even an imported real OHLCV
   Run would remain a local deterministic backtest, not independently verified market evidence.
 - There is no arbitrary Python, shell, Jupyter, Spark runtime, uploaded-code execution, package
@@ -246,10 +253,10 @@ complete transport/decision/tool/persistence/report path, not strategy quality o
 - There is no paper trading, live trading, broker credential, order routing, portfolio execution,
   or risk-management service. A report's `paper_evaluation` next-step label triggers no trading
   capability.
-- There are three fixed expanding windows inside training plus one sealed chronological 20% holdout,
-  but no nested cross-validation, significance testing, survivorship/corporate-action assurance,
-  robust optimization, or claim of strategy profitability. A `pass` is an implementation verdict,
-  not strategy certification.
+- There are three regime-labelled expanding windows inside training plus one sealed chronological
+  20% holdout, but no nested cross-validation, guaranteed regime diversity, significance testing,
+  survivorship assurance, robust optimization, or claim of profitability. A `pass` is an
+  implementation verdict, not strategy certification.
 - The optional decision provider is one DeepSeek/OpenAI-compatible endpoint plus Mock fallback. A
   generic stateless tier router exists, but no multi-provider selection/cost policy is wired into
   Quant execution.
@@ -259,9 +266,10 @@ complete transport/decision/tool/persistence/report path, not strategy quality o
 
 ## Next Slice
 
-The imported-data slice now includes declared source metadata, immutable digests, three expanding
-training windows, a sealed final holdout, Mac evidence, and an opt-in complete DeepSeek Run. The next
-bounded slice should add **source verification and market-data correctness controls**: provider/export
-attestation, exchange calendar/timezone checks, split/dividend adjustment validation, missing-session
-diagnostics, and multiple walk-forward regimes. It should preserve the seven-tool loop, local kernel,
-Store/lease/fencing boundaries, compact model context, and no-trading constraint.
+The imported-data slice now includes declared source metadata, immutable source/dataset/quality
+digests, blocking correctness checks, regime-labelled training windows, a sealed final holdout, Mac
+evidence, dirty-data rejection, and a complete DeepSeek Run. The next bounded slice should add
+**independent source attestation**: one real historical market-data adapter, provider export IDs and
+timestamps, an exchange-holiday reference calendar, and split/dividend reference events. It should
+preserve the seven-tool loop, local kernel, Store/lease/fencing boundaries, compact model context,
+and no-trading constraint.

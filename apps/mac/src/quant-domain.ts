@@ -148,8 +148,33 @@ export interface DatasetSnapshot {
     sourceName: string;
     sourceReference: string | null;
     submittedCsvDigest: string | null;
+    marketCalendar?: 'unknown' | 'weekday' | 'XNYS' | 'XNAS' | 'XSHG' | 'XSHE';
+    timeZone?: string;
     priceAdjustment: 'unknown' | 'unadjusted' | 'split_adjusted' | 'total_return_adjusted';
   };
+  quality?: DatasetDataQuality;
+}
+
+export interface DatasetDataQuality {
+  schemaVersion: string;
+  policyVersion: string;
+  status: 'passed' | 'warning' | 'blocked';
+  verificationStatus: 'checked' | 'rejected';
+  reportDigest: string;
+  datasetDigest: string;
+  barCount: number;
+  calendarGapCount: number;
+  largestCalendarGapDays: number;
+  unexpectedSessionCount?: number;
+  zeroVolumeBarCount: number;
+  priceJumpCount: number;
+  issues: Array<{
+    code: string;
+    severity: string;
+    message: string;
+    count: number;
+  }>;
+  notes: string[];
 }
 
 export interface MarketBar {
@@ -260,6 +285,7 @@ export interface ResearchReport {
   disclaimer: string;
   generalization?: ResearchGeneralization;
   walkForward?: ResearchWalkForward;
+  datasetQuality?: DatasetDataQuality;
 }
 
 export interface QuantKernelResult {

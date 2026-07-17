@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { QuantActivityFeed, QuantArtifactCards, QuantKernelCheckCard } from './QuantActivity';
 import { QuantDataPage } from './QuantDataPage';
-import { QuantGoalComposer } from './QuantGoalComposer';
+import { QuantGoalComposer, quantDatasetReadyForAutoResearch } from './QuantGoalComposer';
 import { QuantMarketWorkspace } from './QuantMarketWorkspace';
 import { QuantPlanRail } from './QuantPlanRail';
 import { presentQuantWorkspace } from './quant-presentation';
@@ -11,6 +11,21 @@ import { quantFixtureSnapshot } from './quant-fixtures';
 import { createFixtureQuantApi } from '../../quant-api';
 
 const presentation = presentQuantWorkspace(quantFixtureSnapshot);
+const datasetQuality = {
+  schemaVersion: 'quant-data-quality-v1',
+  policyVersion: 'ohlcv-quality-v1',
+  status: 'warning' as const,
+  verificationStatus: 'checked' as const,
+  reportDigest: 'sha256:data-quality-report',
+  datasetDigest: 'sha256:data-quality-dataset',
+  barCount: 1564,
+  calendarGapCount: 4,
+  largestCalendarGapDays: 3,
+  zeroVolumeBarCount: 2,
+  priceJumpCount: 1,
+  issues: [{ code: 'calendar_gap', severity: 'warning', message: 'Calendar gaps need an exchange calendar to interpret.', count: 4 }],
+  notes: ['Input checks do not establish market-data authenticity.'],
+};
 
 describe('Quant Workspace components', () => {
   it('renders all research modes and truthfully gates Auto Research', () => {
@@ -21,6 +36,14 @@ describe('Quant Workspace components', () => {
     expect(markup).toContain('Internet disabled');
     expect(markup).not.toContain('token');
     expect(markup).not.toContain('cost');
+  });
+
+  it('does not enable Auto Research for a quality-blocked dataset', () => {
+    expect(quantDatasetReadyForAutoResearch({
+      ...quantFixtureSnapshot.dataset,
+      quality: { ...datasetQuality, status: 'blocked', verificationStatus: 'rejected' },
+    })).toBe(false);
+    expect(quantDatasetReadyForAutoResearch(quantFixtureSnapshot.dataset)).toBe(true);
   });
 
   it('renders discrete plan steps, owners, and artifacts without percentage progress', () => {
@@ -121,7 +144,7 @@ describe('Quant Workspace components', () => {
         candidateMedianSharpe: 1.2,
         benchmarkMedianSharpe: 1,
       },
-    }} />);
+    }} datasetQuality={datasetQuality} />);
     expect(markup).toContain('Chronological generalization');
     expect(markup).toContain('The selected candidate remained ahead');
     expect(markup).toContain('chronological-v1');
@@ -138,6 +161,9 @@ describe('Quant Workspace components', () => {
     expect(markup).toContain('expanding-3fold-20pct-v1');
     expect(markup).toContain('visible training evidence, not the sealed final holdout');
     expect(markup).toContain('3 / 3');
+    expect(markup).toContain('Dataset quality (pinned version)');
+    expect(markup).toContain('1,564');
+    expect(markup).toContain('Quality checks describe the pinned input, not market-data authenticity or strategy performance.');
   });
 
   it('uses imported provenance and symbol copy for imported evidence', () => {
@@ -187,8 +213,17 @@ describe('Quant Workspace components', () => {
     expect(markup).toContain('Import immutable dataset');
     expect(markup).toContain('Dataset source provider');
     expect(markup).toContain('Dataset source reference');
+    expect(markup).toContain('Dataset market calendar');
+    expect(markup).toContain('Dataset market timezone');
     expect(markup).toContain('Dataset price adjustment');
+    expect(markup).toContain('Unavailable for this legacy or synthetic snapshot.');
     expect(markup).toContain('Ready for Auto Research');
     expect(markup).toContain(quantFixtureSnapshot.dataset.digest.slice(0, 19));
+  });
+
+  it('renders optional imported data quality without requiring it in legacy snapshots', () => {
+    const snapshot = { ...quantFixtureSnapshot, dataset: { ...quantFixtureSnapshot.dataset, quality: datasetQuality } };
+    const markup = renderToStaticMarkup(<QuantDataPage api={createFixtureQuantApi()} snapshot={snapshot} selectedDataset={snapshot.dataset} onSelect={vi.fn()} onInspect={vi.fn()} />);
+    expect(markup).toContain('warning · 1,564 checked bars · 2 zero-volume · 4 calendar gaps');
   });
 });

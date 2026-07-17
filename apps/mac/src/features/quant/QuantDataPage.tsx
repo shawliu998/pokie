@@ -17,6 +17,12 @@ function uniqueDatasets(snapshotDataset: DatasetSnapshot, datasets: DatasetSnaps
   return [...byId.values()];
 }
 
+function qualitySummary(dataset: DatasetSnapshot): string {
+  const quality = dataset.quality;
+  if (!quality) return 'Unavailable for this legacy or synthetic snapshot.';
+  return `${quality.status} · ${quality.barCount.toLocaleString()} checked bars · ${quality.zeroVolumeBarCount} zero-volume · ${quality.calendarGapCount} calendar gaps`;
+}
+
 export function QuantDataPage({ api, snapshot, selectedDataset, onSelect, onInspect }: {
   api: QuantApi;
   snapshot: QuantWorkspaceSnapshot;
@@ -30,6 +36,8 @@ export function QuantDataPage({ api, snapshot, selectedDataset, onSelect, onInsp
   const [symbol, setSymbol] = useState('');
   const [sourceName, setSourceName] = useState('');
   const [sourceReference, setSourceReference] = useState('');
+  const [marketCalendar, setMarketCalendar] = useState<'unknown' | 'weekday' | 'XNYS' | 'XNAS' | 'XSHG' | 'XSHE'>('unknown');
+  const [timeZone, setTimeZone] = useState('UTC');
   const [priceAdjustment, setPriceAdjustment] = useState<'unknown' | 'unadjusted' | 'split_adjusted' | 'total_return_adjusted'>('unknown');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +57,13 @@ export function QuantDataPage({ api, snapshot, selectedDataset, onSelect, onInsp
     () => uniqueDatasets(snapshot.dataset, datasets),
     [datasets, snapshot.dataset],
   );
-  const eligible = selectedDataset.barCount >= MIN_AUTONOMOUS_RESEARCH_BARS;
+  const eligible = selectedDataset.barCount >= MIN_AUTONOMOUS_RESEARCH_BARS && selectedDataset.quality?.status !== 'blocked';
+
+  const chooseMarketCalendar = (calendar: typeof marketCalendar) => {
+    setMarketCalendar(calendar);
+    if (calendar === 'XNYS' || calendar === 'XNAS') setTimeZone('America/New_York');
+    if (calendar === 'XSHG' || calendar === 'XSHE') setTimeZone('Asia/Shanghai');
+  };
 
   const chooseFile = (nextFile: File | null) => {
     setFile(nextFile);
@@ -84,6 +98,8 @@ export function QuantDataPage({ api, snapshot, selectedDataset, onSelect, onInsp
         fileName: file.name,
         sourceName: sourceName.trim() || 'User-provided CSV',
         sourceReference: sourceReference.trim() || undefined,
+        marketCalendar,
+        timeZone: timeZone.trim() || 'UTC',
         priceAdjustment,
         idempotencyKey: quantIdempotencyKey(),
       });
@@ -94,6 +110,8 @@ export function QuantDataPage({ api, snapshot, selectedDataset, onSelect, onInsp
       setSymbol('');
       setSourceName('');
       setSourceReference('');
+      setMarketCalendar('unknown');
+      setTimeZone('UTC');
       setPriceAdjustment('unknown');
       setNotice(`${dataset.name} was imported as an immutable dataset.`);
       await refresh();
@@ -114,6 +132,8 @@ export function QuantDataPage({ api, snapshot, selectedDataset, onSelect, onInsp
         <label><span>Symbol</span><input aria-label="Dataset symbol" value={symbol} disabled={busy} placeholder="SPY" onChange={(event) => setSymbol(event.target.value.toUpperCase())} /></label>
         <label><span>Source/provider</span><input aria-label="Dataset source provider" value={sourceName} disabled={busy} placeholder="Exchange, vendor, or research source" onChange={(event) => setSourceName(event.target.value)} /></label>
         <label><span>Source reference</span><input aria-label="Dataset source reference" value={sourceReference} disabled={busy} placeholder="URL, export ID, or internal reference" onChange={(event) => setSourceReference(event.target.value)} /></label>
+        <label><span>Market calendar</span><select aria-label="Dataset market calendar" value={marketCalendar} disabled={busy} onChange={(event) => chooseMarketCalendar(event.target.value as typeof marketCalendar)}><option value="unknown">Unknown</option><option value="weekday">Weekday only</option><option value="XNYS">NYSE (XNYS)</option><option value="XNAS">Nasdaq (XNAS)</option><option value="XSHG">Shanghai (XSHG)</option><option value="XSHE">Shenzhen (XSHE)</option></select></label>
+        <label><span>Market timezone</span><input aria-label="Dataset market timezone" value={timeZone} disabled={busy} placeholder="America/New_York" onChange={(event) => setTimeZone(event.target.value)} /></label>
         <label><span>Price adjustment</span><select aria-label="Dataset price adjustment" value={priceAdjustment} disabled={busy} onChange={(event) => setPriceAdjustment(event.target.value as typeof priceAdjustment)}><option value="unknown">Unknown</option><option value="unadjusted">Unadjusted</option><option value="split_adjusted">Split adjusted</option><option value="total_return_adjusted">Total return adjusted</option></select></label>
         <Button className="primary" disabled={!file || busy} onClick={() => void importCsv()}>{busy ? 'Importing…' : 'Import immutable dataset'}</Button>
       </div>
@@ -125,14 +145,14 @@ export function QuantDataPage({ api, snapshot, selectedDataset, onSelect, onInsp
       <header><div><p className="quant-eyebrow">Available versions</p><h2 id="quant-dataset-list-title">Select a dataset</h2></div><span>{allDatasets.length} version{allDatasets.length === 1 ? '' : 's'}</span></header>
       {allDatasets.map((dataset) => {
         const isSelected = dataset.id === selectedDataset.id;
-        const canResearch = dataset.barCount >= MIN_AUTONOMOUS_RESEARCH_BARS;
+        const canResearch = dataset.barCount >= MIN_AUTONOMOUS_RESEARCH_BARS && dataset.quality?.status !== 'blocked';
         return <article className={`quant-dataset-card${isSelected ? ' is-selected' : ''}`} key={dataset.id}>
           <header><div><p className="quant-eyebrow">{dataset.symbol} · {dataset.interval}</p><h3>{dataset.name}</h3></div><Badge tone={dataset.authenticity === 'synthetic_fixture' ? 'warning' : 'info'}>{quantAuthenticityLabel(dataset.authenticity)}</Badge></header>
-          <dl><div><dt>Date range</dt><dd>{dataset.dateRange.start} – {dataset.dateRange.end}</dd></div><div><dt>Bars</dt><dd>{dataset.barCount.toLocaleString()}</dd></div>{dataset.source && <><div><dt>Source</dt><dd>{dataset.source.sourceName}</dd></div><div><dt>Adjustment</dt><dd>{dataset.source.priceAdjustment.replaceAll('_', ' ')}</dd></div></>}<div><dt>Research eligibility</dt><dd>{canResearch ? 'Ready for Auto Research' : `Needs ${MIN_AUTONOMOUS_RESEARCH_BARS - dataset.barCount} more daily bars`}</dd></div></dl>
+          <dl><div><dt>Date range</dt><dd>{dataset.dateRange.start} – {dataset.dateRange.end}</dd></div><div><dt>Bars</dt><dd>{dataset.barCount.toLocaleString()}</dd></div>{dataset.source && <><div><dt>Source</dt><dd>{dataset.source.sourceName}</dd></div><div><dt>Calendar</dt><dd>{dataset.source.marketCalendar ?? 'unknown'} · {dataset.source.timeZone ?? 'timezone unavailable'}</dd></div><div><dt>Adjustment</dt><dd>{dataset.source.priceAdjustment.replaceAll('_', ' ')}</dd></div></>}<div><dt>Data quality</dt><dd>{qualitySummary(dataset)}</dd></div><div><dt>Research eligibility</dt><dd>{canResearch ? 'Ready for Auto Research' : dataset.quality?.status === 'blocked' ? 'Blocked by data quality checks' : `Needs ${MIN_AUTONOMOUS_RESEARCH_BARS - dataset.barCount} more daily bars`}</dd></div></dl>
           <footer><code title={dataset.digest}>{dataset.digest.slice(0, 19)}…</code><div>{isSelected ? <span className="quant-dataset-selected">Selected</span> : <Button onClick={() => onSelect(dataset)}>Select dataset</Button>}{isSelected && <Button onClick={onInspect}>Inspect provenance</Button>}</div></footer>
         </article>;
       })}
     </section>
-    {!eligible && <p className="quant-inline-note" role="status">The selected dataset can be inspected, but Auto Research needs at least {MIN_AUTONOMOUS_RESEARCH_BARS} daily bars.</p>}
+    {!eligible && <p className="quant-inline-note" role="status">The selected dataset can be inspected, but Auto Research requires at least {MIN_AUTONOMOUS_RESEARCH_BARS} daily bars and no blocking data-quality issues.</p>}
   </div>;
 }

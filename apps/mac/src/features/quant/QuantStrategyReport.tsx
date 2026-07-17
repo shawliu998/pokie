@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Badge, Status } from '@glint/ui';
-import type { GeneralizationMetrics, QuantCandidate, QuantWorkspaceSnapshot, ResearchGeneralization, ResearchWalkForward } from '../../quant-domain';
+import type { DatasetDataQuality, GeneralizationMetrics, QuantCandidate, QuantWorkspaceSnapshot, ResearchGeneralization, ResearchWalkForward } from '../../quant-domain';
 import { quantAuthenticityLabel } from '../../quant-domain';
 import type { QuantCandidatePresentation } from './quant-presentation';
 
@@ -41,7 +41,18 @@ function WalkForwardPanel({ walkForward }: { walkForward?: ResearchWalkForward }
   </section>;
 }
 
-export function QuantGeneralizationPanel({ generalization, walkForward }: { generalization?: ResearchGeneralization; walkForward?: ResearchWalkForward }) {
+function DatasetQualityPanel({ quality }: { quality?: DatasetDataQuality }) {
+  if (!quality) return <section className="quant-walk-forward" aria-label="Dataset quality"><h4>Dataset quality unavailable</h4><p>This legacy or synthetic snapshot has no retained quality report. Quality checks are not market-data verification or strategy performance.</p></section>;
+  return <section className="quant-walk-forward" aria-label="Dataset quality">
+    <h4>Dataset quality (pinned version) <Status tone={quality.status === 'passed' ? 'positive' : quality.status === 'blocked' ? 'danger' : 'warning'}>{quality.status}</Status></h4>
+    <p>Quality checks describe the pinned input, not market-data authenticity or strategy performance.</p>
+    <dl><div><dt>Verification</dt><dd>{quality.verificationStatus}</dd></div><div><dt>Checked bars</dt><dd>{quality.barCount.toLocaleString()}</dd></div><div><dt>Calendar gaps</dt><dd>{quality.calendarGapCount}</dd></div><div><dt>Largest gap</dt><dd>{quality.largestCalendarGapDays} days</dd></div><div><dt>Unexpected sessions</dt><dd>{quality.unexpectedSessionCount ?? 0}</dd></div><div><dt>Zero-volume bars</dt><dd>{quality.zeroVolumeBarCount}</dd></div><div><dt>Price jumps</dt><dd>{quality.priceJumpCount}</dd></div></dl>
+    {quality.issues.length > 0 && <ul>{quality.issues.map((issue) => <li key={`${issue.code}-${issue.message}`}>{issue.severity}: {issue.message} ({issue.count})</li>)}</ul>}
+    {quality.notes.length > 0 && <ul>{quality.notes.map((note) => <li key={note}>{note}</li>)}</ul>}
+  </section>;
+}
+
+export function QuantGeneralizationPanel({ generalization, walkForward, datasetQuality }: { generalization?: ResearchGeneralization; walkForward?: ResearchWalkForward; datasetQuality?: DatasetDataQuality }) {
   if (!generalization) return <div className="quant-check-list"><h4>Generalization unavailable</h4><p>This report does not include a chronological train/holdout evaluation.</p></div>;
 
   return <div className="quant-check-list quant-generalization">
@@ -60,6 +71,7 @@ export function QuantGeneralizationPanel({ generalization, walkForward }: { gene
     {generalization.train ? <GeneralizationMetricsTable title="Training metrics" metrics={generalization.train} /> : <p>Training metrics unavailable.</p>}
     {generalization.holdout ? <GeneralizationMetricsTable title="Holdout metrics" metrics={generalization.holdout} /> : <p>Holdout metrics unavailable.</p>}
     <WalkForwardPanel walkForward={walkForward} />
+    <DatasetQualityPanel quality={datasetQuality} />
   </div>;
 }
 
@@ -85,7 +97,7 @@ export function QuantStrategyReport({ snapshot, candidates, selectedCandidateId,
     <div className="quant-report-panel" role="tabpanel" id={`quant-panel-${tab}`} aria-labelledby={`quant-tab-${tab}`}>
       {tab === 'overview' && <><div className="quant-report-conclusion"><div><p className="quant-eyebrow">Conclusion</p><h4>{report.conclusion}</h4></div><Badge tone="warning">{authenticityLabel}</Badge></div><div className="quant-metric-cards"><article><span>Training annualized return</span><strong>{metric(selected.metrics.annualizedReturn, '%')}</strong><small>Training benchmark {metric(benchmark.annualizedReturn, '%')}</small></article><article><span>Training maximum drawdown</span><strong>{metric(selected.metrics.maxDrawdown, '%')}</strong><small>Training benchmark {metric(benchmark.maxDrawdown, '%')}</small></article><article><span>Training Sharpe</span><strong>{selected.metrics.sharpe.toFixed(2)}</strong><small>Training benchmark {benchmark.sharpe.toFixed(2)}</small></article><article><span>Training trades</span><strong>{selected.metrics.trades}</strong><small>Persisted computed count</small></article></div><p className="quant-disclaimer">{report.disclaimer}</p></>}
       {tab === 'performance' && <table><caption>Training candidate and benchmark computed metrics</caption><thead><tr><th>Series</th><th>Return</th><th>Drawdown</th><th>Sharpe</th><th>Trades</th><th>Result</th></tr></thead><tbody><MetricsRow name="Training buy and hold" metrics={benchmark} verdict="Benchmark" /><MetricsRow name={`Training ${selected.name}`} metrics={selected.metrics} verdict={selectedPresentation?.verdictLabel ?? selected.verdict} /></tbody></table>}
-      {tab === 'generalization' && <QuantGeneralizationPanel generalization={report.generalization} walkForward={report.walkForward} />}
+      {tab === 'generalization' && <QuantGeneralizationPanel generalization={report.generalization} walkForward={report.walkForward} datasetQuality={report.datasetQuality ?? snapshot.dataset.quality} />}
       {tab === 'experiments' && <table><caption>All persisted training candidate experiments</caption><thead><tr><th>Candidate</th><th>Parameters</th><th>Return</th><th>Drawdown</th><th>Sharpe</th><th>Verdict</th></tr></thead><tbody>{snapshot.candidates.map((candidate) => <tr key={candidate.id}><th scope="row"><button className="quant-table-link" onClick={() => onSelectCandidate(candidate.id)}>{candidate.name}</button></th><td>{candidate.parameters}</td><td>{metric(candidate.metrics.annualizedReturn, '%')}</td><td>{metric(candidate.metrics.maxDrawdown, '%')}</td><td>{candidate.metrics.sharpe.toFixed(2)}</td><td>{candidates.find((item) => item.id === candidate.id)?.verdictLabel}</td></tr>)}</tbody></table>}
       {tab === 'trades' && <table><caption>{selected.name} retained training trade records</caption><thead><tr><th>Entry</th><th>Exit</th><th>Return</th><th>Holding</th><th>Reason</th></tr></thead><tbody>{snapshot.trades.filter((trade) => trade.candidateId === selected.id).map((trade) => <tr key={trade.id}><td>{trade.entryDate}</td><td>{trade.exitDate}</td><td>{metric(trade.returnPct, '%')}</td><td>{trade.holdingDays} days</td><td>{trade.reason}</td></tr>)}</tbody></table>}
       {tab === 'robustness' && <div className="quant-check-list"><h4>{selected.verdictReason}</h4><ul>{selected.robustness.map((finding) => <li key={finding}>{finding}</li>)}</ul><p>Candidate verdicts describe hypothesis quality. They do not change the completed run state.</p></div>}

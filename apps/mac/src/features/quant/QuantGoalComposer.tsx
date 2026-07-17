@@ -12,6 +12,10 @@ const modeCommand: Record<QuantResearchMode, QuantCommand> = {
   ask: 'ask', plan: 'generate_plan', auto_research: 'start_auto_research',
 };
 
+export function quantDatasetReadyForAutoResearch(dataset: DatasetSnapshot): boolean {
+  return dataset.barCount >= 252 && dataset.quality?.status !== 'blocked';
+}
+
 export function QuantGoalComposer({ snapshot, selectedDataset = snapshot.dataset, large = false, onSubmit }: {
   snapshot: QuantWorkspaceSnapshot;
   selectedDataset?: DatasetSnapshot;
@@ -23,10 +27,12 @@ export function QuantGoalComposer({ snapshot, selectedDataset = snapshot.dataset
   const command = modeCommand[mode];
   const effectiveGoal = goal;
   const legal = snapshot.composerLegalCommands.includes(command) || snapshot.run.legalCommands.includes(command);
-  const datasetReady = selectedDataset.barCount >= 252;
+  const datasetReady = quantDatasetReadyForAutoResearch(selectedDataset);
   const canSubmit = Boolean(effectiveGoal.trim()) && legal && (mode !== 'auto_research' || datasetReady);
   const unavailableCopy = mode === 'auto_research'
-    ? !datasetReady
+    ? selectedDataset.quality?.status === 'blocked'
+      ? 'Auto Research is blocked by data-quality checks for the selected dataset.'
+      : !datasetReady
       ? 'Auto Research requires at least 252 ordered daily bars in the selected dataset.'
       : 'Auto Research is available only before a run starts or after creating a new attempt.'
     : snapshot.run.state === 'running_experiments'

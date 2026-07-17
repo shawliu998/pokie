@@ -33,7 +33,25 @@ describe('Quant fixture API adapter', () => {
         source_name: 'Example Exchange',
         source_reference: 'export:123',
         submitted_csv_digest: `sha256:${'b'.repeat(64)}`,
+        market_calendar: 'XNYS',
+        time_zone: 'America/New_York',
         price_adjustment: 'split_adjusted',
+      },
+      data_quality: {
+        schema_version: 'quant-data-quality-v1',
+        policy_version: 'ohlcv-quality-v1',
+        status: 'warning',
+        verification_status: 'checked',
+        report_digest: `sha256:${'c'.repeat(64)}`,
+        dataset_digest: `sha256:${'a'.repeat(64)}`,
+        bar_count: 300,
+        calendar_gap_count: 2,
+        largest_calendar_gap_days: 3,
+        unexpected_session_count: 0,
+        zero_volume_bar_count: 1,
+        price_jump_count: 4,
+        issues: [{ code: 'calendar_gap', severity: 'warning', message: 'Calendar gaps are not exchange-calendar verification.', count: 2 }],
+        notes: ['Input checks do not establish market-data authenticity.'],
       },
       data_authenticity: 'imported',
       created_at: '2026-07-17T00:00:00Z',
@@ -56,11 +74,13 @@ describe('Quant fixture API adapter', () => {
       fileName: 'acme.csv',
       sourceName: 'Example Exchange',
       sourceReference: 'export:123',
+      marketCalendar: 'XNYS',
+      timeZone: 'America/New_York',
       priceAdjustment: 'split_adjusted',
       idempotencyKey: importKey,
     });
 
-    expect(listed[0]).toMatchObject({ id: dto.dataset_id, symbol: 'ACME', barCount: 300, authenticity: 'imported_fixture', source: { sourceName: 'Example Exchange', fileName: 'acme.csv', priceAdjustment: 'split_adjusted' } });
+    expect(listed[0]).toMatchObject({ id: dto.dataset_id, symbol: 'ACME', barCount: 300, authenticity: 'imported_fixture', source: { sourceName: 'Example Exchange', fileName: 'acme.csv', priceAdjustment: 'split_adjusted' }, quality: { schemaVersion: 'quant-data-quality-v1', policyVersion: 'ohlcv-quality-v1', status: 'warning', verificationStatus: 'checked', calendarGapCount: 2, largestCalendarGapDays: 3, zeroVolumeBarCount: 1, priceJumpCount: 4 } });
     expect(imported.id).toBe(dto.dataset_id);
     expect(calls[0]).toEqual({ path: '/quant/datasets', init: undefined });
     expect(calls[1]?.path).toBe('/quant/datasets/import-csv');
@@ -73,6 +93,8 @@ describe('Quant fixture API adapter', () => {
       file_name: 'acme.csv',
       source_name: 'Example Exchange',
       source_reference: 'export:123',
+      market_calendar: 'XNYS',
+      time_zone: 'America/New_York',
       price_adjustment: 'split_adjusted',
     });
   });

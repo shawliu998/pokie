@@ -42,14 +42,19 @@ Implemented:
   text digest, parser version, normalized market-data digest, and Run/report provenance.
 - deterministic three-fold expanding walk-forward evidence inside the training partition, alongside
   the separately sealed final holdout evaluation.
+- a digest-pinned data-quality report covering declared market calendar/timezone compatibility,
+  missing weekdays, excessive gaps, unexpected weekend sessions, zero volume, large price jumps,
+  and adjustment-policy limitations; blocking findings retain the import but prevent Auto Research.
+- training-only market-regime labels for every walk-forward fold, computed strictly from history
+  before that fold's evaluation window and summarized without opening the final holdout.
 
 Still intentionally not implemented:
 
 - live/historical market-provider retrieval or news data;
 - independently verified market evidence, production backtest orchestration, broad parameter search,
   or optimization (imported CSV provenance is user-supplied and is not provider-verified);
-- nested or regime-spanning cross-validation, statistical significance testing, or production
-  strategy certification; the three fixed training folds and final holdout are implementation checks;
+- nested cross-validation, broad regime coverage, statistical significance testing, or production
+  strategy certification; regime diversity is reported truthfully and may be insufficient;
 - Spark/Jupyter/sandbox or uploaded-code execution;
 - providers other than the optional DeepSeek-compatible decision endpoint; the decision provider
   never receives market-network or arbitrary execution tools;

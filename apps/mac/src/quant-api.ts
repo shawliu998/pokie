@@ -1,4 +1,4 @@
-import type { DatasetSnapshot, QuantCommand, QuantWorkspaceSnapshot } from './quant-domain';
+import type { DatasetDataQuality, DatasetSnapshot, QuantCommand, QuantWorkspaceSnapshot } from './quant-domain';
 import { quantFixtureSnapshot } from './features/quant/quant-fixtures';
 import type { GlintApi } from './api';
 
@@ -29,6 +29,8 @@ export interface QuantDatasetImportRequest {
   fileName?: string;
   sourceName?: string;
   sourceReference?: string;
+  marketCalendar?: 'unknown' | 'weekday' | 'XNYS' | 'XNAS' | 'XSHG' | 'XSHE';
+  timeZone?: string;
   priceAdjustment?: 'unknown' | 'unadjusted' | 'split_adjusted' | 'total_return_adjusted';
   idempotencyKey: string;
 }
@@ -57,7 +59,46 @@ interface QuantDatasetDto {
     source_name: string;
     source_reference: string | null;
     submitted_csv_digest: string | null;
+    market_calendar: 'unknown' | 'weekday' | 'XNYS' | 'XNAS' | 'XSHG' | 'XSHE';
+    time_zone: string;
     price_adjustment: 'unknown' | 'unadjusted' | 'split_adjusted' | 'total_return_adjusted';
+  };
+  data_quality?: QuantDatasetDataQualityDto;
+}
+
+interface QuantDatasetDataQualityDto {
+  schema_version: string;
+  policy_version: string;
+  status: 'passed' | 'warning' | 'blocked';
+  verification_status: 'checked' | 'rejected';
+  report_digest: string;
+  dataset_digest: string;
+  bar_count: number;
+  calendar_gap_count: number;
+  largest_calendar_gap_days: number;
+  unexpected_session_count: number;
+  zero_volume_bar_count: number;
+  price_jump_count: number;
+  issues: Array<{ code: string; severity: string; message: string; count: number }>;
+  notes: string[];
+}
+
+function mapDatasetQuality(dto: QuantDatasetDataQualityDto): DatasetDataQuality {
+  return {
+    schemaVersion: dto.schema_version,
+    policyVersion: dto.policy_version,
+    status: dto.status,
+    verificationStatus: dto.verification_status,
+    reportDigest: dto.report_digest,
+    datasetDigest: dto.dataset_digest,
+    barCount: dto.bar_count,
+    calendarGapCount: dto.calendar_gap_count,
+    largestCalendarGapDays: dto.largest_calendar_gap_days,
+    unexpectedSessionCount: dto.unexpected_session_count,
+    zeroVolumeBarCount: dto.zero_volume_bar_count,
+    priceJumpCount: dto.price_jump_count,
+    issues: dto.issues.map((issue) => ({ ...issue })),
+    notes: [...dto.notes],
   };
 }
 
@@ -79,8 +120,11 @@ function mapDataset(dto: QuantDatasetDto): DatasetSnapshot {
       sourceName: dto.source_metadata.source_name,
       sourceReference: dto.source_metadata.source_reference,
       submittedCsvDigest: dto.source_metadata.submitted_csv_digest,
+      marketCalendar: dto.source_metadata.market_calendar,
+      timeZone: dto.source_metadata.time_zone,
       priceAdjustment: dto.source_metadata.price_adjustment,
     },
+    ...(dto.data_quality ? { quality: mapDatasetQuality(dto.data_quality) } : {}),
   };
 }
 
@@ -139,6 +183,8 @@ export function createApiQuantApi(api: GlintApi): QuantApi {
           file_name: request.fileName,
           source_name: request.sourceName ?? 'User-provided CSV',
           source_reference: request.sourceReference,
+          market_calendar: request.marketCalendar ?? 'unknown',
+          time_zone: request.timeZone ?? 'UTC',
           price_adjustment: request.priceAdjustment ?? 'unknown',
         }),
       });
