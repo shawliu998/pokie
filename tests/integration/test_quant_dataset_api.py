@@ -7,12 +7,12 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
-from services.api.app.modules.quant.store import get_quant_store
+from services.api.app.modules.quant.store import QuantStore, get_quant_store
 from services.worker.app.pipelines.quant_agent import run_quant_agent_once
 from services.worker.app.quant_agent.provider import MockQuantAgentProvider
 
 
-def _daily_csv(*, last_close_adjustment: float = 0) -> str:
+def _daily_csv(*, last_close_adjustment: float = 0, holdout_daily_trend: float = 0) -> str:
     rows = ["date,open,high,low,close,volume"]
     start = date(2023, 1, 1)
     for index in range(300):
@@ -20,6 +20,10 @@ def _daily_csv(*, last_close_adjustment: float = 0) -> str:
         baseline = 100 + index / 50
         open_price = baseline + 8 * math.sin((index - 1) / 8)
         close_price = baseline + 8 * math.sin(index / 8)
+        if index >= 240:
+            holdout_adjustment = holdout_daily_trend * (index - 239)
+            open_price += holdout_adjustment
+            close_price += holdout_adjustment
         if index == 299:
             close_price += last_close_adjustment
         rows.append(
@@ -31,6 +35,7 @@ def _daily_csv(*, last_close_adjustment: float = 0) -> str:
 
 CSV_V1 = _daily_csv()
 CSV_V2 = _daily_csv(last_close_adjustment=0.25)
+CSV_HOLDOUT_TREND = _daily_csv(holdout_daily_trend=0.5)
 
 
 def _headers(principal_id: str, workspace_id: str | None = None) -> dict[str, str]:
@@ -128,6 +133,20 @@ def test_imported_ohlcv_dataset_is_listed_pinned_and_exposed_to_agent_context(
         "end": "2023-10-27",
         "digest": dataset["digest"],
         "authenticity": "imported_fixture",
+        "evaluation_partition": "train",
+        "split": {
+            "method": "chronological",
+            "rule_version": "chronological-80-20-v1",
+            "train_bar_count": 240,
+            "holdout_bar_count": 60,
+            "train_start": "2023-01-01",
+            "train_end": "2023-08-28",
+            "holdout_start": "2023-08-29",
+            "holdout_end": "2023-10-27",
+            "cutoff_date": "2023-08-29",
+            "dataset_id": dataset["dataset_id"],
+            "dataset_digest": dataset["digest"],
+        },
     }
     snapshot = client.get(
         "/v1/quant/workspace-snapshot",
@@ -170,6 +189,37 @@ def test_imported_ohlcv_dataset_is_listed_pinned_and_exposed_to_agent_context(
     assert completed_snapshot["trades"]
     assert any("marker" in bar for bar in completed_snapshot["bars"])
     assert completed_snapshot["composerLegalCommands"] == ["start_auto_research"]
+    generalization = completed_snapshot["report"]["generalization"]
+    assert generalization["status"] in {"pass", "fail", "inconclusive"}
+    assert generalization["split"] == {
+        "method": "chronological",
+        "ruleVersion": "chronological-80-20-v1",
+        "trainBarCount": 240,
+        "holdoutBarCount": 60,
+        "cutoffDate": "2023-08-29",
+        "datasetId": dataset["dataset_id"],
+        "datasetDigest": dataset["digest"],
+    }
+    assert generalization["train"]["candidate"]
+    assert generalization["train"]["benchmark"]
+    assert generalization["holdout"]["candidate"]
+    assert generalization["holdout"]["benchmark"]
+
+    persisted_artifacts = QuantStore().artifacts_for_run(
+        workspace_id=workspace_id, run_id=run["id"]
+    )
+    research_reports = [
+        item for item in persisted_artifacts if item.kind.value == "research_report"
+    ]
+    assert len(research_reports) == 1
+    assert research_reports[0].content["dataset"]["digest"] == dataset["digest"]
+    assert research_reports[0].content["generalization"]["split"]["train_bar_count"] == 240
+    assert not run_quant_agent_once(
+        provider=MockQuantAgentProvider(), workspace_id=workspace_id
+    )
+    assert len(
+        QuantStore().artifacts_for_run(workspace_id=workspace_id, run_id=run["id"])
+    ) == len(persisted_artifacts)
 
     next_run = client.post(
         "/v1/quant/workspace-snapshot/commands",
@@ -212,6 +262,72 @@ def test_changed_csv_creates_new_dataset_while_existing_run_remains_pinned(
     assert get_quant_store().agent_context_data(
         workspace_id=workspace_id, run_id=old_run["id"]
     )["dataset_summary"]["digest"] == first["digest"]
+
+
+def test_holdout_changes_do_not_change_training_selection(
+    client: TestClient, principal_id: str
+) -> None:
+    def complete(csv_text: str, name: str) -> tuple[dict[str, Any], dict[str, Any]]:
+        workspace_id = _workspace(client, principal_id, name)["workspace_id"]
+        dataset = _import(client, principal_id, workspace_id, csv_text)
+        project = _project(client, principal_id, workspace_id)
+        created = _create_run(
+            client, principal_id, workspace_id, project, dataset["dataset_id"]
+        )
+        assert created.status_code == 201, created.text
+        run_id = created.json()["id"]
+        for _ in range(12):
+            assert run_quant_agent_once(
+                provider=MockQuantAgentProvider(), workspace_id=workspace_id
+            )
+            if (
+                QuantStore()
+                .get_run(workspace_id=workspace_id, run_id=run_id)
+                .state.value
+                == "completed"
+            ):
+                break
+        artifacts = QuantStore().artifacts_for_run(
+            workspace_id=workspace_id, run_id=run_id
+        )
+        comparison = next(
+            item.content for item in artifacts if item.kind.value == "validation_report"
+        )
+        report = next(
+            item.content for item in artifacts if item.kind.value == "research_report"
+        )
+        return comparison, report
+
+    baseline_comparison, baseline_report = complete(CSV_V1, "Baseline holdout")
+    changed_comparison, changed_report = complete(
+        CSV_HOLDOUT_TREND, "Changed holdout"
+    )
+
+    def training_evidence(comparison: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "benchmark": comparison["benchmark"],
+            "candidates": [
+                {key: value for key, value in row.items() if key != "candidate_id"}
+                for row in comparison["candidates"]
+            ],
+        }
+
+    assert training_evidence(baseline_comparison) == training_evidence(changed_comparison)
+    baseline_selected = next(
+        item["name"]
+        for item in baseline_report["candidates_tested"]
+        if item["candidate_id"] == baseline_report["selected_candidate_id"]
+    )
+    changed_selected = next(
+        item["name"]
+        for item in changed_report["candidates_tested"]
+        if item["candidate_id"] == changed_report["selected_candidate_id"]
+    )
+    assert baseline_selected == changed_selected
+    assert (
+        baseline_report["generalization"]["holdout"]["candidate"]
+        != changed_report["generalization"]["holdout"]["candidate"]
+    )
 
 
 def test_unknown_or_cross_workspace_dataset_cannot_be_bound_to_a_run(

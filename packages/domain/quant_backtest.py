@@ -9,11 +9,11 @@ by the bounded Phase 1 scope: Long and Cash.
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import StrEnum
 from statistics import mean, pstdev
-from typing import Iterable, Sequence
 
 
 class BacktestInputError(ValueError):
@@ -124,17 +124,17 @@ class StrategySpec:
             raise BacktestInputError("Breakout period must be a positive integer.")
 
     @classmethod
-    def sma(cls, fast_period: int, slow_period: int) -> "StrategySpec":
+    def sma(cls, fast_period: int, slow_period: int) -> StrategySpec:
         return cls(StrategyFamily.SMA, fast_period=fast_period, slow_period=slow_period)
 
     @classmethod
     def rsi(
         cls, period: int, *, oversold: float = 30.0, overbought: float = 70.0
-    ) -> "StrategySpec":
+    ) -> StrategySpec:
         return cls(StrategyFamily.RSI, period=period, oversold=oversold, overbought=overbought)
 
     @classmethod
-    def breakout(cls, period: int) -> "StrategySpec":
+    def breakout(cls, period: int) -> StrategySpec:
         return cls(StrategyFamily.BREAKOUT, period=period)
 
 
@@ -202,7 +202,10 @@ def validate_bars(bars: Iterable[DailyBar]) -> tuple[DailyBar, ...]:
         raise BacktestInputError("bars must be an iterable of DailyBar values.") from exc
     if any(not isinstance(bar, DailyBar) for bar in materialized):
         raise BacktestInputError("bars must contain only DailyBar values.")
-    if any(left.date >= right.date for left, right in zip(materialized, materialized[1:])):
+    if any(
+        left.date >= right.date
+        for left, right in zip(materialized, materialized[1:], strict=False)
+    ):
         raise BacktestInputError("bars must be strictly ordered by date with no duplicates.")
     return materialized
 
@@ -309,11 +312,28 @@ def _metrics(
 
 
 def run_backtest(
-    bars: Iterable[DailyBar], strategy: StrategySpec, config: ExecutionConfig | None = None
+    bars: Iterable[DailyBar],
+    strategy: StrategySpec,
+    config: ExecutionConfig | None = None,
+    *,
+    measurement_start_index: int = 0,
 ) -> BacktestResult:
-    """Run one long/cash strategy; signals at close ``i`` fill at open ``i+1``."""
+    """Run one long/cash strategy; signals at close ``i`` fill at open ``i+1``.
+
+    Bars before ``measurement_start_index`` are indicator history only.  The
+    first measured bar can create a signal at its close, so its earliest fill
+    is the following measured bar's open.
+    """
 
     checked_bars = validate_bars(bars)
+    if (
+        not isinstance(measurement_start_index, int)  # type: ignore[reportUnnecessaryIsInstance]
+        or isinstance(measurement_start_index, bool)
+        or not 0 <= measurement_start_index <= len(checked_bars)
+    ):
+        raise BacktestInputError(
+            "measurement_start_index must be an integer between 0 and the number of bars."
+        )
     if not isinstance(strategy, StrategySpec):
         raise BacktestInputError("strategy must be a StrategySpec.")
     checked_config = config if config is not None else ExecutionConfig()
@@ -330,7 +350,8 @@ def run_backtest(
     curve: list[EquityPoint] = []
     trades: list[Trade] = []
     closes = tuple(bar.close for bar in checked_bars)
-    for index, bar in enumerate(checked_bars):
+    for index in range(measurement_start_index, len(checked_bars)):
+        bar = checked_bars[index]
         if pending_long and quantity == 0.0:
             quantity, cash, entry_fee = _buy(cash, bar, checked_config)
             entry_date = bar.date
@@ -360,14 +381,16 @@ def run_backtest(
         curve.append(
             EquityPoint(bar.date, _rounded(cash), _rounded(quantity), bar.close, _rounded(equity))
         )
-        pending_long = _desired_position(closes, strategy, index, pending_long if quantity else False)
+        pending_long = _desired_position(
+            closes, strategy, index, pending_long if quantity else False
+        )
     immutable_curve = tuple(curve)
     immutable_trades = tuple(trades)
     return BacktestResult(
         strategy,
         immutable_curve,
         immutable_trades,
-        _metrics(immutable_curve, immutable_trades, checked_config, len(checked_bars)),
+        _metrics(immutable_curve, immutable_trades, checked_config, len(immutable_curve)),
     )
 
 

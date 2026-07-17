@@ -186,6 +186,52 @@ def _chart_sample(
     ]
 
 
+def _report_metrics_projection(value: object) -> dict[str, float | int] | None:
+    if not isinstance(value, dict):
+        return None
+    return {
+        "annualizedReturn": float(value.get("annualized_return_pct", 0)),
+        "maxDrawdown": float(value.get("maximum_drawdown_pct", 0)),
+        "sharpe": float(value.get("sharpe_ratio", 0)),
+        "trades": int(value.get("trade_count", 0)),
+    }
+
+
+def _generalization_projection(value: object) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    split = value.get("split")
+    if not isinstance(split, dict):
+        return None
+
+    def partition(name: str) -> dict[str, Any] | None:
+        row = value.get(name)
+        if not isinstance(row, dict):
+            return None
+        candidate = _report_metrics_projection(row.get("candidate"))
+        benchmark = _report_metrics_projection(row.get("benchmark"))
+        if candidate is None or benchmark is None:
+            return None
+        return {"candidate": candidate, "benchmark": benchmark}
+
+    return {
+        "status": value.get("status", "not_evaluated"),
+        "reason": value.get("reason", "Holdout evaluation was not available."),
+        "selectedCandidateId": value.get("selected_candidate_id"),
+        "split": {
+            "method": split.get("method", "chronological"),
+            "ruleVersion": split.get("rule_version", ""),
+            "trainBarCount": split.get("train_bar_count", 0),
+            "holdoutBarCount": split.get("holdout_bar_count", 0),
+            "cutoffDate": split.get("cutoff_date", ""),
+            "datasetId": split.get("dataset_id", ""),
+            "datasetDigest": split.get("dataset_digest", ""),
+        },
+        "train": partition("train"),
+        "holdout": partition("holdout"),
+    }
+
+
 def apply_fixture_command(
     *,
     workspace_id: str,
@@ -808,6 +854,10 @@ def quant_agent_workspace_snapshot(*, workspace_id: str) -> dict[str, Any] | Non
                 if dataset_record is not None
                 else "The deterministic synthetic bars are not market observations."
             ),
+            (
+                "Candidate and benchmark metrics shown outside Generalization use the "
+                "chronological training partition."
+            ),
             "No statistical significance or live execution was evaluated.",
             "No network, broker, or arbitrary code execution is available.",
         ],
@@ -861,7 +911,7 @@ def quant_agent_workspace_snapshot(*, workspace_id: str) -> dict[str, Any] | Non
                     - date.fromisoformat(item["entry_date"])
                 ).days,
             ),
-            "reason": "Persisted local backtest trade.",
+            "reason": "Persisted chronological training backtest trade.",
         }
         for index, item in enumerate(selected_trades, start=1)
     ]
@@ -874,8 +924,11 @@ def quant_agent_workspace_snapshot(*, workspace_id: str) -> dict[str, Any] | Non
             "proposedNextStep": report_artifact.content.get("next_step", "stop").replace("_", " "),
             "limitations": report_artifact.content.get("limitations", []),
             "humanReviewStatus": "Agent report retained",
-            "validatorVersion": "daily-bar-kernel-v1",
+            "validatorVersion": "chronological-80-20-v1",
             "generationMethod": "Autonomous Agent over deterministic local tools",
+            "generalization": _generalization_projection(
+                report_artifact.content.get("generalization")
+            ),
             "disclaimer": (
                 "Imported-data results are not investment advice or evidence of future "
                 "performance."

@@ -72,6 +72,9 @@ def test_comparison_includes_difference_fields(
     ]
     assert comparison_artifacts, "Expected a comparison artifact"
     comparison = comparison_artifacts[-1].content
+    assert comparison["evaluation_partition"] == "train"
+    assert comparison["split"]["rule_version"] == "chronological-80-20-v1"
+    assert "holdout" not in comparison
     assert "benchmark" in comparison
     assert "candidates" in comparison
     for candidate in comparison["candidates"]:
@@ -84,3 +87,13 @@ def test_comparison_includes_difference_fields(
         assert candidate["return_difference"] == round(
             candidate["total_return_pct"] - benchmark["total_return_pct"], 4
         )
+
+    research_report = next(
+        item for item in artifacts if item.kind.value == "research_report"
+    ).content
+    generalization = research_report["generalization"]
+    assert generalization["split"] == comparison["split"]
+    assert generalization["status"] in {"pass", "fail", "inconclusive"}
+    assert generalization["train"]["benchmark"] == comparison["benchmark"]
+    assert generalization["holdout"]["candidate"]
+    assert generalization["holdout"]["benchmark"]

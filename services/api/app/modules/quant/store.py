@@ -45,6 +45,8 @@ from services.api.app.db.models import QuantRepositoryState
 from services.api.app.db.session import get_session_factory, set_rls_context
 
 MIN_AUTONOMOUS_RESEARCH_BARS = 252
+AGENT_TRAIN_PERCENT = 80
+AGENT_SPLIT_RULE_VERSION = "chronological-80-20-v1"
 
 
 def _utcnow() -> datetime:
@@ -835,12 +837,13 @@ class QuantStore:
                 {
                     "candidate_id": candidate.id,
                     "experiment_id": candidate.id,
-                    "safe_summary": f"Local backtest started for {candidate.name}.",
+                    "safe_summary": f"Local training backtest started for {candidate.name}.",
                 },
             )
             try:
+                _, training_bars, _, split = self._agent_split(run)
                 result = run_backtest(
-                    self._agent_bars(run),
+                    training_bars,
                     self._strategy_spec(candidate.template, candidate.parameters),
                     ExecutionConfig(fee_rate=0.001, slippage_rate=0.0005),
                 )
@@ -861,7 +864,7 @@ class QuantStore:
                 return candidate, [], "INVALID_STRATEGY_PARAMETERS"
             metrics = self._metrics_projection(result.metrics)
             benchmark = backtest_buy_and_hold(
-                self._agent_bars(run),
+                training_bars,
                 ExecutionConfig(fee_rate=0.001, slippage_rate=0.0005),
             )
             candidate.metrics = metrics
@@ -872,7 +875,7 @@ class QuantStore:
                 else QuantExperimentVerdict.NOT_VIABLE
             )
             candidate.summary = (
-                f"Kernel result: {metrics['trade_count']} trades, "
+                f"Training kernel result: {metrics['trade_count']} trades, "
                 f"maximum drawdown {metrics['maximum_drawdown_pct']}%."
             )
             candidate.latest_observation = candidate.summary
@@ -880,8 +883,13 @@ class QuantStore:
                 self._new_agent_artifact(
                     run,
                     QuantArtifactKind.BACKTEST_RESULT,
-                    f"Backtest metrics: {candidate.name}",
-                    {"candidate_id": candidate.id, "metrics": metrics},
+                    f"Training backtest metrics: {candidate.name}",
+                    {
+                        "candidate_id": candidate.id,
+                        "evaluation_partition": "train",
+                        "split": split,
+                        "metrics": metrics,
+                    },
                     key=f"{candidate.id}:metrics",
                 ),
                 self._new_agent_artifact(
@@ -1053,7 +1061,7 @@ class QuantStore:
             if not completed:
                 return None, [], "NO_COMPLETED_CANDIDATES"
             benchmark_result = backtest_buy_and_hold(
-                self._agent_bars(run),
+                self._agent_split(run)[1],
                 ExecutionConfig(fee_rate=0.001, slippage_rate=0.0005),
             )
             benchmark = self._metrics_projection(benchmark_result.metrics)
@@ -1080,11 +1088,16 @@ class QuantStore:
                 }
                 for item in completed
             ]
-            comparison = {"benchmark": benchmark, "candidates": rows}
+            comparison = {
+                "evaluation_partition": "train",
+                "split": self._agent_split(run)[3],
+                "benchmark": benchmark,
+                "candidates": rows,
+            }
             artifact = self._new_agent_artifact(
                 run,
                 QuantArtifactKind.VALIDATION_REPORT,
-                "Candidate comparison",
+                "Training candidate comparison",
                 comparison,
                 key=f"comparison:{run.agent_iteration}",
             )
@@ -1094,7 +1107,8 @@ class QuantStore:
                 {
                     "artifact_id": artifact.id,
                     "safe_summary": (
-                        f"{len(completed)} completed candidates were compared with buy and hold."
+                        f"{len(completed)} completed candidates were compared with buy and hold "
+                        "on the chronological training partition."
                     ),
                 },
             )
@@ -1135,6 +1149,64 @@ class QuantStore:
                 if dataset.dataset_id != SPY_DAILY_FIXTURE.dataset_id
                 else "The pinned dataset is synthetic and is not real market data."
             )
+            all_bars, training_bars, split_index, split = self._agent_split(run)
+            generalization: dict[str, Any] = {
+                "status": "not_evaluated",
+                "reason": "No completed candidate was selected for holdout evaluation.",
+                "selected_candidate_id": selected_candidate_id,
+                "split": split,
+            }
+            if selected is not None:
+                execution = ExecutionConfig(fee_rate=0.001, slippage_rate=0.0005)
+                holdout_result = run_backtest(
+                    all_bars,
+                    self._strategy_spec(selected.template, selected.parameters),
+                    execution,
+                    measurement_start_index=split_index,
+                )
+                holdout_benchmark_result = backtest_buy_and_hold(
+                    all_bars[split_index:], execution
+                )
+                train_benchmark_result = backtest_buy_and_hold(training_bars, execution)
+                holdout_metrics = self._metrics_projection(holdout_result.metrics)
+                holdout_benchmark = self._metrics_projection(
+                    holdout_benchmark_result.metrics
+                )
+                if holdout_result.metrics.exposure == 0:
+                    status = "inconclusive"
+                    reason = "The selected strategy had no market exposure in the holdout period."
+                elif (
+                    holdout_result.metrics.max_drawdown
+                    > holdout_benchmark_result.metrics.max_drawdown
+                    and holdout_result.metrics.total_return > 0
+                ):
+                    status = "pass"
+                    reason = (
+                        "The selected strategy remained profitable and had a smaller maximum "
+                        "drawdown than buy and hold on the sealed holdout period."
+                    )
+                else:
+                    status = "fail"
+                    reason = (
+                        "The selected strategy did not preserve both positive return and a "
+                        "smaller maximum drawdown on the sealed holdout period."
+                    )
+                generalization = {
+                    "status": status,
+                    "reason": reason,
+                    "selected_candidate_id": selected.id,
+                    "split": split,
+                    "train": {
+                        "candidate": selected.metrics,
+                        "benchmark": self._metrics_projection(
+                            train_benchmark_result.metrics
+                        ),
+                    },
+                    "holdout": {
+                        "candidate": holdout_metrics,
+                        "benchmark": holdout_benchmark,
+                    },
+                }
             report = {
                 "research_goal": run.question,
                 "plan_summary": run.plan_summary,
@@ -1144,8 +1216,13 @@ class QuantStore:
                 "selected_candidate_id": selected_candidate_id,
                 "conclusion": conclusion,
                 "next_step": next_step,
+                "generalization": generalization,
                 "limitations": [
                     source_limitation,
+                    (
+                        "The Agent selected and revised candidates using only the chronological "
+                        "training partition. Holdout metrics were computed after selection."
+                    ),
                     "Results are local backtests, not investment advice or trading instructions.",
                     "No statistical significance or live execution was evaluated.",
                 ],
@@ -1236,6 +1313,28 @@ class QuantStore:
             )
             for bar in dataset.bars
         )
+
+    def _agent_split(
+        self, run: QuantRunRecord
+    ) -> tuple[tuple[DailyBar, ...], tuple[DailyBar, ...], int, dict[str, Any]]:
+        bars = self._agent_bars(run)
+        split_index = len(bars) * AGENT_TRAIN_PERCENT // 100
+        split_index = max(1, min(split_index, len(bars) - 1))
+        dataset = self.dataset_for_run(run)
+        split = {
+            "method": "chronological",
+            "rule_version": AGENT_SPLIT_RULE_VERSION,
+            "train_bar_count": split_index,
+            "holdout_bar_count": len(bars) - split_index,
+            "train_start": bars[0].date.isoformat(),
+            "train_end": bars[split_index - 1].date.isoformat(),
+            "holdout_start": bars[split_index].date.isoformat(),
+            "holdout_end": bars[-1].date.isoformat(),
+            "cutoff_date": bars[split_index].date.isoformat(),
+            "dataset_id": dataset.dataset_id,
+            "dataset_digest": dataset.digest,
+        }
+        return bars, bars[:split_index], split_index, split
 
     @staticmethod
     def _strategy_spec(template: str, parameters: dict[str, Any]) -> StrategySpec:
@@ -1937,6 +2036,7 @@ class QuantStore:
 
     def agent_dataset_summary(self, run: QuantRunRecord) -> dict[str, Any]:
         dataset = self.dataset_for_run(run)
+        split = self._agent_split(run)[3]
         return {
             "dataset_id": dataset.dataset_id,
             "symbol": dataset.symbol,
@@ -1946,11 +2046,13 @@ class QuantStore:
             "end": dataset.covered_end.isoformat(),
             "digest": dataset.digest,
             "authenticity": dataset.provenance.value,
+            "evaluation_partition": "train",
+            "split": split,
         }
 
     def agent_benchmark_summary(self, run: QuantRunRecord) -> dict[str, Any]:
         result = backtest_buy_and_hold(
-            self._agent_bars(run),
+            self._agent_split(run)[1],
             ExecutionConfig(fee_rate=0.001, slippage_rate=0.0005),
         )
         return self._metrics_projection(result.metrics)
