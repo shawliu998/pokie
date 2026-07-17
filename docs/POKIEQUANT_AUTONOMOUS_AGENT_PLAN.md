@@ -30,12 +30,18 @@ required for recovery.
 7. Extend API and Mac presentation contracts with budgets, decisions and tool calls.
 8. Verify contracts, goal differentiation, one-step execution, recovery, cancellation, API behavior,
    lint, type checking and UI build.
+9. Add strict local CSV OHLCV normalization, immutable workspace dataset versions, and pin each Run
+   to a dataset ID and canonical digest before its first Agent decision.
 
 ## Bounded scope
 
 Only SMA crossover, RSI mean reversion and trailing breakout templates are executable. Tools never
 access the network or execute user/model code. Metrics always come from the local kernel over the
 pinned dataset. Missing model credentials select the product-supported Mock provider.
+
+The first external-data adapter accepts daily OHLCV as CSV text through the authenticated Quant API.
+It performs no market-network retrieval and does not claim the imported rows are provider-verified.
+Imports remain inspectable at any size, while autonomous runs require at least 252 ordered daily bars.
 
 ## Reuse note
 

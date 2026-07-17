@@ -11,6 +11,8 @@ from fastapi.responses import StreamingResponse
 from packages.contracts.quant import (
     QuantAgentPlan,
     QuantArtifactResponse,
+    QuantDatasetImportRequest,
+    QuantDatasetResponse,
     QuantExperimentResponse,
     QuantFixtureCommandRequest,
     QuantPlanApproveRequest,
@@ -78,7 +80,13 @@ def command_workspace_snapshot(body: QuantFixtureCommandRequest, context: Ctx) -
         goal = body.payload.get("goal")
         if not isinstance(goal, str) or not goal.strip() or len(goal.strip()) > 2_000:
             raise invalid_state("Auto Research requires a goal from 1 to 2,000 characters.")
+        dataset_id = body.payload.get("dataset_id")
+        if dataset_id is not None and not isinstance(dataset_id, str):
+            raise invalid_state("dataset_id must be text when supplied.")
         store = _store()
+        store.validate_dataset_for_run(
+            workspace_id=context.workspace_id, dataset_id=dataset_id
+        )
         projects = store.list_projects(workspace_id=context.workspace_id)
         project = (
             projects[0]
@@ -96,6 +104,7 @@ def command_workspace_snapshot(body: QuantFixtureCommandRequest, context: Ctx) -
             mode=QuantRunMode.AUTO,
             expected_project_row_version=project.row_version,
             agent_plan=_generate_agent_plan(goal.strip()),
+            dataset_id=dataset_id,
         )
         snapshot = quant_agent_workspace_snapshot(workspace_id=context.workspace_id)
         if snapshot is None:  # pragma: no cover - creation above is authoritative
@@ -194,9 +203,42 @@ def get_project(project_id: UUID, context: Ctx) -> dict[str, Any]:
     )
 
 
+@router.post("/datasets/import-csv", response_model=QuantDatasetResponse, status_code=201)
+def import_dataset_csv(
+    body: QuantDatasetImportRequest, context: Ctx
+) -> dict[str, Any]:
+    store = _store()
+    try:
+        record = store.import_dataset_csv(
+            workspace_id=context.workspace_id,
+            name=body.name,
+            symbol=body.symbol,
+            csv_text=body.csv_text,
+        )
+    except ValueError as exc:
+        raise invalid_state(str(exc)) from exc
+    return QuantDatasetResponse.model_validate(
+        store.to_dataset_response(record)
+    ).model_dump(mode="json")
+
+
+@router.get("/datasets", response_model=list[QuantDatasetResponse])
+def list_datasets(context: Ctx) -> list[dict[str, Any]]:
+    store = _store()
+    return [
+        QuantDatasetResponse.model_validate(store.to_dataset_response(record)).model_dump(
+            mode="json"
+        )
+        for record in store.list_datasets(workspace_id=context.workspace_id)
+    ]
+
+
 @router.post("/runs", response_model=QuantRunResponse, status_code=201)
 def create_run(body: QuantRunCreateRequest, context: Ctx) -> dict[str, Any]:
     store = _store()
+    store.validate_dataset_for_run(
+        workspace_id=context.workspace_id, dataset_id=body.dataset_id
+    )
     run = store.create_run(
         workspace_id=context.workspace_id,
         project_id=str(body.project_id),
@@ -204,6 +246,7 @@ def create_run(body: QuantRunCreateRequest, context: Ctx) -> dict[str, Any]:
         mode=body.mode,
         expected_project_row_version=body.expected_project_row_version,
         agent_plan=_generate_agent_plan(body.question),
+        dataset_id=body.dataset_id,
     )
     return QuantRunResponse.model_validate(store.to_run_response(run)).model_dump(mode="json")
 

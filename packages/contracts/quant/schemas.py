@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
 from pydantic import Field, model_validator
 
-from ..base import ContractModel, NonEmptyString
+from ..base import ContractModel, Digest, NonEmptyString, VersionString
 from ..enums import DataAuthenticity
 from ..schemas.common import ImmutableResource, MutableResource
+from .data import QuantDailyBarInterval
 from .enums import (
     QuantArtifactKind,
     QuantArtifactReviewStatus,
@@ -20,6 +21,28 @@ from .enums import (
     QuantRunMode,
     QuantRunState,
 )
+
+
+class QuantDatasetImportRequest(ContractModel):
+    name: NonEmptyString = Field(max_length=200)
+    symbol: NonEmptyString = Field(pattern=r"^[A-Za-z][A-Za-z0-9.\-]{0,15}$")
+    csv_text: NonEmptyString = Field(max_length=10_000_000)
+
+
+class QuantDatasetResponse(ContractModel):
+    dataset_id: VersionString
+    workspace_id: UUID
+    name: NonEmptyString
+    symbol: NonEmptyString
+    interval: QuantDailyBarInterval
+    covered_start: date
+    covered_end: date
+    bar_count: int = Field(ge=1)
+    schema_version: VersionString
+    parser_version: VersionString
+    digest: Digest
+    data_authenticity: DataAuthenticity
+    created_at: datetime
 
 
 class QuantProjectCreateRequest(ContractModel):
@@ -39,10 +62,13 @@ class QuantRunCreateRequest(ContractModel):
     mode: QuantRunMode = QuantRunMode.PLAN
     question: NonEmptyString = Field(max_length=2000)
     expected_project_row_version: int = Field(ge=1)
+    dataset_id: VersionString | None = None
 
 
 class QuantRunResponse(MutableResource):
     project_id: UUID
+    dataset_id: VersionString
+    dataset_digest: Digest
     state: QuantRunState
     mode: QuantRunMode
     question: NonEmptyString

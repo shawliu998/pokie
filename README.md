@@ -2,10 +2,11 @@
 
 PokieQuant is a governed desktop workspace for bounded, auditable quantitative-research workflows.
 
-Phase 1A adds an incremental autonomous research loop over the Phase 0 shell. Every market bar is
-still a **Synthetic Demo Fixture**, but normal Agent runs now select dynamic strategy parameters and
-compute their metrics with the pure local daily-bar kernel. The model boundary can choose only one
-of seven registered tools; it cannot execute Python, shell, network, broker, or order actions.
+Phase 1A adds an incremental autonomous research loop over the Phase 0 shell. Runs use either the
+default **Synthetic Demo Fixture** or a workspace-imported, digest-pinned daily OHLCV CSV. Agent runs
+select dynamic strategy parameters and compute their metrics with the pure local daily-bar kernel.
+The model boundary can choose only one of seven registered tools; it cannot execute Python, shell,
+market-network, broker, or order actions.
 
 ## Phase 0 status
 
@@ -29,11 +30,15 @@ Implemented:
   provider, dynamic candidates, and one fenced tool action per worker poll;
 - persisted Agent iterations, experiment/repair budgets, decisions, observations, local-kernel
   metrics, comparisons and reports that recover after process restart.
+- strict CSV OHLCV normalization, immutable content-addressed dataset versions, workspace-scoped
+  import/list APIs, a 252-daily-bar minimum for autonomous execution, and Run-level dataset
+  ID/digest pinning retained across retries.
 
 Still intentionally not implemented:
 
-- real or provider-sourced OHLCV/news data;
-- real or statistically useful market evidence, production backtest orchestration, broad parameter search, or optimization (the implemented dataset and results are deterministic synthetic demonstrations);
+- live/historical market-provider retrieval or news data;
+- independently verified market evidence, production backtest orchestration, broad parameter search,
+  or optimization (imported CSV provenance is user-supplied and is not provider-verified);
 - Spark/Jupyter/sandbox or uploaded-code execution;
 - providers other than the optional DeepSeek-compatible decision endpoint; the decision provider
   never receives market-network or arbitrary execution tools;

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 from copy import deepcopy
+from datetime import date
 from typing import Any
 
 from sqlalchemy import select
@@ -554,6 +555,16 @@ def quant_agent_workspace_snapshot(*, workspace_id: str) -> dict[str, Any] | Non
         return None
     run = runs[0]
     project = store.get_project(workspace_id=workspace_id, project_id=run.project_id)
+    dataset = store.dataset_for_run(run)
+    dataset_record = store.get_dataset(
+        workspace_id=workspace_id, dataset_id=dataset.dataset_id
+    )
+    dataset_name = (
+        dataset_record.name
+        if dataset_record is not None
+        else "SPY Daily Synthetic Weekday Fixture · 2018–2023"
+    )
+    dataset_authenticity = dataset.provenance.value
     snapshot = quant_workspace_fixture("quant-ready")
     context = store.agent_context_data(workspace_id=workspace_id, run_id=run.id)
     experiments = store.experiments_for_run(workspace_id=workspace_id, run_id=run.id)
@@ -608,12 +619,49 @@ def quant_agent_workspace_snapshot(*, workspace_id: str) -> dict[str, Any] | Non
         "id": project.id,
         "title": project.name,
         "goal": run.question,
-        "symbol": SPY_DAILY_FIXTURE.symbol,
+        "symbol": dataset.symbol,
         "updatedAt": run.updated_at.isoformat(),
         "statusLabel": run.agent_status.replace("_", " ").title(),
         "needsAction": state == "waiting_plan_approval",
     }
     snapshot["recentProjects"] = [deepcopy(snapshot["project"])]
+    snapshot["authenticity"] = dataset_authenticity
+    snapshot["scope"] = {
+        **snapshot["scope"],
+        "symbol": dataset.symbol,
+        "interval": dataset.interval.value,
+        "dateRange": {
+            "start": dataset.covered_start.isoformat(),
+            "end": dataset.covered_end.isoformat(),
+        },
+        "benchmark": f"{dataset.symbol} Buy and Hold",
+        "assumptions": [
+            f"{len(dataset.bars):,} pinned daily OHLCV bars",
+            "10 bps fee and 5 bps slippage per fill",
+            "No network retrieval; only fixed typed strategy specifications",
+        ],
+    }
+    snapshot["dataset"] = {
+        "id": dataset.dataset_id,
+        "name": dataset_name,
+        "symbol": dataset.symbol,
+        "interval": dataset.interval.value,
+        "dateRange": {
+            "start": dataset.covered_start.isoformat(),
+            "end": dataset.covered_end.isoformat(),
+        },
+        "barCount": len(dataset.bars),
+        "schemaVersion": dataset.schema_version,
+        "parserVersion": (
+            dataset_record.parser_version
+            if dataset_record is not None
+            else "deterministic-weekday-generator-v2"
+        ),
+        "digest": dataset.digest,
+        "authenticity": dataset_authenticity,
+    }
+    snapshot["bars"] = _chart_sample(dataset, [])
+    snapshot["trades"] = []
     snapshot["run"] = {
         "id": run.id,
         "rowVersion": run.row_version,
@@ -695,7 +743,7 @@ def quant_agent_workspace_snapshot(*, workspace_id: str) -> dict[str, Any] | Non
             "summary": item.content.get("conclusion", item.title),
             "status": "ready",
             "origin": "Autonomous local Agent",
-            "authenticity": "synthetic_fixture",
+            "authenticity": dataset_authenticity,
             "relatedLabel": f"Run {run.attempt_number}",
             "digest": item.digest,
         }
@@ -722,6 +770,48 @@ def quant_agent_workspace_snapshot(*, workspace_id: str) -> dict[str, Any] | Non
         for item in experiments
         if item.template != "fixture"
     ]
+    computed_experiments = [item for item in experiments if item.metrics]
+
+    def kernel_result(identifier: str, label: str, metrics: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "id": identifier,
+            "label": label,
+            "totalReturnPct": metrics.get("total_return_pct", 0),
+            "annualizedReturnPct": metrics.get("annualized_return_pct", 0),
+            "maxDrawdownPct": metrics.get("maximum_drawdown_pct", 0),
+            "sharpe": metrics.get("sharpe_ratio", 0),
+            "tradeCount": metrics.get("trade_count", 0),
+            "finalEquity": metrics.get("final_equity", 0),
+        }
+
+    snapshot["kernelCheck"] = {
+        "status": "verified" if computed_experiments else "available",
+        "engineVersion": "daily-bar-kernel-v1",
+        "datasetId": dataset.dataset_id,
+        "datasetDigest": dataset.digest,
+        "barCount": len(dataset.bars),
+        "execution": "signal_at_close_fill_next_open",
+        "feeRateBps": 10,
+        "slippageRateBps": 5,
+        "benchmark": (
+            kernel_result("buy-and-hold", "Buy and Hold", context["benchmark_summary"])
+            if computed_experiments
+            else None
+        ),
+        "strategies": [
+            kernel_result(item.id, item.name, item.metrics) for item in computed_experiments
+        ],
+        "limitations": [
+            (
+                "Workspace-imported bars were not independently verified against a market "
+                "data provider."
+                if dataset_record is not None
+                else "The deterministic synthetic bars are not market observations."
+            ),
+            "No statistical significance or live execution was evaluated.",
+            "No network, broker, or arbitrary code execution is available.",
+        ],
+    }
     snapshot["benchmark"] = {
         "annualizedReturn": context["benchmark_summary"]["annualized_return_pct"],
         "maxDrawdown": context["benchmark_summary"]["maximum_drawdown_pct"],
@@ -731,6 +821,51 @@ def quant_agent_workspace_snapshot(*, workspace_id: str) -> dict[str, Any] | Non
     report_artifact = next(
         (item for item in artifacts if item.kind.value == "research_report"), None
     )
+    selected_candidate_id = (
+        report_artifact.content.get("selected_candidate_id")
+        if report_artifact is not None
+        else None
+    )
+    trade_artifact = next(
+        (
+            item
+            for item in artifacts
+            if item.kind.value == "trade_log"
+            and item.content.get("candidate_id") == selected_candidate_id
+        ),
+        None,
+    )
+    if trade_artifact is None or not trade_artifact.content.get("trades"):
+        trade_artifact = next(
+            (
+                item
+                for item in artifacts
+                if item.kind.value == "trade_log" and item.content.get("trades")
+            ),
+            None,
+        )
+        if trade_artifact is not None:
+            selected_candidate_id = trade_artifact.content.get("candidate_id")
+    selected_trades = trade_artifact.content.get("trades", []) if trade_artifact else []
+    snapshot["trades"] = [
+        {
+            "id": f"{trade_artifact.id}:{index}" if trade_artifact else f"trade:{index}",
+            "candidateId": selected_candidate_id,
+            "entryDate": item["entry_date"],
+            "exitDate": item["exit_date"],
+            "returnPct": item["return_pct"],
+            "holdingDays": max(
+                0,
+                (
+                    date.fromisoformat(item["exit_date"])
+                    - date.fromisoformat(item["entry_date"])
+                ).days,
+            ),
+            "reason": "Persisted local backtest trade.",
+        }
+        for index, item in enumerate(selected_trades, start=1)
+    ]
+    snapshot["bars"] = _chart_sample(dataset, snapshot["trades"])
     snapshot["report"] = (
         {
             "id": report_artifact.id,
@@ -742,7 +877,11 @@ def quant_agent_workspace_snapshot(*, workspace_id: str) -> dict[str, Any] | Non
             "validatorVersion": "daily-bar-kernel-v1",
             "generationMethod": "Autonomous Agent over deterministic local tools",
             "disclaimer": (
-                "Synthetic results are not investment advice or evidence of future performance."
+                "Imported-data results are not investment advice or evidence of future "
+                "performance."
+                if dataset_record is not None
+                else "Synthetic results are not investment advice or evidence of future "
+                "performance."
             ),
         }
         if report_artifact is not None

@@ -12,7 +12,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from packages.contracts.enums import DataAuthenticity
-from packages.contracts.quant import QuantAgentDecision, QuantAgentPlan, QuantToolObservation
+from packages.contracts.quant import (
+    QUANT_OHLCV_CSV_PARSER_VERSION,
+    QuantAgentDecision,
+    QuantAgentPlan,
+    QuantDailyBarDataset,
+    QuantToolObservation,
+    parse_ohlcv_csv,
+)
 from packages.contracts.quant.enums import (
     QuantArtifactKind,
     QuantArtifactReviewStatus,
@@ -36,6 +43,8 @@ from packages.domain.quant_backtest import (
 from services.api.app.core.errors import invalid_state, not_found, version_conflict
 from services.api.app.db.models import QuantRepositoryState
 from services.api.app.db.session import get_session_factory, set_rls_context
+
+MIN_AUTONOMOUS_RESEARCH_BARS = 252
 
 
 def _utcnow() -> datetime:
@@ -82,6 +91,17 @@ class QuantProjectRecord:
     data_authenticity: DataAuthenticity = DataAuthenticity.GENERATED
 
 
+@dataclass(frozen=True, slots=True)
+class QuantDatasetRecord:
+    id: str
+    workspace_id: str
+    name: str
+    dataset: QuantDailyBarDataset
+    parser_version: str = QUANT_OHLCV_CSV_PARSER_VERSION
+    created_at: datetime = field(default_factory=_utcnow)
+    data_authenticity: DataAuthenticity = DataAuthenticity.IMPORTED
+
+
 @dataclass(slots=True)
 class QuantRunRecord:
     id: str
@@ -89,6 +109,8 @@ class QuantRunRecord:
     project_id: str
     question: str
     mode: QuantRunMode
+    dataset_id: str = SPY_DAILY_FIXTURE.dataset_id
+    dataset_digest: str = SPY_DAILY_FIXTURE.digest
     state: QuantRunState = QuantRunState.QUEUED
     plan_revision: int = 1
     attempt_number: int = 1
@@ -199,6 +221,7 @@ class QuantStore:
         self._session_factory = session_factory or get_session_factory()
         self._loaded_workspaces: set[str] = set()
         self._storage_versions: dict[str, int] = {}
+        self._datasets: dict[tuple[str, str], QuantDatasetRecord] = {}
         self._projects: dict[str, QuantProjectRecord] = {}
         self._runs: dict[str, QuantRunRecord] = {}
         self._events: dict[str, list[QuantEventRecord]] = {}
@@ -208,6 +231,7 @@ class QuantStore:
     def clear(self) -> None:
         with self._lock:
             self._projects.clear()
+            self._datasets.clear()
             self._runs.clear()
             self._events.clear()
             self._artifacts.clear()
@@ -229,6 +253,20 @@ class QuantStore:
         self._loaded_workspaces.add(workspace_id)
 
     def _restore_workspace(self, workspace_id: str, state: dict[str, Any]) -> None:
+        self._datasets.update(
+            {
+                (workspace_id, item["id"]): QuantDatasetRecord(
+                    **{
+                        **item,
+                        "dataset": QuantDailyBarDataset.model_validate(item["dataset"]),
+                        "created_at": _datetime(item["created_at"]),
+                        "data_authenticity": DataAuthenticity(item["data_authenticity"]),
+                    }
+                )
+                for item in state.get("datasets", [])
+                if item.get("workspace_id") == workspace_id
+            }
+        )
         self._projects.update(
             {
                 item["id"]: QuantProjectRecord(
@@ -304,6 +342,14 @@ class QuantStore:
     def _workspace_state(self, workspace_id: str) -> dict[str, Any]:
         return _json_value(
             {
+                "datasets": [
+                    {
+                        **asdict(row),
+                        "dataset": row.dataset.model_dump(mode="json"),
+                    }
+                    for row in self._datasets.values()
+                    if row.workspace_id == workspace_id
+                ],
                 "projects": [
                     asdict(row)
                     for row in self._projects.values()
@@ -794,7 +840,7 @@ class QuantStore:
             )
             try:
                 result = run_backtest(
-                    self._agent_bars(),
+                    self._agent_bars(run),
                     self._strategy_spec(candidate.template, candidate.parameters),
                     ExecutionConfig(fee_rate=0.001, slippage_rate=0.0005),
                 )
@@ -815,7 +861,8 @@ class QuantStore:
                 return candidate, [], "INVALID_STRATEGY_PARAMETERS"
             metrics = self._metrics_projection(result.metrics)
             benchmark = backtest_buy_and_hold(
-                self._agent_bars(), ExecutionConfig(fee_rate=0.001, slippage_rate=0.0005)
+                self._agent_bars(run),
+                ExecutionConfig(fee_rate=0.001, slippage_rate=0.0005),
             )
             candidate.metrics = metrics
             candidate.state = "completed"
@@ -1006,7 +1053,8 @@ class QuantStore:
             if not completed:
                 return None, [], "NO_COMPLETED_CANDIDATES"
             benchmark_result = backtest_buy_and_hold(
-                self._agent_bars(), ExecutionConfig(fee_rate=0.001, slippage_rate=0.0005)
+                self._agent_bars(run),
+                ExecutionConfig(fee_rate=0.001, slippage_rate=0.0005),
             )
             benchmark = self._metrics_projection(benchmark_result.metrics)
             rows = [
@@ -1080,17 +1128,24 @@ class QuantStore:
                 selected is None or selected.run_id != run.id or selected.state != "completed"
             ):
                 return None, [], "INVALID_SELECTED_CANDIDATE"
+            dataset = self.dataset_for_run(run)
+            source_limitation = (
+                "The pinned dataset was imported by the workspace and was not independently "
+                "verified against a market data provider."
+                if dataset.dataset_id != SPY_DAILY_FIXTURE.dataset_id
+                else "The pinned dataset is synthetic and is not real market data."
+            )
             report = {
                 "research_goal": run.question,
                 "plan_summary": run.plan_summary,
-                "dataset": self.agent_dataset_summary(),
-                "benchmark": self.agent_benchmark_summary(),
+                "dataset": self.agent_dataset_summary(run),
+                "benchmark": self.agent_benchmark_summary(run),
                 "candidates_tested": [self.agent_candidate_summary(item) for item in completed],
                 "selected_candidate_id": selected_candidate_id,
                 "conclusion": conclusion,
                 "next_step": next_step,
                 "limitations": [
-                    "The pinned dataset is synthetic and is not real market data.",
+                    source_limitation,
                     "Results are local backtests, not investment advice or trading instructions.",
                     "No statistical significance or live execution was evaluated.",
                 ],
@@ -1168,8 +1223,8 @@ class QuantStore:
             },
         )
 
-    @staticmethod
-    def _agent_bars() -> tuple[DailyBar, ...]:
+    def _agent_bars(self, run: QuantRunRecord) -> tuple[DailyBar, ...]:
+        dataset = self.dataset_for_run(run)
         return tuple(
             DailyBar(
                 date=bar.trading_date,
@@ -1179,7 +1234,7 @@ class QuantStore:
                 close=float(bar.close),
                 volume=float(bar.volume),
             )
-            for bar in SPY_DAILY_FIXTURE.bars
+            for bar in dataset.bars
         )
 
     @staticmethod
@@ -1205,7 +1260,91 @@ class QuantStore:
             "sharpe_ratio": round(metrics.sharpe_ratio, 4),
             "trade_count": metrics.trade_count,
             "win_rate_pct": round(metrics.win_rate * 100, 4),
+            "final_equity": round(metrics.final_equity, 4),
         }
+
+    # Immutable datasets
+    def import_dataset_csv(
+        self, *, workspace_id: str, name: str, symbol: str, csv_text: str
+    ) -> QuantDatasetRecord:
+        dataset = parse_ohlcv_csv(csv_text, name=name, symbol=symbol)
+        with self._lock:
+            self._ensure_workspace_loaded(workspace_id)
+            key = (workspace_id, dataset.dataset_id)
+            existing = self._datasets.get(key)
+            if existing is not None:
+                return existing
+            record = QuantDatasetRecord(
+                id=dataset.dataset_id,
+                workspace_id=workspace_id,
+                name=name.strip(),
+                dataset=dataset,
+            )
+            self._datasets[key] = record
+            self._persist_workspace(workspace_id)
+            return record
+
+    def list_datasets(self, *, workspace_id: str) -> list[QuantDatasetRecord]:
+        with self._lock:
+            self._ensure_workspace_loaded(workspace_id)
+            return sorted(
+                (
+                    record
+                    for record in self._datasets.values()
+                    if record.workspace_id == workspace_id
+                ),
+                key=lambda item: item.created_at,
+                reverse=True,
+            )
+
+    def dataset_for_run(self, run: QuantRunRecord) -> QuantDailyBarDataset:
+        if run.dataset_id == SPY_DAILY_FIXTURE.dataset_id:
+            dataset = SPY_DAILY_FIXTURE
+        else:
+            record = self._datasets.get((run.workspace_id, run.dataset_id))
+            if record is None:
+                raise not_found("QuantDataset")
+            dataset = record.dataset
+        if dataset.digest != run.dataset_digest:
+            raise invalid_state("The run's pinned dataset digest no longer matches storage.")
+        return dataset
+
+    def get_dataset(
+        self, *, workspace_id: str, dataset_id: str
+    ) -> QuantDatasetRecord | None:
+        with self._lock:
+            self._ensure_workspace_loaded(workspace_id)
+            if dataset_id == SPY_DAILY_FIXTURE.dataset_id:
+                return None
+            record = self._datasets.get((workspace_id, dataset_id))
+            if record is None:
+                raise not_found("QuantDataset")
+            return record
+
+    def _resolve_dataset(
+        self, *, workspace_id: str, dataset_id: str | None
+    ) -> QuantDailyBarDataset:
+        selected_id = dataset_id or SPY_DAILY_FIXTURE.dataset_id
+        if selected_id == SPY_DAILY_FIXTURE.dataset_id:
+            return SPY_DAILY_FIXTURE
+        record = self._datasets.get((workspace_id, selected_id))
+        if record is None:
+            raise not_found("QuantDataset")
+        if len(record.dataset.bars) < MIN_AUTONOMOUS_RESEARCH_BARS:
+            raise invalid_state(
+                "Autonomous research requires at least "
+                f"{MIN_AUTONOMOUS_RESEARCH_BARS} daily bars."
+            )
+        return record.dataset
+
+    def validate_dataset_for_run(
+        self, *, workspace_id: str, dataset_id: str | None
+    ) -> QuantDailyBarDataset:
+        with self._lock:
+            self._ensure_workspace_loaded(workspace_id)
+            return self._resolve_dataset(
+                workspace_id=workspace_id, dataset_id=dataset_id
+            )
 
     # Projects
     def create_project(self, *, workspace_id: str, name: str, objective: str) -> QuantProjectRecord:
@@ -1250,14 +1389,26 @@ class QuantStore:
         mode: QuantRunMode,
         expected_project_row_version: int,
         agent_plan: QuantAgentPlan | None = None,
+        dataset_id: str | None = None,
     ) -> QuantRunRecord:
         with self._lock:
             self._ensure_workspace_loaded(workspace_id)
             project = self.get_project(workspace_id=workspace_id, project_id=project_id)
             if project.row_version != expected_project_row_version:
                 raise version_conflict(project.id, project.row_version)
+            dataset = self._resolve_dataset(
+                workspace_id=workspace_id, dataset_id=dataset_id
+            )
             run_id = str(
-                _uuid("run", workspace_id, project_id, question, mode.value, project.row_version)
+                _uuid(
+                    "run",
+                    workspace_id,
+                    project_id,
+                    question,
+                    mode.value,
+                    dataset.dataset_id,
+                    project.row_version,
+                )
             )
             run = QuantRunRecord(
                 id=run_id,
@@ -1265,6 +1416,8 @@ class QuantStore:
                 project_id=project_id,
                 question=question,
                 mode=mode,
+                dataset_id=dataset.dataset_id,
+                dataset_digest=dataset.digest,
                 trace_id=str(_uuid("trace", run_id, 1)),
                 provider=self._configured_agent_provider(),
                 model=self._configured_agent_model(),
@@ -1447,6 +1600,8 @@ class QuantStore:
                 max_agent_iterations=run.max_agent_iterations,
                 max_experiments=run.max_experiments,
                 max_repairs=run.max_repairs,
+                dataset_id=run.dataset_id,
+                dataset_digest=run.dataset_digest,
             )
             self._runs[child.id] = child
             run.retry_child_run_id = child.id
@@ -1780,22 +1935,23 @@ class QuantStore:
             f"Revision {run.plan_revision}.",
         )
 
-    @staticmethod
-    def agent_dataset_summary() -> dict[str, Any]:
+    def agent_dataset_summary(self, run: QuantRunRecord) -> dict[str, Any]:
+        dataset = self.dataset_for_run(run)
         return {
-            "dataset_id": SPY_DAILY_FIXTURE.dataset_id,
-            "symbol": SPY_DAILY_FIXTURE.symbol,
-            "interval": SPY_DAILY_FIXTURE.interval.value,
-            "bars": len(SPY_DAILY_FIXTURE.bars),
-            "start": SPY_DAILY_FIXTURE.covered_start.isoformat(),
-            "end": SPY_DAILY_FIXTURE.covered_end.isoformat(),
-            "digest": SPY_DAILY_FIXTURE.digest,
-            "authenticity": SPY_DAILY_FIXTURE.provenance.value,
+            "dataset_id": dataset.dataset_id,
+            "symbol": dataset.symbol,
+            "interval": dataset.interval.value,
+            "bars": len(dataset.bars),
+            "start": dataset.covered_start.isoformat(),
+            "end": dataset.covered_end.isoformat(),
+            "digest": dataset.digest,
+            "authenticity": dataset.provenance.value,
         }
 
-    def agent_benchmark_summary(self) -> dict[str, Any]:
+    def agent_benchmark_summary(self, run: QuantRunRecord) -> dict[str, Any]:
         result = backtest_buy_and_hold(
-            self._agent_bars(), ExecutionConfig(fee_rate=0.001, slippage_rate=0.0005)
+            self._agent_bars(run),
+            ExecutionConfig(fee_rate=0.001, slippage_rate=0.0005),
         )
         return self._metrics_projection(result.metrics)
 
@@ -1878,8 +2034,8 @@ class QuantStore:
                 "research_goal": run.question,
                 "mode": run.mode.value,
                 "run_state": run.state.value,
-                "dataset_summary": self.agent_dataset_summary(),
-                "benchmark_summary": self.agent_benchmark_summary(),
+                "dataset_summary": self.agent_dataset_summary(run),
+                "benchmark_summary": self.agent_benchmark_summary(run),
                 "available_templates": self.agent_templates(),
                 "candidates": [self.agent_candidate_summary(item) for item in candidates],
                 "budget": {
@@ -1928,6 +2084,8 @@ class QuantStore:
             "created_at": run.created_at,
             "updated_at": run.updated_at,
             "project_id": run.project_id,
+            "dataset_id": run.dataset_id,
+            "dataset_digest": run.dataset_digest,
             "state": run.state,
             "mode": run.mode,
             "question": run.question,
@@ -1950,6 +2108,25 @@ class QuantStore:
             "provider": run.provider,
             "model": run.model,
             "data_authenticity": run.data_authenticity,
+        }
+
+    @staticmethod
+    def to_dataset_response(record: QuantDatasetRecord) -> dict[str, Any]:
+        dataset = record.dataset
+        return {
+            "dataset_id": record.id,
+            "workspace_id": record.workspace_id,
+            "name": record.name,
+            "symbol": dataset.symbol,
+            "interval": dataset.interval.value,
+            "covered_start": dataset.covered_start,
+            "covered_end": dataset.covered_end,
+            "bar_count": len(dataset.bars),
+            "schema_version": dataset.schema_version,
+            "parser_version": record.parser_version,
+            "digest": dataset.digest,
+            "data_authenticity": record.data_authenticity,
+            "created_at": record.created_at,
         }
 
     def to_artifact_response(self, artifact: QuantArtifactRecord) -> dict[str, Any]:
