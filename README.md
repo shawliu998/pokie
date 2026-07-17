@@ -38,14 +38,18 @@ Implemented:
 - a sealed chronological 80/20 evaluation boundary: the Agent creates, revises, and compares
   candidates using only training metrics; the selected candidate is evaluated on holdout bars only
   when the final report is frozen, with both partitions visible in the Mac Strategy Report.
+- declared immutable CSV source metadata, including provider/reference, adjustment policy, submitted
+  text digest, parser version, normalized market-data digest, and Run/report provenance.
+- deterministic three-fold expanding walk-forward evidence inside the training partition, alongside
+  the separately sealed final holdout evaluation.
 
 Still intentionally not implemented:
 
 - live/historical market-provider retrieval or news data;
 - independently verified market evidence, production backtest orchestration, broad parameter search,
   or optimization (imported CSV provenance is user-supplied and is not provider-verified);
-- repeated walk-forward validation, statistical significance testing, or production strategy
-  certification; the current holdout is one deterministic implementation check;
+- nested or regime-spanning cross-validation, statistical significance testing, or production
+  strategy certification; the three fixed training folds and final holdout are implementation checks;
 - Spark/Jupyter/sandbox or uploaded-code execution;
 - providers other than the optional DeepSeek-compatible decision endpoint; the decision provider
   never receives market-network or arbitrary execution tools;
@@ -124,9 +128,19 @@ Use DeepSeek for one-action decisions (tool execution remains local and determin
 ```bash
 POKIEQUANT_AGENT_PROVIDER=deepseek \
 DEEPSEEK_API_KEY=<key> \
-DEEPSEEK_MODEL=deepseek-chat \
+DEEPSEEK_MODEL=deepseek-v4-flash \
 GLINT_WORKSPACE_ID=<workspace-uuid> \
 python -m services.worker.app.main poll --kind quant-agent --interval-seconds 1
+```
+
+Run the opt-in imported-data DeepSeek verification without placing a credential on the command line:
+
+```bash
+set -a; source .env.local; set +a
+GLINT_ENVIRONMENT=test \
+GLINT_DATABASE_URL=sqlite:////tmp/pokiequant-deepseek.db \
+POKIEQUANT_AGENT_MODEL=deepseek-v4-flash \
+python scripts/verify_quant_deepseek_run.py
 ```
 
 ## Verification

@@ -26,6 +26,10 @@ export interface QuantDatasetImportRequest {
   name: string;
   symbol: string;
   csvText: string;
+  fileName?: string;
+  sourceName?: string;
+  sourceReference?: string;
+  priceAdjustment?: 'unknown' | 'unadjusted' | 'split_adjusted' | 'total_return_adjusted';
   idempotencyKey: string;
 }
 
@@ -47,6 +51,14 @@ interface QuantDatasetDto {
   schema_version: string;
   parser_version: string;
   digest: string;
+  source_metadata: {
+    kind: 'csv_upload';
+    file_name: string | null;
+    source_name: string;
+    source_reference: string | null;
+    submitted_csv_digest: string | null;
+    price_adjustment: 'unknown' | 'unadjusted' | 'split_adjusted' | 'total_return_adjusted';
+  };
 }
 
 function mapDataset(dto: QuantDatasetDto): DatasetSnapshot {
@@ -61,6 +73,14 @@ function mapDataset(dto: QuantDatasetDto): DatasetSnapshot {
     parserVersion: dto.parser_version,
     digest: dto.digest,
     authenticity: 'imported_fixture',
+    source: {
+      kind: dto.source_metadata.kind,
+      fileName: dto.source_metadata.file_name,
+      sourceName: dto.source_metadata.source_name,
+      sourceReference: dto.source_metadata.source_reference,
+      submittedCsvDigest: dto.source_metadata.submitted_csv_digest,
+      priceAdjustment: dto.source_metadata.price_adjustment,
+    },
   };
 }
 
@@ -112,7 +132,15 @@ export function createApiQuantApi(api: GlintApi): QuantApi {
       const row = await quantRequest<QuantDatasetDto>('/quant/datasets/import-csv', {
         method: 'POST',
         headers: { 'Idempotency-Key': request.idempotencyKey },
-        body: JSON.stringify({ name: request.name, symbol: request.symbol, csv_text: request.csvText }),
+        body: JSON.stringify({
+          name: request.name,
+          symbol: request.symbol,
+          csv_text: request.csvText,
+          file_name: request.fileName,
+          source_name: request.sourceName ?? 'User-provided CSV',
+          source_reference: request.sourceReference,
+          price_adjustment: request.priceAdjustment ?? 'unknown',
+        }),
       });
       return mapDataset(row);
     },

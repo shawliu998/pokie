@@ -27,6 +27,14 @@ describe('Quant fixture API adapter', () => {
       schema_version: 'quant-daily-bars-v1',
       parser_version: 'quant-ohlcv-csv-v1',
       digest: `sha256:${'a'.repeat(64)}`,
+      source_metadata: {
+        kind: 'csv_upload',
+        file_name: 'acme.csv',
+        source_name: 'Example Exchange',
+        source_reference: 'export:123',
+        submitted_csv_digest: `sha256:${'b'.repeat(64)}`,
+        price_adjustment: 'split_adjusted',
+      },
       data_authenticity: 'imported',
       created_at: '2026-07-17T00:00:00Z',
     } as const;
@@ -45,10 +53,14 @@ describe('Quant fixture API adapter', () => {
       name: 'ACME daily',
       symbol: 'ACME',
       csvText: 'date,open,high,low,close\n2023-01-01,1,2,1,2\n',
+      fileName: 'acme.csv',
+      sourceName: 'Example Exchange',
+      sourceReference: 'export:123',
+      priceAdjustment: 'split_adjusted',
       idempotencyKey: importKey,
     });
 
-    expect(listed[0]).toMatchObject({ id: dto.dataset_id, symbol: 'ACME', barCount: 300, authenticity: 'imported_fixture' });
+    expect(listed[0]).toMatchObject({ id: dto.dataset_id, symbol: 'ACME', barCount: 300, authenticity: 'imported_fixture', source: { sourceName: 'Example Exchange', fileName: 'acme.csv', priceAdjustment: 'split_adjusted' } });
     expect(imported.id).toBe(dto.dataset_id);
     expect(calls[0]).toEqual({ path: '/quant/datasets', init: undefined });
     expect(calls[1]?.path).toBe('/quant/datasets/import-csv');
@@ -58,6 +70,10 @@ describe('Quant fixture API adapter', () => {
       name: 'ACME daily',
       symbol: 'ACME',
       csv_text: 'date,open,high,low,close\n2023-01-01,1,2,1,2\n',
+      file_name: 'acme.csv',
+      source_name: 'Example Exchange',
+      source_reference: 'export:123',
+      price_adjustment: 'split_adjusted',
     });
   });
 

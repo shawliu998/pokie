@@ -63,14 +63,21 @@ function OverviewPage({ api, destination, snapshot, selectedDataset, onSelectDat
 function QuantWorkspaceView({ api, snapshot, onRefresh }: { api: QuantApi; snapshot: QuantWorkspaceSnapshot; onRefresh: () => Promise<void> }) {
   const presentation = useMemo(() => presentQuantWorkspace(snapshot), [snapshot]);
   const compact = useCompactLayout();
+  const preferredCandidateId = snapshot.report?.generalization?.selectedCandidateId
+    ?? snapshot.candidates[0]?.id
+    ?? '';
   const [destination, setDestination] = useState<QuantNavDestination>('projects');
   const [segment, setSegment] = useState<CompactSegment>('activity');
-  const [selectedCandidateId, setSelectedCandidateId] = useState('candidate-b');
+  const [selectedCandidateId, setSelectedCandidateId] = useState(preferredCandidateId);
   const [selectedDataset, setSelectedDataset] = useState<DatasetSnapshot>(snapshot.dataset);
   const [inspectorTarget, setInspectorTarget] = useState<QuantInspectTarget | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [commandPending, setCommandPending] = useState(false);
   const inspectorInvoker = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setSelectedCandidateId(preferredCandidateId);
+  }, [snapshot.run.id, preferredCandidateId]);
 
   const openInspector = (target: QuantInspectTarget) => { inspectorInvoker.current = document.activeElement as HTMLElement | null; setInspectorTarget(target); };
   const closeInspector = () => { setInspectorTarget(null); requestAnimationFrame(() => inspectorInvoker.current?.focus()); };
@@ -92,7 +99,7 @@ function QuantWorkspaceView({ api, snapshot, onRefresh }: { api: QuantApi; snaps
   };
   const act = (action: QuantActionPresentation) => {
     if (action.kind === 'open_report') openInspector({ kind: 'report' });
-    else if (action.kind === 'compare_candidates') { setSelectedCandidateId('candidate-b'); setSegment('report'); setNotice('Candidate comparison is visible in Strategy Report.'); }
+    else if (action.kind === 'compare_candidates') { setSelectedCandidateId(preferredCandidateId); setSegment('report'); setNotice('Candidate comparison is visible in Strategy Report.'); }
     else if (action.kind === 'open_diagnostics') openInspector({ kind: 'run' });
     else void command(action.kind);
   };

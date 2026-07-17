@@ -92,6 +92,10 @@ not own provider configuration, retry, persistence, or Run state.
 - Added workspace-scoped import/list APIs and immutable content-addressed dataset versions. A Run
   pins both dataset ID and digest; changing a CSV produces a new version without mutating an
   existing Run. Cross-workspace/unknown dataset binding fails closed.
+- Added immutable record-level source metadata: submitted filename/text digest, declared provider
+  and reference, price-adjustment policy, parser version, and normalized market-content digest.
+  Source labels do not alter the canonical OHLCV identity; the first import of identical normalized
+  content remains the immutable provenance record for that version.
 - Imported datasets remain inspectable at any length, while Auto Research requires at least 252
   daily bars.
 - Added the Mac Data workspace to upload (10 MB client preflight), list, inspect, select, and bind a
@@ -103,6 +107,10 @@ not own provider configuration, retry, persistence, or Run state.
   the Store evaluates it over the sealed 20% holdout partition and freezes both partitions into the
   final report. Historical bars may warm indicators, but cannot create pre-holdout positions or
   measured trades.
+- Added `expanding-3fold-20pct-v1` inside the training partition. Each fixed candidate is measured
+  with fresh cash over three expanding-history windows; later training bars and all sealed holdout
+  bars are unavailable to the earlier fold. The comparison artifact and Mac Generalization view
+  retain per-fold and aggregate evidence.
 
 ## Autonomous Demonstrations
 
@@ -194,14 +202,14 @@ Result: **all functional layers passed in one full-gate invocation**.
 | Gate layer | Actual result |
 | --- | --- |
 | Quant contracts, daily-bar/CSV contracts, API, dataset lifecycle, fixture runtime, kernel, research evaluation, OpenAPI drift | 85 Python tests passed |
-| Shared registry/model primitives, autonomous Agent lifecycle, goal differentiation, revision lineage, cancellation, provider failure/fallback, comparison differences, transport, and inherited Model Research regression | 55 Python tests passed |
-| Mac API/presentation/component tests | 19 Vitest tests across 3 files passed |
+| Shared registry/model primitives, autonomous Agent lifecycle, goal differentiation, revision lineage, cancellation, provider failure/fallback, comparison differences, transport, and inherited Model Research regression | 56 Python tests passed |
+| Mac API/presentation/component tests | 20 Vitest tests across 3 files passed |
 | Mac lint | ESLint passed with zero warnings |
 | Mac typecheck | TypeScript compiler passed |
 | Mac production build | Vite built 55 modules successfully |
 | Completed-state browser E2E | 1 Playwright test passed; 2 conditionally skipped |
 | API-owned ready-command browser E2E | 2 Playwright tests passed; 1 screenshot-only test skipped |
-| Loopback API + Vite generalization smoke | Completed a real local Agent run, opened Generalization, and verified the sealed `chronological-80-20-v1` evidence: 1,251 training bars, 313 holdout bars, persisted dataset digest, separate metrics, and `pass` status |
+| Loopback API + Vite DeepSeek report smoke | Opened the persisted real-provider Run, verified the report-selected revised candidate, declared source/adjustment metadata, three training walk-forward folds, 336/84 train/holdout split, and `pass` status |
 | Reviewed workbench assets | Six required 1440×960 PNGs validated |
 | Dependency-license policy | 5 tests passed |
 | Truth/capability assertions, no active Glint product copy, dependency/notice drift, whitespace | All passed |
@@ -212,15 +220,20 @@ DeepSeek-compatible boundary is covered there with mocked transport and failure-
 inherited full Phase 1/2/3 and Tauri gates remain available but are not claimed as executed by this
 report.
 
-An additional secret-gated, one-shot DeepSeek smoke was executed outside the gate by loading the
-ignored local environment and setting `POKIEQUANT_AGENT_PROVIDER=deepseek`. The API key was not
-printed, and no local CSV/bar payload was sent. The real plan request exited `0` and returned a
-Pydantic-valid plan from provider `openai_compatible`, model `deepseek-chat`, with seven steps, the
-SMA Crossover / RSI Mean-Reversion / Breakout families, and budgets of three experiments and two
-repairs. A second request, using synthetic dataset metadata as context, also exited `0`; its strict
-decision parsed as `action=list_strategy_templates` (decision-summary length 97, expected-result
-length 45). This proves live transport and structured parsing, not a complete live-provider Agent
-Run or model-quality certification.
+An additional secret-gated, complete DeepSeek Run was executed outside the gate on 2026-07-18 with
+`scripts/verify_quant_deepseek_run.py`. The ignored local environment supplied the credential; it was
+not printed or placed on the command line. Provider `deepseek`, model `deepseek-v4-flash`, completed
+the imported 420-bar Run in nine Agent iterations with three created candidates, no provider failure,
+and no Mock fallback. The provider received compact dataset/source metadata, training benchmark,
+candidate metrics, budgets and safe event summaries; it did not receive CSV/OHLCV rows or holdout
+metrics.
+
+The model selected a revised SMA 10/30 candidate. Its training metrics were `26.4031%` total return,
+`-1.7851%` maximum drawdown and Sharpe `7.2014`. The three training-only expanding windows produced
+three positive-return folds and two lower-drawdown folds. Only after selection, the sealed 84-bar
+holdout produced `6.0533%` total return and `-1.3777%` maximum drawdown versus buy-and-hold
+`5.3912%` and `-3.7909%`; the deterministic generalization status was `pass`. This demonstrates the
+complete transport/decision/tool/persistence/report path, not strategy quality or investment merit.
 
 ## Known Gaps
 
@@ -233,9 +246,10 @@ Run or model-quality certification.
 - There is no paper trading, live trading, broker credential, order routing, portfolio execution,
   or risk-management service. A report's `paper_evaluation` next-step label triggers no trading
   capability.
-- There is one sealed chronological 80/20 holdout, but no repeated walk-forward evaluation,
-  significance testing, survivorship/corporate-action assurance, robust optimization, or claim of
-  strategy profitability. A holdout `pass` is an implementation verdict, not strategy certification.
+- There are three fixed expanding windows inside training plus one sealed chronological 20% holdout,
+  but no nested cross-validation, significance testing, survivorship/corporate-action assurance,
+  robust optimization, or claim of strategy profitability. A `pass` is an implementation verdict,
+  not strategy certification.
 - The optional decision provider is one DeepSeek/OpenAI-compatible endpoint plus Mock fallback. A
   generic stateless tier router exists, but no multi-provider selection/cost policy is wired into
   Quant execution.
@@ -245,13 +259,9 @@ Run or model-quality certification.
 
 ## Next Slice
 
-The originally proposed “imported real OHLCV dataset adapter” has already advanced beyond the
-synthetic-only baseline: strict CSV import, immutable versioning, workspace isolation, Run-level
-ID/digest pinning, Mac selection, and a complete 300-bar imported-ACME integration lifecycle are in
-place.
-
-The next bounded slice should add **declared source metadata plus repeated walk-forward windows for
-user-imported OHLCV**, while preserving the sealed-test principle, seven-tool loop, local kernel,
-current Store/lease/fencing boundaries, and no-trading constraint. The completed one-shot DeepSeek
-smoke can then be extended to an opt-in end-to-end bounded Run over a pinned imported dataset; the
-provider should continue receiving compact metrics/context rather than raw bars.
+The imported-data slice now includes declared source metadata, immutable digests, three expanding
+training windows, a sealed final holdout, Mac evidence, and an opt-in complete DeepSeek Run. The next
+bounded slice should add **source verification and market-data correctness controls**: provider/export
+attestation, exchange calendar/timezone checks, split/dividend adjustment validation, missing-session
+diagnostics, and multiple walk-forward regimes. It should preserve the seven-tool loop, local kernel,
+Store/lease/fencing boundaries, compact model context, and no-trading constraint.

@@ -92,6 +92,35 @@ describe('Quant Workspace components', () => {
         candidate: { ...candidate, annualizedReturn: 9.4, trades: 5 },
         benchmark: { ...benchmark, annualizedReturn: 7.2, trades: 1 },
       },
+    }} walkForward={{
+      method: 'expanding',
+      ruleVersion: 'expanding-3fold-20pct-v1',
+      evaluationPartition: 'train',
+      foldCount: 3,
+      windowBarCount: 48,
+      status: 'completed',
+      reason: 'Fixed candidate evaluated in three expanding training-only windows.',
+      folds: [1, 2, 3].map((foldIndex) => ({
+        foldIndex,
+        historyStart: '2023-01-01',
+        historyEnd: '2023-04-06',
+        evaluationStart: `2023-0${foldIndex + 3}-07`,
+        evaluationEnd: `2023-0${foldIndex + 4}-24`,
+        candidate,
+        benchmark,
+        status: 'pass' as const,
+      })),
+      aggregate: {
+        evaluatedFolds: 3,
+        candidatePositiveReturnFolds: 3,
+        candidateLowerDrawdownFolds: 2,
+        candidateMedianReturn: 8,
+        benchmarkMedianReturn: 7,
+        candidateMedianDrawdown: -4,
+        benchmarkMedianDrawdown: -6,
+        candidateMedianSharpe: 1.2,
+        benchmarkMedianSharpe: 1,
+      },
     }} />);
     expect(markup).toContain('Chronological generalization');
     expect(markup).toContain('The selected candidate remained ahead');
@@ -105,6 +134,10 @@ describe('Quant Workspace components', () => {
     expect(markup).toContain('Training metrics');
     expect(markup).toContain('Holdout metrics');
     expect(markup).toContain('9.4%');
+    expect(markup).toContain('Training walk-forward robustness');
+    expect(markup).toContain('expanding-3fold-20pct-v1');
+    expect(markup).toContain('visible training evidence, not the sealed final holdout');
+    expect(markup).toContain('3 / 3');
   });
 
   it('uses imported provenance and symbol copy for imported evidence', () => {
@@ -122,10 +155,39 @@ describe('Quant Workspace components', () => {
     expect(report).not.toContain('Synthetic Demo Fixture');
   });
 
+  it('falls back to the report-selected candidate for dynamic provider IDs', () => {
+    const snapshot = {
+      ...quantFixtureSnapshot,
+      report: {
+        ...quantFixtureSnapshot.report!,
+        generalization: {
+          status: 'pass' as const,
+          reason: 'Selected after comparison.',
+          selectedCandidateId: 'candidate-c',
+          split: {
+            method: 'chronological' as const,
+            ruleVersion: 'chronological-80-20-v1',
+            trainBarCount: 1200,
+            holdoutBarCount: 300,
+            cutoffDate: '2024-01-01',
+            datasetId: 'dataset-1',
+            datasetDigest: 'sha256:selected-candidate',
+          },
+        },
+      },
+    };
+    const markup = renderToStaticMarkup(<QuantStrategyReport snapshot={snapshot} candidates={presentation.candidates} selectedCandidateId="provider-specific-id" onSelectCandidate={vi.fn()} />);
+    expect(markup).toContain('value="candidate-c" selected=""');
+    expect(markup).toContain('16.3%');
+  });
+
   it('renders an immutable CSV import boundary and dataset eligibility', () => {
     const markup = renderToStaticMarkup(<QuantDataPage api={createFixtureQuantApi()} snapshot={quantFixtureSnapshot} selectedDataset={quantFixtureSnapshot.dataset} onSelect={vi.fn()} onInspect={vi.fn()} />);
     expect(markup).toContain('OHLCV CSV file');
     expect(markup).toContain('Import immutable dataset');
+    expect(markup).toContain('Dataset source provider');
+    expect(markup).toContain('Dataset source reference');
+    expect(markup).toContain('Dataset price adjustment');
     expect(markup).toContain('Ready for Auto Research');
     expect(markup).toContain(quantFixtureSnapshot.dataset.digest.slice(0, 19));
   });

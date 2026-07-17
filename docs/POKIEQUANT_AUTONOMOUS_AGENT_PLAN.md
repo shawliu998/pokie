@@ -35,6 +35,12 @@ required for recovery.
 10. Split each pinned dataset chronologically into 80% training and 20% sealed holdout bars. Expose
     only training metrics to Agent decisions, then compute the selected candidate's holdout result
     while freezing the final report.
+11. Persist user-declared CSV source/provider, reference, adjustment policy, submitted-text digest,
+    parser version, and normalized dataset digest without changing content-addressed dataset identity.
+12. Evaluate each compared candidate over three deterministic expanding windows inside the training
+    partition, keeping the final 20% holdout sealed until selection is frozen.
+13. Verify the complete imported-data lifecycle with the real DeepSeek provider, mock fallback
+    disabled, and persisted provider/model/fallback evidence.
 
 ## Bounded scope
 

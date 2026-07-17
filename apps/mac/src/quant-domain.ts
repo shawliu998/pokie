@@ -142,6 +142,14 @@ export interface DatasetSnapshot {
   parserVersion: string;
   digest: string;
   authenticity: QuantAuthenticity;
+  source?: {
+    kind: 'csv_upload';
+    fileName: string | null;
+    sourceName: string;
+    sourceReference: string | null;
+    submittedCsvDigest: string | null;
+    priceAdjustment: 'unknown' | 'unadjusted' | 'split_adjusted' | 'total_return_adjusted';
+  };
 }
 
 export interface MarketBar {
@@ -207,6 +215,39 @@ export interface ResearchGeneralization {
   holdout?: GeneralizationMetrics;
 }
 
+export interface WalkForwardFold {
+  foldIndex: number;
+  historyStart: string;
+  historyEnd: string;
+  evaluationStart: string;
+  evaluationEnd: string;
+  candidate: BacktestMetrics;
+  benchmark: BacktestMetrics;
+  status: 'pass' | 'fail' | 'inconclusive' | 'not_evaluated';
+}
+
+export interface ResearchWalkForward {
+  method: 'expanding';
+  ruleVersion: string;
+  evaluationPartition: 'train';
+  foldCount: number;
+  windowBarCount: number;
+  status: 'completed' | 'not_evaluated';
+  reason: string;
+  folds: WalkForwardFold[];
+  aggregate: {
+    evaluatedFolds: number;
+    candidatePositiveReturnFolds: number;
+    candidateLowerDrawdownFolds: number;
+    candidateMedianReturn: number;
+    benchmarkMedianReturn: number;
+    candidateMedianDrawdown: number;
+    benchmarkMedianDrawdown: number;
+    candidateMedianSharpe: number;
+    benchmarkMedianSharpe: number;
+  };
+}
+
 export interface ResearchReport {
   id: string;
   title: string;
@@ -218,6 +259,7 @@ export interface ResearchReport {
   generationMethod: string;
   disclaimer: string;
   generalization?: ResearchGeneralization;
+  walkForward?: ResearchWalkForward;
 }
 
 export interface QuantKernelResult {
