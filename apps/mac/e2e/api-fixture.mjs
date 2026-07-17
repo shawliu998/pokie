@@ -7,6 +7,9 @@ const ACCESS_TOKEN = process.env.GLINT_FIXTURE_ACCESS_TOKEN_STDIN === '1'
   ? readFileSync(0, 'utf8')
   : (process.env.GLINT_FIXTURE_ACCESS_TOKEN ?? 'fixture-access-token');
 const ALLOWED_ORIGIN = process.env.GLINT_FIXTURE_ALLOWED_ORIGIN ?? 'http://127.0.0.1:5173';
+const AGENT_STATE = process.env.GLINT_E2E_AGENT_STATE ?? null;
+const AGENT_STATES = new Set(['agent-ready', 'agent-running', 'agent-waiting-review', 'agent-completed']);
+if (AGENT_STATE && !AGENT_STATES.has(AGENT_STATE)) throw new Error(`Unsupported GLINT_E2E_AGENT_STATE: ${AGENT_STATE}`);
 if (!/^http:\/\/127\.0\.0\.1:[1-9]\d{0,4}$/.test(ALLOWED_ORIGIN)) {
   throw new Error('GLINT_FIXTURE_ALLOWED_ORIGIN must be an exact loopback HTTP origin.');
 }
@@ -25,6 +28,26 @@ const SHA = (letter) => `sha256:${letter.repeat(64)}`;
 const EVIDENCE_QUOTE = 'Permission previews would unblock our enterprise rollout.';
 const textDigest = (value) => `sha256:${createHash('sha256').update(value).digest('hex')}`;
 const state = { apiOffline: false, mutationRequestCount: 0, sseRequestCount: 0, offlineMutationRequestCount: 0, offlineSseRequestCount: 0, offlineExportRequestCount: 0, importState: 'none', importPayload: null, consentPreviewCount: 0, consentGrantAttempts: 0, consentGrantCount: 0, uploadCount: 0, signalTriaged: false, signalDisposition: null, signalTransitionCount: 0, investigationStatus: 'none', investigationRowVersion: 1, runState: 'none', runRowVersion: 1, latestSequence: 0, sseAttempt: 0, evidenceStatus: 'proposed', claimStatus: 'needs_review', synthesisStatus: 'none', synthesisRowVersion: 2, briefStatus: 'none', briefRowVersion: 1, briefVersion: 1, briefDocument: null, briefReadiness: 'draft', cloudSources: [], validationJobs: [], schedules: [], watchlistSourceIds: [ID.csvSource, ID.githubSource, ID.rssSource], watchlistRowVersion: 2, exportPostCount: 0, exportTerminalCount: 0, exportIdempotencyKeys: [], exportTimestamps: [] };
+
+if (AGENT_STATE) {
+  state.importState = 'finalized';
+  state.importPayload = { id: ID.import, workspace_id: ID.workspace, source_connection_id: ID.csvSource, file_name: 'agent-workspace-demo.csv', media_type: 'text/csv', expected_upload_digest: SHA('a'), expected_size_bytes: 128, row_version: 4, data_authenticity: 'imported' };
+  state.signalTriaged = true;
+  state.investigationStatus = AGENT_STATE === 'agent-ready' ? 'draft' : AGENT_STATE === 'agent-completed' ? 'completed' : AGENT_STATE === 'agent-waiting-review' ? 'reviewing' : 'active';
+  state.investigationRowVersion = AGENT_STATE === 'agent-ready' ? 1 : AGENT_STATE === 'agent-completed' ? 4 : 2;
+  state.runState = AGENT_STATE === 'agent-ready' ? 'none' : AGENT_STATE === 'agent-running' ? 'running' : 'completed';
+  state.runRowVersion = AGENT_STATE === 'agent-ready' ? 1 : AGENT_STATE === 'agent-running' ? 2 : 3;
+  state.latestSequence = AGENT_STATE === 'agent-ready' ? 0 : AGENT_STATE === 'agent-running' ? 2 : 5;
+  if (AGENT_STATE === 'agent-completed') {
+    state.evidenceStatus = 'valid';
+    state.claimStatus = 'verified';
+    state.synthesisStatus = 'verified';
+    state.synthesisRowVersion = 3;
+    state.briefStatus = 'draft';
+    state.briefRowVersion = 1;
+    state.briefVersion = 1;
+  }
+}
 
 function normalize(value) {
   if (Array.isArray(value)) return value.map(normalize);
@@ -90,8 +113,11 @@ function signal() {
   return { id: ID.signal, workspace_id: ID.workspace, watchlist_id: ID.watchlist, title: 'Permission friction rose in collected GitHub content', status, detector_version: 'detector-v2', trigger_rules: ['github_permission_mentions_delta >= 2'], limitations: ['GitHub discussions scope is currently partial.'], total_source_count: 1, independent_source_count: 1, cross_source_confirmation: false, per_source_freshness: [{ source_connection_id: ID.githubSource, state: 'stale', last_success_at: NOW }], window: { current_start: '2026-07-08T00:00:00Z', current_end: '2026-07-15T00:00:00Z', baseline_start: '2026-06-10T00:00:00Z', baseline_end: '2026-07-08T00:00:00Z' }, metrics: { current_count: 7, baseline_count: 2, mention_count: 7, independent_source_count: 1, platform_count: 1, growth_ratio: 3.5, robust_z: 2.25 }, dimensions: { detection_confidence: { level: 'high', calibration_status: 'calibrated', explanation: 'Versioned GitHub content crossed the configured change threshold.' }, business_impact: { suggested_level: 'medium', suggested_explanation: 'Enterprise onboarding mentions increased.', suggestion_origin: 'deterministic_rule', suggestion_version: 'impact-v1', confirmed_level: confirmed ? 'high' : null, confirmed_by: confirmed ? ID.owner : null, confirmed_at: confirmed ? LATER : null, version: confirmed ? 1 : 0 }, urgency: { suggested_level: 'monitor', suggested_explanation: 'No outage language detected.', suggestion_origin: 'deterministic_rule', suggestion_version: 'urgency-v1', confirmed_level: confirmed ? 'this_week' : null, confirmed_by: confirmed ? ID.owner : null, confirmed_at: confirmed ? LATER : null, version: confirmed ? 1 : 0 }, priority: { level: confirmed ? 'P1' : null, status: confirmed ? 'derived' : 'pending_confirmation', policy_version: 'priority-matrix-v1', explanation: confirmed ? 'Derived from confirmed Impact and Urgency.' : 'Awaiting owner confirmation.' } }, disposition, row_version: (confirmed ? 2 : 1) + state.signalTransitionCount, data_authenticity: 'collected', ...timestamps() };
 }
 
-function investigation() { return { id: ID.investigation, workspace_id: ID.workspace, project_id: ID.project, signal_id: ID.signal, current_scope_version_id: ID.scope, status: state.investigationStatus === 'none' ? 'draft' : state.investigationStatus, owner_id: ID.owner, current_synthesis_id: state.synthesisStatus === 'none' ? null : ID.synthesis, decision_brief_id: state.briefStatus === 'none' ? null : ID.brief, decision_question: 'Should permission execution preview enter next-quarter prioritization?', row_version: state.investigationRowVersion, data_authenticity: 'collected', ...timestamps() }; }
-function scope() { return { id: ID.scope, workspace_id: ID.workspace, investigation_id: ID.investigation, version_number: 1, decision_question: investigation().decision_question, source_scope_json: { source_connection_ids: [ID.githubSource], content_version_ids: [], allow_cloud_model: false }, time_range: { start: '2026-07-08T00:00:00Z', end: '2026-07-15T00:00:00Z' }, budget: { max_cost_usd: '4.0000', max_duration_seconds: 900 }, stop_conditions: ['Evidence and counter-evidence have both been reviewed.'], created_by: ID.owner, change_reason: 'Initial investigation scope.', created_at: NOW, data_authenticity: 'collected' }; }
+function investigation() { return { id: ID.investigation, workspace_id: ID.workspace, project_id: ID.project, signal_id: ID.signal, current_scope_version_id: ID.scope, status: state.investigationStatus === 'none' ? 'draft' : state.investigationStatus, owner_id: ID.owner, current_synthesis_id: state.synthesisStatus === 'none' ? null : ID.synthesis, decision_brief_id: state.briefStatus === 'none' ? null : ID.brief, decision_question: AGENT_STATE ? 'Should we prioritize permission preview for enterprise teams?' : 'Should permission execution preview enter next-quarter prioritization?', row_version: state.investigationRowVersion, data_authenticity: AGENT_STATE ? 'imported' : 'collected', ...timestamps() }; }
+function scope() {
+  const contentVersionIds = AGENT_STATE ? Array.from({ length: 12 }, (_, index) => index === 0 ? ID.contentVersion : `00000000-0000-4000-8000-${String(55 + index).padStart(12, '0')}`) : [];
+  return { id: ID.scope, workspace_id: ID.workspace, investigation_id: ID.investigation, version_number: 1, decision_question: investigation().decision_question, source_scope_json: { source_connection_ids: AGENT_STATE ? [ID.csvSource, ID.githubSource, ID.rssSource] : [ID.githubSource], content_version_ids: contentVersionIds, allow_cloud_model: false }, time_range: { start: AGENT_STATE ? '2026-05-01T00:00:00Z' : '2026-07-08T00:00:00Z', end: AGENT_STATE ? '2026-05-31T23:59:59Z' : '2026-07-15T00:00:00Z' }, budget: { max_cost_usd: '4.0000', max_duration_seconds: 900 }, stop_conditions: ['Evidence and counter-evidence have both been reviewed.'], created_by: ID.owner, change_reason: 'Initial investigation scope.', created_at: NOW, data_authenticity: AGENT_STATE ? 'imported' : 'collected' };
+}
 function run() { return { id: ID.run, workspace_id: ID.workspace, investigation_id: ID.investigation, investigation_scope_version_id: ID.scope, state: state.runState, waiting_for_input_reason: null, graph_version: 'deterministic-cloud-v1', generation_method: 'deterministic', provider: 'deterministic', model: null, prompt_refs: [], trace_ref: null, run_input_manifest_digest: SHA('d'), budget: { max_cost_usd: '4.0000', max_duration_seconds: 900 }, used_cost_usd: '0.1000', attempt_number: 1, initiated_by: ID.owner, latest_sequence: state.latestSequence, row_version: state.runRowVersion, data_authenticity: 'collected', ...timestamps() }; }
 function evidence() { return { id: ID.evidence, workspace_id: ID.workspace, investigation_id: ID.investigation, research_run_id: ID.run, content_version_id: ID.contentVersion, quote_start: 0, quote_end: EVIDENCE_QUOTE.length, quote_text: EVIDENCE_QUOTE, quote_text_digest: SHA('e'), stance: 'supports', status: state.evidenceStatus, latest_review: state.evidenceStatus === 'proposed' ? null : { id: ID.evidenceReview, decision: state.evidenceStatus, policy_version: 'evidence-review-v1', reviewed_at: LATER }, relevance: 0.9, reliability: 0.8, independence: 1, recency: 0.9, specificity: 0.8, provenance: { research_run_id: ID.run, extraction_method: 'deterministic_collected_v1' }, data_authenticity: 'collected' }; }
 function claim() { return { id: ID.claim, workspace_id: ID.workspace, investigation_id: ID.investigation, research_run_id: ID.run, current_version: { id: ID.claimVersion, claim_id: ID.claim, version_number: 1, claim_type: 'product_risk', text: 'Opaque permission execution materially slows enterprise onboarding.', confidence_inputs_json: { support_count: 1 }, confidence_level: 'medium', calibration_status: 'uncalibrated', limitations: ['The collected source scope is bounded.'], status: state.claimStatus, created_by: ID.owner, created_at: NOW, data_authenticity: 'collected' }, evidence_links: [{ id: ID.claimEvidence, evidence_id: ID.evidence, stance: 'supports', weight: 1, rationale: 'Pinned exact Evidence.' }], owner_id: ID.owner, row_version: state.claimStatus === 'verified' ? 2 : 1, data_authenticity: 'collected', ...timestamps() }; }
@@ -129,7 +155,7 @@ const exportReferenceDigest = () => digest({ decision_brief_version_id: currentB
 function brief() { const document = state.briefDocument ?? initialDocument(); return { id: ID.brief, workspace_id: ID.workspace, investigation_id: ID.investigation, current_version: { id: currentBriefVersionId(), decision_brief_id: ID.brief, investigation_id: ID.investigation, version_number: state.briefVersion, synthesis_version_id: ID.synthesisVersion, synthesis_review_id: ID.synthesisReview, block_document: document, reference_snapshot_json: reference, template_version: 'decision-brief-v1', human_edit_digest: digest(document), readiness: state.briefReadiness, freshness: 'current', created_by: ID.owner, created_at: NOW, data_authenticity: 'collected' }, status: state.briefStatus, owner_id: ID.owner, decision_outcome: null, next_checkpoint_at: null, row_version: state.briefRowVersion, data_authenticity: 'collected', ...timestamps() }; }
 
 function bootstrap() {
-  return { workspace_id: ID.workspace, workspace: { id: ID.workspace, workspace_id: ID.workspace, name: 'API Contract Workspace', status: 'active', data_region: 'default', retention_policy_version: 'retention-v1', row_version: 1, data_authenticity: 'human_authored', ...timestamps() }, projects: [], watchlists: [watchlist()], sources: [source('csv'), source('github'), source('rss'), ...state.cloudSources.map(createdCloudSource)], signals: state.importState === 'finalized' ? [signal()] : [], investigations: state.investigationStatus === 'none' ? [] : [investigation()], decision_briefs: state.briefStatus === 'none' ? [] : [brief()], cursors: { run_events: null }, computed_at: LATER, data_authenticity: 'human_authored' };
+  return { workspace_id: ID.workspace, workspace: { id: ID.workspace, workspace_id: ID.workspace, name: AGENT_STATE ? 'Agent Workspace Demo' : 'API Contract Workspace', status: 'active', data_region: 'default', retention_policy_version: 'retention-v1', row_version: 1, data_authenticity: 'human_authored', ...timestamps() }, projects: [], watchlists: [watchlist()], sources: [source('csv'), source('github'), source('rss'), ...state.cloudSources.map(createdCloudSource)], signals: state.importState === 'finalized' ? [signal()] : [], investigations: state.investigationStatus === 'none' ? [] : [investigation()], decision_briefs: state.briefStatus === 'none' ? [] : [brief()], cursors: { run_events: null }, computed_at: LATER, data_authenticity: 'human_authored' };
 }
 
 function navigation() { return { workspace_id: ID.workspace, unreviewed_signal_count: state.importState === 'finalized' && !state.signalTriaged ? 1 : 0, investigation_needs_input_count: 0, draft_decision_brief_count: state.briefStatus === 'draft' ? 1 : 0, monitoring_health: 'degraded', computed_at: LATER, data_authenticity: 'human_authored' }; }
@@ -158,7 +184,7 @@ const server = createServer(async (req, res) => {
     }
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) state.mutationRequestCount += 1;
     if (req.method === 'GET' && path === '/sync/bootstrap') return send(res, 200, bootstrap());
-    if (req.method === 'GET' && path === '/workspaces') return send(res, 200, [{ workspace_id: ID.workspace, user_id: ID.owner, workspace_name: 'Glint Contract Workspace', role: 'owner', status: 'active', data_authenticity: 'human_authored' }]);
+    if (req.method === 'GET' && path === '/workspaces') return send(res, 200, [{ workspace_id: ID.workspace, user_id: ID.owner, workspace_name: AGENT_STATE ? 'Agent Workspace Demo' : 'Glint Contract Workspace', role: 'owner', status: 'active', data_authenticity: 'human_authored' }]);
     if (req.method === 'GET' && path === '/navigation-summary') return send(res, 200, navigation());
     if (req.method === 'GET' && path === '/collection-schedules') return send(res, 200, page(state.schedules.map(schedule)));
     if (req.method === 'POST' && path === '/sources') {
@@ -302,6 +328,18 @@ const server = createServer(async (req, res) => {
       state.sseRequestCount += 1;
       state.sseAttempt += 1;
       res.writeHead(200, { ...cors, 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' });
+      if (AGENT_STATE === 'agent-running') {
+        if (!req.headers['last-event-id']) {
+          res.write(sseEvent(1, 'run.queued', { state: 'queued', safe_summary: '12 immutable content versions were pinned.' }) + sseEvent(2, 'run.started', { state: 'running', safe_summary: '3 approved sources were bounded for this run.' }));
+        }
+        res.write(': agent-running fixture remains active\n\n');
+        req.on('close', () => res.end());
+        return;
+      }
+      if (AGENT_STATE === 'agent-waiting-review' || AGENT_STATE === 'agent-completed') {
+        res.end(sseEvent(1, 'run.queued', { state: 'queued', safe_summary: '12 immutable content versions were pinned.' }) + sseEvent(2, 'run.started', { state: 'running', safe_summary: '3 approved sources were bounded for this run.' }) + sseEvent(3, 'evidence.proposed', { evidence_id: ID.evidence, safe_summary: '1 evidence proposal was persisted.' }) + sseEvent(4, 'claim.version_proposed', { claim_id: ID.claim, claim_version_id: ID.claimVersion, safe_summary: '1 finding was persisted for human review.' }) + sseEvent(5, 'run.completed', { state: 'completed', safe_summary: 'Proposal work completed. Human review remains required.' }));
+        return;
+      }
       if (state.sseAttempt === 1) {
         requireValue(!req.headers['last-event-id'], 'Initial SSE tail must not invent a Last-Event-ID.');
         state.latestSequence = 2;
@@ -322,7 +360,7 @@ const server = createServer(async (req, res) => {
       res.end(sseEvent(1, 'run.queued', { state: 'queued', safe_summary: 'Immutable run input accepted.' }) + sseEvent(2, 'run.started', { state: 'running', safe_summary: 'Deterministic worker started.' }) + sseEvent(3, 'evidence.proposed', { evidence_id: ID.evidence, safe_summary: 'Evidence proposal persisted.' }) + sseEvent(4, 'claim.version_proposed', { claim_id: ID.claim, claim_version_id: ID.claimVersion, safe_summary: 'Claim proposal persisted.' }) + sseEvent(5, 'run.completed', { state: 'completed', safe_summary: 'Evidence and Claim proposal persisted.' }));
       return;
     }
-    if (req.method === 'GET' && path === '/claims') return send(res, 200, page(state.runState === 'none' ? [] : [claim()]));
+    if (req.method === 'GET' && path === '/claims') return send(res, 200, page(state.runState === 'none' || AGENT_STATE === 'agent-running' ? [] : [claim()]));
     if (req.method === 'GET' && path === `/evidence/${ID.evidence}`) return send(res, 200, evidence());
     if (req.method === 'GET' && path === '/content-items') return fail(res, 'Full ContentItem scans are forbidden.', 500);
     if (req.method === 'GET' && path === `/content-versions/${ID.contentVersion}`) return send(res, 200, { id: ID.contentVersion, workspace_id: ID.workspace, content_item_id: ID.contentItem, source_connection_id: ID.githubSource, source_name: 'Glint GitHub', source_kind: 'cloud', source_item_id: 'github:openai/glint:issue:42', identity_key: 'github:openai/glint:issue:42', title: 'Permission execution preview request', canonical_url: 'https://github.com/openai/glint/issues/42', duplicate_cluster_id: null, independence_group_id: ID.independenceGroup, version_number: 1, content_digest: SHA('c'), normalized_title: 'Permission execution preview request', normalized_body: `${EVIDENCE_QUOTE}\n\nCaptured GitHub issue context remains immutable.`, metadata_json: { author: 'customer-admin', canonical_url: 'https://github.com/openai/glint/issues/42', published_at: NOW, source_item_id: 'github:openai/glint:issue:42', independence_group_id: ID.independenceGroup }, published_at: NOW, captured_at: LATER, parser_version: 'github-v1', availability: 'captured', availability_last_checked_at: LATER, availability_reason: null, data_scope: 'public', data_authenticity: 'collected', created_at: LATER });

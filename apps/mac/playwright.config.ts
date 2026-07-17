@@ -17,7 +17,7 @@ const appServer = {
   command: useFixture ? 'pnpm dev --host 127.0.0.1 --port 5173' : 'pnpm dev --host localhost --port 3000',
   url: appUrl,
   reuseExistingServer: false,
-  env: { ...process.env, VITE_GLINT_DATA_MODE: 'api', VITE_GLINT_API_URL: apiUrl, VITE_GLINT_WORKSPACE_ID: workspaceId, VITE_GLINT_PRINCIPAL_ID: principalId ?? '', VITE_GLINT_ACCESS_TOKEN: accessToken },
+  env: { ...process.env, VITE_GLINT_DATA_MODE: 'api', VITE_GLINT_API_URL: apiUrl, VITE_GLINT_WORKSPACE_ID: workspaceId, VITE_GLINT_PRINCIPAL_ID: principalId ?? '', VITE_GLINT_ACCESS_TOKEN: accessToken, VITE_GLINT_AGENT_FIXTURE: useFixture ? process.env.GLINT_E2E_AGENT_STATE ?? '' : '' },
 };
 
 export default defineConfig({

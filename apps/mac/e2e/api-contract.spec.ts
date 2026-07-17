@@ -182,14 +182,16 @@ test('strict API mode covers CSV → Signal → SSE/reviews → Brief → termin
   await investigationPlan.getByRole('radio', { name: /Deterministic research/ }).check();
   await expect(investigationPlan.getByRole('region', { name: 'Model egress confirmation' })).toHaveCount(0);
   await investigationPlan.getByRole('button', { name: 'Run deterministic research' }).click();
-  const runsTab = page.getByRole('tab', { name: 'Runs' });
+  const reviewEvidenceAction = page.getByRole('region', { name: 'Agent action center' }).getByRole('button', { name: 'Review evidence' });
   const investigationError = page.locator('.error-banner');
   const investigationOutcome = await Promise.race([
-    runsTab.waitFor({ state: 'visible', timeout: 60_000 }).then(() => 'ready' as const),
+    reviewEvidenceAction.waitFor({ state: 'visible', timeout: 60_000 }).then(() => 'ready' as const),
     investigationError.waitFor({ state: 'visible', timeout: 60_000 }).then(() => 'error' as const),
   ]);
   if (investigationOutcome === 'error') throw new Error(`Run deterministic research failed: ${await investigationError.innerText()}`);
-  if (fixtureMode) await expect(page.locator('.detail-header')).toContainText('collected');
+  if (fixtureMode) await expect(page.locator('.agent-header')).toContainText('collected');
+  await reviewEvidenceAction.click();
+  const runsTab = page.getByRole('tab', { name: 'Runs' });
   await runsTab.click();
   await expect(page.getByText('Latest activity: Evidence and Claim proposal persisted.', { exact: true })).toBeVisible({ timeout: 120_000 });
   await page.getByText('Advanced / Debug event stream').click();
@@ -227,6 +229,7 @@ test('strict API mode covers CSV → Signal → SSE/reviews → Brief → termin
   if (fixtureMode) {
     await page.reload();
     await page.getByRole('button', { name: 'Investigations' }).click();
+    await page.getByRole('region', { name: 'Agent action center' }).getByRole('button', { name: 'Review findings' }).click();
     await page.getByRole('tab', { name: 'Runs' }).click();
     await page.getByText('Advanced / Debug event stream').click();
     await expect(page.locator('.run-event').filter({ hasText: 'Immutable run input accepted.' })).toBeVisible();
@@ -352,7 +355,7 @@ test('strict API mode covers CSV → Signal → SSE/reviews → Brief → termin
     await expect(page.getByRole('heading', { name: 'Permission friction rose in collected GitHub content' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Start Investigation' })).toBeDisabled();
     await page.getByRole('button', { name: 'Investigations' }).click();
-    await expect(page.getByRole('heading', { name: 'Should permission execution preview enter next-quarter prioritization?' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'Should permission execution preview enter next-quarter prioritization?' })).toBeVisible();
     await page.getByRole('button', { name: 'Decisions' }).click();
     await expect(page.getByRole('button', { name: 'Export PRD Research Input' })).toBeDisabled();
     await page.getByRole('button', { name: 'Monitoring' }).click();

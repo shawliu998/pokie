@@ -21,7 +21,7 @@ import { SourceViewerDialog } from '../evidence/SourceViewerDialog';
 import { ExportDialog } from '../export/ExportDialog';
 import { SignalDetail } from '../inbox/SignalInbox';
 import { SignalDismissDialog } from '../inbox/SignalDismissDialog';
-import { InvestigationDetail } from '../investigations/InvestigationDetail';
+import { AgentWorkspace } from '../agent/AgentWorkspace';
 import { InvestigationPlanDialog } from '../investigations/InvestigationPlanDialog';
 import { MonitoringView } from '../monitoring/MonitoringView';
 import { useWorkspace } from '../workspace/useWorkspace';
@@ -79,7 +79,9 @@ export function Workbench({ api }: { api: GlintApi }) {
 
   const canOpenSelected = destination === 'inbox' ? Boolean(selectedSignal) : destination === 'investigations' ? Boolean(selectedInvestigation) : destination === 'decisions' ? Boolean(selectedBrief) : false;
   const hasEligibleSignalSource = Boolean(selectedSignal?.perSourceFreshness.some(({ sourceConnectionId }) => workspace?.sources.some((source) => source.id === sourceConnectionId && !['auth_required', 'disabled', 'failed'].includes(source.status))));
-  const canStartInvestigation = Boolean(!offline && destination === 'inbox' && selectedSignal && selectedSignal.status !== 'new' && selectedSignal.status !== 'dismissed' && hasEligibleSignalSource);
+  const canStartSignalInvestigation = Boolean(!offline && destination === 'inbox' && selectedSignal && selectedSignal.status !== 'new' && selectedSignal.status !== 'dismissed' && hasEligibleSignalSource);
+  const canStartExistingInvestigation = Boolean(!offline && destination === 'investigations' && selectedInvestigation?.status === 'draft' && !selectedInvestigation.run);
+  const canStartInvestigation = canStartSignalInvestigation || canStartExistingInvestigation;
   const canOpenSourceViewer = Boolean(!offline && ((destination === 'inbox' && selectedSignal) || (destination === 'investigations' && selectedInvestigation?.evidence.length)));
   const canDismissSignal = Boolean(!offline && destination === 'inbox' && selectedSignal && ['new', 'triaged', 'explained', 'monitoring'].includes(selectedSignal.status));
   const canExportBrief = Boolean(!offline && destination === 'decisions' && selectedBrief?.status === 'decision_ready' && selectedBrief.freshness === 'current');
@@ -96,7 +98,12 @@ export function Workbench({ api }: { api: GlintApi }) {
     setSelectedId(next);
     return true;
   };
-  const startInvestigation = () => { if (!canStartInvestigation) return false; setModal('plan'); return true; };
+  const startInvestigation = () => {
+    if (!canStartInvestigation) return false;
+    if (canStartExistingInvestigation && selectedInvestigation) void safe(async () => updateInvestigation(await api.startRun(selectedInvestigation.id)));
+    else setModal('plan');
+    return true;
+  };
   const dismissSignal = () => { if (!canDismissSignal) return false; setModal('dismiss'); return true; };
   const openSelectedSource = () => {
     if (!canOpenSourceViewer) return false;
@@ -147,6 +154,8 @@ export function Workbench({ api }: { api: GlintApi }) {
   if (error && !workspace) return <div className="fatal"><EmptyState title="Glint could not load this workspace" body={`${error} No cached content is available.`} action={<Button onClick={() => void reload()}>Retry connection</Button>} /></div>;
   if (!workspace) return null;
   const writeDisabled = !canExecuteWrite({ offline });
+  const selectedInvestigationBrief = selectedInvestigation ? workspace.briefs.find((brief) => brief.investigationId === selectedInvestigation.id) ?? null : null;
+  const agentFixture = Boolean(import.meta.env.VITE_GLINT_AGENT_FIXTURE?.startsWith('agent-'));
   const selectedBriefInvestigation = selectedBrief ? workspace.investigations.find((item) => item.id === selectedBrief.investigationId) : undefined;
   const hasReviewedCounterEvidence = Boolean(selectedBriefInvestigation?.claims.some((claim) => claim.evidenceLinks.some((link) => link.stance === 'opposes' && ['valid', 'weak'].includes(selectedBriefInvestigation.evidence.find((evidence) => evidence.id === link.evidenceId)?.status ?? ''))));
   const commands = buildWorkbenchCommands({ canOpenSelected, canStartInvestigation, canOpenSourceViewer, canDismissSignal, canExportBrief, canToggleSidebar: !compact }, {
@@ -173,7 +182,7 @@ export function Workbench({ api }: { api: GlintApi }) {
       list={<ListPane destination={destination} workspace={workspace} selectedId={selectedId} filter={filter} setFilter={setFilter} onSelect={(id) => select(destination, id)} />}
       detail={<section className="detail" aria-label="Detail panel">
         {destination === 'inbox' && selectedSignal && <SignalDetail signal={selectedSignal} sources={workspace.sources} disabled={writeDisabled} onLoadSamples={() => api.signalSamples(selectedSignal.id)} onTriage={(impact, urgency) => safe(async () => updateSignal(await api.triage(selectedSignal.id, impact, urgency)))} onStart={() => setModal('plan')} onDismiss={() => setModal('dismiss')} />}
-        {destination === 'investigations' && selectedInvestigation && <InvestigationDetail investigation={selectedInvestigation} disabled={writeDisabled} runConnection={runConnection} onOpenEvidence={(evidence) => api.sourceViewer(selectedInvestigation.signalId, evidence)} onReviewEvidence={(evidence, decision) => safe(async () => updateInvestigation(await api.reviewEvidence(selectedInvestigation.id, evidence.id, decision)))} onReviewClaim={(claimId, decision) => safe(async () => updateInvestigation(await api.reviewClaim(selectedInvestigation.id, claimId, decision)))} onCreateSynthesis={() => safe(async () => updateInvestigation(await api.createSynthesis(selectedInvestigation.id)))} onReviseSynthesis={(summary) => safe(async () => updateInvestigation(await api.reviseSynthesis(selectedInvestigation.id, summary)))} onReviewSynthesis={(decision) => safe(async () => updateInvestigation(await api.reviewSynthesis(selectedInvestigation.id, decision)))} onCreateBrief={() => safe(async () => { const brief = await api.createBrief(selectedInvestigation.id); setWorkspace({ ...workspace, briefs: workspace.briefs.some((item) => item.id === brief.id) ? workspace.briefs.map((item) => item.id === brief.id ? brief : item) : [...workspace.briefs, brief] }); select('decisions', brief.id); })} onCancelRun={() => safe(async () => updateInvestigation(await api.cancelRun(selectedInvestigation.id)))} onRetryRun={() => safe(async () => updateInvestigation(await api.retryRun(selectedInvestigation.id)))} />}
+        {destination === 'investigations' && selectedInvestigation && <AgentWorkspace investigation={selectedInvestigation} sources={workspace.sources} brief={selectedInvestigationBrief} fixture={agentFixture} compact={compact} disabled={writeDisabled} runConnection={runConnection} onOpenEvidence={(evidence) => api.sourceViewer(selectedInvestigation.signalId, evidence)} onReviewEvidence={(evidence, decision) => safe(async () => updateInvestigation(await api.reviewEvidence(selectedInvestigation.id, evidence.id, decision)))} onReviewClaim={(claimId, decision) => safe(async () => updateInvestigation(await api.reviewClaim(selectedInvestigation.id, claimId, decision)))} onCreateSynthesis={() => safe(async () => updateInvestigation(await api.createSynthesis(selectedInvestigation.id)))} onReviseSynthesis={(summary) => safe(async () => updateInvestigation(await api.reviseSynthesis(selectedInvestigation.id, summary)))} onReviewSynthesis={(decision) => safe(async () => updateInvestigation(await api.reviewSynthesis(selectedInvestigation.id, decision)))} onCreateBrief={() => safe(async () => { const brief = await api.createBrief(selectedInvestigation.id); setWorkspace({ ...workspace, briefs: workspace.briefs.some((item) => item.id === brief.id) ? workspace.briefs.map((item) => item.id === brief.id ? brief : item) : [...workspace.briefs, brief] }); select('decisions', brief.id); })} onOpenBrief={() => { if (selectedInvestigationBrief) select('decisions', selectedInvestigationBrief.id); }} onStartRun={() => safe(async () => updateInvestigation(await api.startRun(selectedInvestigation.id)))} onCancelRun={() => safe(async () => updateInvestigation(await api.cancelRun(selectedInvestigation.id)))} onRetryRun={() => safe(async () => updateInvestigation(await api.retryRun(selectedInvestigation.id)))} />}
         {destination === 'decisions' && selectedBrief && <DecisionBriefDetail brief={selectedBrief} disabled={writeDisabled} hasReviewedCounterEvidence={hasReviewedCounterEvidence} onUpdate={(judgment, recommendationId, recommendationBody, status) => safe(async () => updateBrief(await api.updateBrief(selectedBrief.id, judgment, recommendationId, recommendationBody, status)))} onSaveCounterEvidenceSearch={(input) => safe(async () => updateBrief(await api.saveNoCounterEvidenceSearch(selectedBrief.id, input)))} onReady={() => safe(async () => updateBrief(await api.markReady(selectedBrief.id)))} onExport={() => setModal('export')} />}
         {destination === 'monitoring' && <MonitoringView api={api} workspaceId={workspace.workspaceId} sources={workspace.sources} watchlists={workspace.watchlists} schedules={workspace.schedules} disabled={writeDisabled} onComplete={reload} />}
       </section>}

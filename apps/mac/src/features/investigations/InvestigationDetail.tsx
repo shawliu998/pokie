@@ -8,12 +8,14 @@ import { SourceViewerDialog } from '../evidence/SourceViewerDialog';
 import { displayTime, incompleteCopy, label } from '../../lib/formatting';
 import { researchMethodLabel, runProvenanceAvailable, runStateSummary, synthesisMethodLabel } from './research-presentation';
 
-type InvestigationTab = 'overview' | 'evidence' | 'claims' | 'synthesis' | 'runs';
+export type InvestigationTab = 'overview' | 'evidence' | 'claims' | 'synthesis' | 'runs';
 
 interface InvestigationDetailProps {
   investigation: Investigation;
   disabled: boolean;
   runConnection: 'connected' | 'reconnecting' | 'reset';
+  initialTab?: InvestigationTab;
+  onBackToWorkspace?: () => void;
   onOpenEvidence: (evidence: Evidence) => Promise<SourceViewer>;
   onReviewEvidence: (evidence: Evidence, decision: 'valid' | 'weak' | 'rejected') => void;
   onReviewClaim: (id: string, decision: 'verify' | 'reject') => void;
@@ -25,8 +27,8 @@ interface InvestigationDetailProps {
   onRetryRun: () => void;
 }
 
-export function InvestigationDetail({ investigation, disabled, runConnection, onOpenEvidence, onReviewEvidence, onReviewClaim, onCreateSynthesis, onReviseSynthesis, onReviewSynthesis, onCreateBrief, onCancelRun, onRetryRun }: InvestigationDetailProps) {
-  const [tab, setTab] = useState<InvestigationTab>('overview');
+export function InvestigationDetail({ investigation, disabled, runConnection, initialTab = 'overview', onBackToWorkspace, onOpenEvidence, onReviewEvidence, onReviewClaim, onCreateSynthesis, onReviseSynthesis, onReviewSynthesis, onCreateBrief, onCancelRun, onRetryRun }: InvestigationDetailProps) {
+  const [tab, setTab] = useState<InvestigationTab>(initialTab);
   const [summary, setSummary] = useState(investigation.synthesis?.executiveSummary ?? '');
   const [viewer, setViewer] = useState<SourceViewer | null>(null);
   const [viewerError, setViewerError] = useState<string | null>(null);
@@ -66,6 +68,7 @@ export function InvestigationDetail({ investigation, disabled, runConnection, on
   const runMethod = run ? researchMethodLabel(run.generationMethod) : investigation.allowCloudModel ? 'Model-assisted research requested' : 'Deterministic research';
 
   return <div className="detail-body">
+    {onBackToWorkspace && <Button className="back-to-agent" onClick={onBackToWorkspace}>Back to Agent Workspace</Button>}
     <DetailHeader title={investigation.question} status={<><Badge tone="info">{authenticityLabel(investigation.authenticity)}</Badge><Badge tone={run?.generationMethod === 'model' ? 'warning' : 'neutral'}>{runMethod}</Badge><Status tone={investigation.status === 'completed' ? 'positive' : 'info'}>{label(investigation.status)}</Status></>} />
     {run?.state === 'waiting_for_input' && <section className="needs-input" role="region" aria-label="Research needs input"><div><h3>Research needs human input</h3><Status tone="warning">Paused</Status></div><p>{run.waitingForInputReason ? label(run.waitingForInputReason) : 'The run did not provide a structured waiting reason. Review the event stream before deciding whether to cancel.'}</p><p className="hint">No model or deterministic step may approve evidence or continue beyond this gate without an authorized action.</p><Button disabled={disabled} onClick={onCancelRun}>Cancel run</Button></section>}
     <div className="tabs" role="tablist">{(['overview', 'evidence', 'claims', 'synthesis', 'runs'] as const).map((item) => <button role="tab" aria-selected={tab === item} onClick={() => setTab(item)} key={item}>{label(item)}</button>)}</div>

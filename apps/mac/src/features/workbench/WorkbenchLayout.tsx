@@ -35,9 +35,9 @@ export function WorkbenchLayout({ compact, compactPane, sidebar, list, detail, s
     }}
     resizeTargetMinimumSize={{ coarse: 24, fine: 10 }}
   >
-    <Panel id="sidebar" panelRef={sidebarPanelRef} defaultSize={224} minSize={160} maxSize={320} collapsible collapsedSize={0} groupResizeBehavior="preserve-pixel-size" onResize={(size) => onSidebarCollapsedChange(size.inPixels < 1)}>{sidebar}</Panel>
+    <Panel id="sidebar" panelRef={sidebarPanelRef} defaultSize={200} minSize={160} maxSize={300} collapsible collapsedSize={0} groupResizeBehavior="preserve-pixel-size" onResize={(size) => onSidebarCollapsedChange(size.inPixels < 1)}>{sidebar}</Panel>
     <Separator id="sidebar-list-separator" className="resize-separator" aria-label="Resize sidebar and list" />
-    <Panel id="list" defaultSize={380} minSize={280} maxSize={560} groupResizeBehavior="preserve-pixel-size">{list}</Panel>
+    <Panel id="list" defaultSize={310} minSize={260} maxSize={500} groupResizeBehavior="preserve-pixel-size">{list}</Panel>
     <Separator id="list-detail-separator" className="resize-separator" aria-label="Resize list and detail" />
     <Panel id="detail" minSize={520}>{detail}</Panel>
   </Group>;

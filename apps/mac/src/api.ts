@@ -137,6 +137,7 @@ export interface GlintApi {
   transitionSignal(signalId: string, action: 'monitor' | 'dismiss' | 'undo', details?: { cooldownUntil?: string; dismissReason?: SignalDismissReason; note?: string }): Promise<Signal>;
   canUndoSignal(signal: Signal): boolean;
   createInvestigation(signalId: string, question: string, allowCloudModel?: boolean): Promise<Investigation>;
+  startRun(investigationId: string): Promise<Investigation>;
   cancelRun(investigationId: string): Promise<Investigation>;
   retryRun(investigationId: string): Promise<Investigation>;
   signalSamples(signalId: string): Promise<SignalSample[]>;
@@ -461,6 +462,17 @@ export class RestAdapter implements GlintApi {
     const investigation = await this.refreshInvestigation(investigationId);
     if (!investigation.run) throw new Error('ResearchRun is unavailable.');
     await this.request(`/research-runs/${investigation.run.id}/cancel`, { method: 'POST', body: JSON.stringify({ expected_row_version: investigation.run.rowVersion, reason: 'Cancelled by Owner PM in Glint.' }) });
+    return this.refreshInvestigation(investigationId);
+  }
+
+  async startRun(investigationId: string): Promise<Investigation> {
+    const workspace = this.latestWorkspace ?? await this.bootstrap();
+    const investigation = await this.refreshInvestigation(investigationId);
+    if (investigation.run || investigation.status !== 'draft') throw new Error('Only a draft Investigation without a ResearchRun can be started.');
+    const signal = workspace.signals.find((item) => item.id === investigation.signalId);
+    if (!signal || investigation.sourceConnectionIds.length === 0) throw new Error('Pinned Investigation scope is unavailable.');
+    const common = this.researchPayload(signal, investigation.question, investigation.sourceConnectionIds, investigation.contentVersionIds, investigation.allowCloudModel);
+    await this.request('/research-runs', { method: 'POST', body: JSON.stringify({ investigation_id: investigation.id, investigation_scope_version_id: investigation.scopeVersionId, ...common, expected_investigation_row_version: investigation.rowVersion }) });
     return this.refreshInvestigation(investigationId);
   }
 
