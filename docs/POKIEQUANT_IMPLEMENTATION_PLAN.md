@@ -379,6 +379,6 @@ Live connector/model checks remain opt-in and are not enabled to validate Phase 
 
 ## 10. Completion evidence
 
-Phase 0 is complete only when code, tests, screenshots, README, notices, and implementation claims agree. A plan, scaffold, or static screenshot is not completion. The recommended next slice after successful Phase 0 is:
+Phase 0 is complete only when code, tests, screenshots, README, notices, and implementation claims agree. A plan, scaffold, or static screenshot is not completion. The additive pure daily-bar kernel now derives the synthetic candidate/report projection from 1,564 generated weekday bars; the next slice is:
 
-> Replace deterministic backtest fixtures with a small deterministic daily-bar backtesting engine while preserving all current contracts and UI states.
+> Add a governed immutable imported-dataset path and split-sample validation while preserving the synthetic dataset as an exact regression oracle.

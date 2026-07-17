@@ -14,6 +14,7 @@ const QUANT_FIXTURES = JSON.parse(readFileSync(new URL('./fixtures/quant-workspa
 let quantFixtureState = process.env.POKIEQUANT_E2E_RUN_STATE ?? 'quant-completed';
 if (!(quantFixtureState in QUANT_FIXTURES)) throw new Error(`Unsupported POKIEQUANT_E2E_RUN_STATE: ${quantFixtureState}`);
 let quantRowVersion = 8;
+let quantGoal = QUANT_FIXTURES[quantFixtureState].project.goal;
 if (!/^http:\/\/127\.0\.0\.1:[1-9]\d{0,4}$/.test(ALLOWED_ORIGIN)) {
   throw new Error('GLINT_FIXTURE_ALLOWED_ORIGIN must be an exact loopback HTTP origin.');
 }
@@ -181,6 +182,7 @@ const server = createServer(async (req, res) => {
     if (req.method === 'GET' && path === '/quant/workspace-snapshot') {
       const snapshot = JSON.parse(JSON.stringify(QUANT_FIXTURES[quantFixtureState]));
       snapshot.run.rowVersion = quantRowVersion;
+      snapshot.project.goal = quantGoal;
       return send(res, 200, snapshot);
     }
     if (req.method === 'POST' && path === '/quant/workspace-snapshot/commands') {
@@ -188,10 +190,17 @@ const server = createServer(async (req, res) => {
       const legal = [...snapshot.run.legalCommands, ...snapshot.composerLegalCommands];
       requireValue(payload.expected_row_version === quantRowVersion, 'Quant fixture command must pin the current row version.');
       requireValue(legal.includes(payload.command), 'Quant fixture command is not legal for the current snapshot.');
+      const submittedGoal = payload.payload?.goal;
+      if (submittedGoal !== undefined) {
+        requireValue(['ask', 'generate_plan'].includes(payload.command), 'Approved Quant goal cannot change during execution.');
+        requireValue(typeof submittedGoal === 'string' && submittedGoal.trim().length >= 1 && submittedGoal.trim().length <= 2000, 'Quant goal must contain 1 to 2000 characters.');
+        quantGoal = submittedGoal.trim();
+      }
       quantFixtureState = {
         ask: quantFixtureState,
         generate_plan: 'quant-plan-approval',
         approve_plan: 'quant-running',
+        run_fixture: 'quant-waiting-review',
         request_plan_changes: 'quant-plan-approval',
         cancel_run: 'quant-cancelled',
         retry_run: 'quant-ready',
@@ -200,6 +209,7 @@ const server = createServer(async (req, res) => {
       quantRowVersion += 1;
       const next = JSON.parse(JSON.stringify(QUANT_FIXTURES[quantFixtureState]));
       next.run.rowVersion = quantRowVersion;
+      next.project.goal = quantGoal;
       return send(res, 200, next);
     }
     if (req.method === 'POST' && path === '/fixture-control') { requireValue(typeof payload.api_offline === 'boolean', 'Fixture control requires an explicit API offline state.'); state.apiOffline = payload.api_offline; return send(res, 200, { api_offline: state.apiOffline }); }

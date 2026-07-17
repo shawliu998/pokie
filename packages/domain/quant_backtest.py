@@ -1,0 +1,438 @@
+"""Pure, deterministic daily-bar backtesting primitives.
+
+The kernel deliberately has no persistence, transport, market-data, broker, or
+model boundary.  A strategy observes a completed bar and its order is filled
+at the following bar's open.  It supports one asset and the two states needed
+by the bounded Phase 1 scope: Long and Cash.
+"""
+
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass
+from datetime import date, datetime
+from enum import StrEnum
+from statistics import mean, pstdev
+from typing import Iterable, Sequence
+
+
+class BacktestInputError(ValueError):
+    """Raised when bars, strategy parameters, or execution assumptions are invalid."""
+
+
+def _finite_number(value: object) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+class StrategyFamily(StrEnum):
+    SMA = "sma"
+    RSI = "rsi"
+    BREAKOUT = "breakout"
+
+
+@dataclass(frozen=True, slots=True)
+class DailyBar:
+    """One OHLCV bar for the single asset being tested."""
+
+    date: date
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: float | None = None
+
+    def __post_init__(self) -> None:
+        if isinstance(self.date, datetime) or not isinstance(self.date, date):
+            raise BacktestInputError("bar.date must be a datetime.date, not a datetime.")
+        values = (self.open, self.high, self.low, self.close)
+        if not all(_finite_number(value) for value in values):
+            raise BacktestInputError("OHLC values must be finite numbers.")
+        if min(values) <= 0:
+            raise BacktestInputError("OHLC values must be positive.")
+        if self.high < max(self.open, self.close) or self.low > min(self.open, self.close):
+            raise BacktestInputError("bar.high/bar.low must contain open and close.")
+        if self.volume is not None and (not _finite_number(self.volume) or self.volume < 0):
+            raise BacktestInputError("volume must be a finite non-negative number.")
+
+
+# A concise alias for callers that prefer the more common market-data name.
+MarketBar = DailyBar
+
+
+@dataclass(frozen=True, slots=True)
+class ExecutionConfig:
+    """All-in execution assumptions shared by a strategy and its benchmark."""
+
+    initial_cash: float = 100_000.0
+    fee_rate: float = 0.0
+    slippage_rate: float = 0.0
+
+    def __post_init__(self) -> None:
+        for name, value in (
+            ("initial_cash", self.initial_cash),
+            ("fee_rate", self.fee_rate),
+            ("slippage_rate", self.slippage_rate),
+        ):
+            if not _finite_number(value):
+                raise BacktestInputError(f"{name} must be a finite number.")
+        if self.initial_cash <= 0:
+            raise BacktestInputError("initial_cash must be positive.")
+        if self.fee_rate < 0 or self.slippage_rate < 0:
+            raise BacktestInputError("fee_rate and slippage_rate cannot be negative.")
+        if self.fee_rate >= 1 or self.slippage_rate >= 1:
+            raise BacktestInputError("fee_rate and slippage_rate must be less than 1.")
+
+
+# Keep the name short for the common call site while retaining the explicit name.
+BacktestConfig = ExecutionConfig
+
+
+@dataclass(frozen=True, slots=True)
+class StrategySpec:
+    """Validated parameters for one supported long/cash strategy family."""
+
+    family: StrategyFamily
+    fast_period: int | None = None
+    slow_period: int | None = None
+    period: int | None = None
+    oversold: float = 30.0
+    overbought: float = 70.0
+
+    def __post_init__(self) -> None:
+        try:
+            family = StrategyFamily(self.family)
+        except (TypeError, ValueError) as exc:
+            raise BacktestInputError("family must be sma, rsi, or breakout.") from exc
+        object.__setattr__(self, "family", family)
+        if family is StrategyFamily.SMA:
+            if not _positive_int(self.fast_period) or not _positive_int(self.slow_period):
+                raise BacktestInputError(
+                    "SMA fast_period and slow_period must be positive integers."
+                )
+            if self.fast_period >= self.slow_period:
+                raise BacktestInputError("SMA fast_period must be smaller than slow_period.")
+        elif family is StrategyFamily.RSI:
+            if not _positive_int(self.period):
+                raise BacktestInputError("RSI period must be a positive integer.")
+            if not all(_finite_number(value) for value in (self.oversold, self.overbought)):
+                raise BacktestInputError("RSI thresholds must be finite numbers.")
+            if not 0 < self.oversold < self.overbought < 100:
+                raise BacktestInputError(
+                    "RSI thresholds must satisfy 0 < oversold < overbought < 100."
+                )
+        elif not _positive_int(self.period):
+            raise BacktestInputError("Breakout period must be a positive integer.")
+
+    @classmethod
+    def sma(cls, fast_period: int, slow_period: int) -> "StrategySpec":
+        return cls(StrategyFamily.SMA, fast_period=fast_period, slow_period=slow_period)
+
+    @classmethod
+    def rsi(
+        cls, period: int, *, oversold: float = 30.0, overbought: float = 70.0
+    ) -> "StrategySpec":
+        return cls(StrategyFamily.RSI, period=period, oversold=oversold, overbought=overbought)
+
+    @classmethod
+    def breakout(cls, period: int) -> "StrategySpec":
+        return cls(StrategyFamily.BREAKOUT, period=period)
+
+
+@dataclass(frozen=True, slots=True)
+class Trade:
+    entry_date: date
+    entry_price: float
+    exit_date: date
+    exit_price: float
+    quantity: float
+    entry_fee: float
+    exit_fee: float
+    pnl: float
+    return_pct: float
+
+
+@dataclass(frozen=True, slots=True)
+class EquityPoint:
+    date: date
+    cash: float
+    quantity: float
+    close: float
+    equity: float
+
+
+@dataclass(frozen=True, slots=True)
+class BacktestMetrics:
+    initial_equity: float
+    final_equity: float
+    total_return: float
+    annualized_return: float
+    max_drawdown: float
+    sharpe_ratio: float
+    win_rate: float
+    trade_count: int
+    winning_trades: int
+    losing_trades: int
+    exposure: float
+
+
+@dataclass(frozen=True, slots=True)
+class BacktestResult:
+    strategy: StrategySpec | None
+    equity_curve: tuple[EquityPoint, ...]
+    trades: tuple[Trade, ...]
+    metrics: BacktestMetrics
+
+
+def _positive_int(value: int | None) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value > 0
+
+
+def _rounded(value: float) -> float:
+    return round(value, 12)
+
+
+def validate_bars(bars: Iterable[DailyBar]) -> tuple[DailyBar, ...]:
+    """Materialize and validate an ordered daily-bar input without mutating it."""
+
+    if isinstance(bars, (str, bytes)):
+        raise BacktestInputError("bars must be an iterable of DailyBar values.")
+    try:
+        materialized = tuple(bars)
+    except TypeError as exc:
+        raise BacktestInputError("bars must be an iterable of DailyBar values.") from exc
+    if any(not isinstance(bar, DailyBar) for bar in materialized):
+        raise BacktestInputError("bars must contain only DailyBar values.")
+    if any(left.date >= right.date for left, right in zip(materialized, materialized[1:])):
+        raise BacktestInputError("bars must be strictly ordered by date with no duplicates.")
+    return materialized
+
+
+def _sma(values: Sequence[float], period: int, index: int) -> float | None:
+    if index + 1 < period:
+        return None
+    return mean(values[index + 1 - period : index + 1])
+
+
+def _rsi(values: Sequence[float], period: int, index: int) -> float | None:
+    if index < period:
+        return None
+    changes = [
+        values[position] - values[position - 1]
+        for position in range(index - period + 1, index + 1)
+    ]
+    gains = sum(max(change, 0.0) for change in changes) / period
+    losses = sum(max(-change, 0.0) for change in changes) / period
+    if losses == 0:
+        return 100.0 if gains else 50.0
+    return 100.0 - (100.0 / (1.0 + gains / losses))
+
+
+def _desired_position(
+    closes: Sequence[float], spec: StrategySpec, index: int, in_long: bool
+) -> bool:
+    if spec.family is StrategyFamily.SMA:
+        fast = _sma(closes, spec.fast_period or 0, index)
+        slow = _sma(closes, spec.slow_period or 0, index)
+        if fast is None or slow is None:
+            return in_long
+        return fast > slow
+    if spec.family is StrategyFamily.RSI:
+        value = _rsi(closes, spec.period or 0, index)
+        if value is None:
+            return in_long
+        if value <= spec.oversold:
+            return True
+        if value >= spec.overbought:
+            return False
+        return in_long
+    period = spec.period or 0
+    if index < period:
+        return in_long
+    prior = closes[index - period : index]
+    if closes[index] > max(prior):
+        return True
+    if closes[index] < min(prior):
+        return False
+    return in_long
+
+
+def _buy(cash: float, bar: DailyBar, config: ExecutionConfig) -> tuple[float, float, float]:
+    fill = bar.open * (1.0 + config.slippage_rate)
+    quantity = cash / (fill * (1.0 + config.fee_rate))
+    fee = quantity * fill * config.fee_rate
+    return _rounded(quantity), _rounded(cash - quantity * fill - fee), _rounded(fee)
+
+
+def _sell(quantity: float, bar: DailyBar, config: ExecutionConfig) -> tuple[float, float, float]:
+    fill = bar.open * (1.0 - config.slippage_rate)
+    gross = quantity * fill
+    fee = gross * config.fee_rate
+    return _rounded(fill), _rounded(gross - fee), _rounded(fee)
+
+
+def _metrics(
+    curve: Sequence[EquityPoint], trades: Sequence[Trade], config: ExecutionConfig, bars_count: int
+) -> BacktestMetrics:
+    initial = config.initial_cash
+    final = curve[-1].equity if curve else initial
+    total_return = (final / initial) - 1.0
+    years = (bars_count - 1) / 252.0
+    annualized = (final / initial) ** (1.0 / years) - 1.0 if years > 0 and final > 0 else 0.0
+    drawdowns: list[float] = []
+    peak = initial
+    for point in curve:
+        peak = max(peak, point.equity)
+        drawdowns.append(point.equity / peak - 1.0)
+    daily_returns = [
+        curve[i].equity / curve[i - 1].equity - 1.0
+        for i in range(1, len(curve))
+        if curve[i - 1].equity
+    ]
+    deviation = pstdev(daily_returns) if len(daily_returns) > 1 else 0.0
+    sharpe = mean(daily_returns) / deviation * math.sqrt(252.0) if deviation else 0.0
+    winners = sum(trade.pnl > 0 for trade in trades)
+    losers = sum(trade.pnl <= 0 for trade in trades)
+    invested_days = sum(point.quantity > 0 for point in curve)
+    return BacktestMetrics(
+        initial_equity=_rounded(initial),
+        final_equity=_rounded(final),
+        total_return=_rounded(total_return),
+        annualized_return=_rounded(annualized),
+        max_drawdown=_rounded(min(drawdowns, default=0.0)),
+        sharpe_ratio=_rounded(sharpe),
+        win_rate=_rounded(winners / len(trades)) if trades else 0.0,
+        trade_count=len(trades),
+        winning_trades=winners,
+        losing_trades=losers,
+        exposure=_rounded(invested_days / bars_count) if bars_count else 0.0,
+    )
+
+
+def run_backtest(
+    bars: Iterable[DailyBar], strategy: StrategySpec, config: ExecutionConfig | None = None
+) -> BacktestResult:
+    """Run one long/cash strategy; signals at close ``i`` fill at open ``i+1``."""
+
+    checked_bars = validate_bars(bars)
+    if not isinstance(strategy, StrategySpec):
+        raise BacktestInputError("strategy must be a StrategySpec.")
+    checked_config = config if config is not None else ExecutionConfig()
+    if not isinstance(checked_config, ExecutionConfig):
+        raise BacktestInputError("config must be an ExecutionConfig.")
+
+    cash = float(checked_config.initial_cash)
+    quantity = 0.0
+    pending_long = False
+    entry_date: date | None = None
+    entry_price = 0.0
+    entry_quantity = 0.0
+    entry_fee = 0.0
+    curve: list[EquityPoint] = []
+    trades: list[Trade] = []
+    closes = tuple(bar.close for bar in checked_bars)
+    for index, bar in enumerate(checked_bars):
+        if pending_long and quantity == 0.0:
+            quantity, cash, entry_fee = _buy(cash, bar, checked_config)
+            entry_date = bar.date
+            entry_price = bar.open * (1.0 + checked_config.slippage_rate)
+            entry_quantity = quantity
+        elif not pending_long and quantity > 0.0:
+            exit_price, proceeds, exit_fee = _sell(quantity, bar, checked_config)
+            cash = _rounded(cash + proceeds)
+            invested = entry_quantity * entry_price + entry_fee
+            trade_pnl = proceeds - invested
+            trades.append(
+                Trade(
+                    entry_date=entry_date or bar.date,
+                    entry_price=_rounded(entry_price),
+                    exit_date=bar.date,
+                    exit_price=exit_price,
+                    quantity=entry_quantity,
+                    entry_fee=entry_fee,
+                    exit_fee=exit_fee,
+                    pnl=_rounded(trade_pnl),
+                    return_pct=_rounded(trade_pnl / invested) if invested else 0.0,
+                )
+            )
+            quantity = 0.0
+            entry_date = None
+        equity = cash + quantity * bar.close
+        curve.append(
+            EquityPoint(bar.date, _rounded(cash), _rounded(quantity), bar.close, _rounded(equity))
+        )
+        pending_long = _desired_position(closes, strategy, index, pending_long if quantity else False)
+    immutable_curve = tuple(curve)
+    immutable_trades = tuple(trades)
+    return BacktestResult(
+        strategy,
+        immutable_curve,
+        immutable_trades,
+        _metrics(immutable_curve, immutable_trades, checked_config, len(checked_bars)),
+    )
+
+
+def backtest_buy_and_hold(
+    bars: Iterable[DailyBar], config: ExecutionConfig | None = None
+) -> BacktestResult:
+    """Buy on the first bar's open and hold through the final close.
+
+    The benchmark's final point is marked to market at the final close; no
+    synthetic close transaction is included in its trade log.
+    """
+
+    checked_bars = validate_bars(bars)
+    checked_config = config if config is not None else ExecutionConfig()
+    if not isinstance(checked_config, ExecutionConfig):
+        raise BacktestInputError("config must be an ExecutionConfig.")
+    if not checked_bars:
+        return BacktestResult(None, (), (), _metrics((), (), checked_config, 0))
+    quantity, cash, entry_fee = _buy(checked_config.initial_cash, checked_bars[0], checked_config)
+    curve = tuple(
+        EquityPoint(
+            bar.date, _rounded(cash), quantity, bar.close, _rounded(cash + quantity * bar.close)
+        )
+        for bar in checked_bars
+    )
+    final_bar = checked_bars[-1]
+    entry_price = _rounded(checked_bars[0].open * (1.0 + checked_config.slippage_rate))
+    final_price = final_bar.close
+    trade = Trade(
+        entry_date=checked_bars[0].date,
+        entry_price=entry_price,
+        exit_date=final_bar.date,
+        exit_price=final_price,
+        quantity=quantity,
+        entry_fee=entry_fee,
+        exit_fee=0.0,
+        pnl=_rounded(quantity * (final_price - entry_price) - entry_fee),
+        return_pct=_rounded(
+            (quantity * final_price - quantity * entry_price - entry_fee)
+            / (quantity * entry_price + entry_fee)
+        ),
+    )
+    trades = (trade,)
+    return BacktestResult(
+        None, curve, trades, _metrics(curve, trades, checked_config, len(checked_bars))
+    )
+
+
+buy_and_hold = backtest_buy_and_hold
+
+
+__all__ = [
+    "BacktestConfig",
+    "BacktestInputError",
+    "BacktestMetrics",
+    "BacktestResult",
+    "DailyBar",
+    "EquityPoint",
+    "ExecutionConfig",
+    "MarketBar",
+    "StrategyFamily",
+    "StrategySpec",
+    "Trade",
+    "backtest_buy_and_hold",
+    "buy_and_hold",
+    "run_backtest",
+    "validate_bars",
+]

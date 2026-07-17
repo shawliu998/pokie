@@ -18,7 +18,11 @@ assert_quant_truth_boundaries() {
   rg -q '"internetAccess": False' services/api/app/modules/quant/snapshot.py
   rg -q '"arbitraryPython": False' services/api/app/modules/quant/snapshot.py
   rg -q '"paperTrading": False' services/api/app/modules/quant/snapshot.py
-  rg -q 'No real backtest' README.md
+  rg -q '1,564.*synthetic' README.md
+  rg -q 'Candidate metrics.*pure kernel' README.md
+  rg -q 'Daily-bar kernel verified' apps/mac/src/features/quant/QuantActivity.tsx
+  rg -q 'No network, broker, model, or arbitrary code execution' \
+    services/api/app/modules/quant/kernel_check.py
   rg -qi 'no broker or paper-trading action' services/api/app/modules/quant/snapshot.py
   rg -q 'class QuantRepositoryState' services/api/app/db/models.py
   rg -q 'quant_repository_states' infra/migrations/versions/20260717_0006_quant_phase0_state.py
@@ -76,7 +80,10 @@ PY
 layer "PokieQuant contracts, API, runtime, and OpenAPI" \
   run_required_pytest \
     tests/contract/test_quant_contracts.py \
+    tests/contract/test_quant_daily_bar_dataset.py \
     tests/runtime/test_quant_fixture_runtime.py \
+    tests/runtime/test_quant_backtest.py \
+    tests/runtime/test_quant_research_evaluation.py \
     tests/integration/test_quant_api.py \
     tests/contract/test_schema_export.py
 

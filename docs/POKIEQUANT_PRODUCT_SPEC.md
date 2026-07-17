@@ -10,7 +10,7 @@ Baseline: Glint `codex/phase31-agent-workspace-ui` at `eb9a4be58c4a16b790d0b7568
 
 PokieQuant is a desktop Agent workspace that turns a natural-language market-research goal into a bounded, reproducible, reviewable, and auditable research process.
 
-Phase 0 delivers an interactive product shell, not a real quantitative execution system. It uses API-backed deterministic fixtures and a scripted worker to demonstrate the complete governed workflow:
+Phase 0 delivers an interactive product shell, not a production quantitative execution system. It uses API-backed deterministic fixtures and a scripted worker to demonstrate the complete governed workflow. An additive pure daily-bar kernel computes the canonical candidate metrics, trades, and report projection from 1,564 deterministic synthetic weekday bars:
 
 ```text
 Goal → Approved scope → Plan → Human approval → Deterministic run
@@ -65,7 +65,7 @@ Phase 0 must not imply that it performed any of the following:
 
 - live or historical market-data retrieval from a network provider;
 - a real model call, web search, hidden chain of thought, or arbitrary tool call;
-- a real backtest or verified future performance calculation;
+- a backtest over real market observations, or any verified future performance calculation (all computed results use generated synthetic weekdays);
 - token use, provider cost, or percentage progress when no trusted value exists;
 - paper trading, broker connection, order placement, or investment advice.
 
@@ -157,12 +157,12 @@ The canonical fixture contains:
 
 | Result | Annualized return | Maximum drawdown | Sharpe | Trades | Verdict |
 | --- | ---: | ---: | ---: | ---: | --- |
-| Buy and Hold | 10.8% | -33.7% | 0.72 | 1 | benchmark |
-| Candidate A · SMA 20/100 | 9.6% | -24.8% | 0.83 | 38 | Rejected · parameter sensitivity |
-| Candidate B · SMA 50/200 | 8.9% | -18.7% | 0.88 | 18 | Candidate for paper evaluation |
-| Candidate C · 200-day trend filter | 9.3% | -21.4% | 0.86 | 12 | Inconclusive · too few independent trade periods |
+| Buy and Hold | 23.2% | -23.8% | 5.30 | 1 | benchmark |
+| Candidate A · SMA 20/100 | 20.6% | -8.8% | 5.78 | 7 | Rejected · >5 pp parameter sensitivity range |
+| Candidate B · SMA 50/200 | 18.4% | -11.1% | 5.07 | 2 | Candidate for paper evaluation |
+| Candidate C · 200-day breakout | 16.3% | -15.5% | 4.46 | 2 | Inconclusive · fewer than 3 closed trades |
 
-These numbers are demonstration values, not results computed by a Phase 0 backtester. “Candidate for paper evaluation” is a research workflow status, not a recommendation and not an enabled paper-trading action.
+These numbers are computed by the pure daily-bar kernel, but the input path is generated synthetic data without an exchange holiday calendar or corporate actions. The unusually high synthetic Sharpe values are not market evidence. “Candidate for paper evaluation” is a research workflow status, not a recommendation and not an enabled paper-trading action.
 
 ## 9. Research Report contract
 
@@ -204,7 +204,7 @@ Excluded:
 - broker connections, orders, paper or live trading;
 - arbitrary Python, shell, package installation, Jupyter, or uploaded-code execution;
 - live/realtime market data, news fetch, network search, or unrestricted external access;
-- a real backtesting engine, parameter optimizer, or model provider;
+- production backtest orchestration, parameter optimization, statistically useful research inputs, or a model provider; the bounded kernel path uses only deterministic synthetic evidence;
 - multi-agent orchestration or autonomous expansion of scope/risk;
 - login, paid plans, team RBAC, cloud deployment, or production SLOs;
 - financial advice or claims of likely future profitability.

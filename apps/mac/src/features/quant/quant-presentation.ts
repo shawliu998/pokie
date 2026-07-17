@@ -54,7 +54,7 @@ const stateCopy: Record<QuantRunState, [string, QuantTone, string, string]> = {
   queued: ['Queued', 'info', 'Waiting for deterministic execution', 'Execution can begin only after the required approval record exists.'],
   loading_data: ['Loading data', 'info', 'Loading the approved dataset', 'The pinned fixture snapshot is being verified.'],
   generating_candidates: ['Generating candidates', 'info', 'Generating bounded candidates', 'Candidate count cannot exceed the approved experiment limit.'],
-  running_experiments: ['Running experiments', 'info', 'Recording fixture experiments', 'Persisted experiment counters are shown without inferred progress.'],
+  running_experiments: ['Ready to run', 'info', 'Approved synthetic Agent is ready', 'Start the bounded deterministic run; all outputs remain synthetic and API-owned.'],
   repairing: ['Repairing', 'warning', 'Repairing a candidate-scoped failure', 'A recoverable candidate issue does not mean the run failed.'],
   validating: ['Validating', 'info', 'Validating robustness', 'The validator is assigning candidate verdicts independently from run health.'],
   generating_report: ['Generating report', 'info', 'Generating the Research Report', 'Persisted results and limitations are being assembled.'],
@@ -101,6 +101,7 @@ const verdictCopy: Record<CandidateVerdict, [string, QuantTone]> = {
 
 const commandLabels: Partial<Record<QuantCommand, string>> = {
   approve_plan: 'Approve Plan',
+  run_fixture: 'Run Synthetic Agent',
   request_plan_changes: 'Request Changes',
   approve_execution: 'Approve Once',
   cancel_run: 'Cancel Run',

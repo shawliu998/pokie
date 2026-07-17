@@ -5,7 +5,7 @@ import type { QuantApi } from '../../quant-api';
 import type { QuantCommand, QuantNavDestination, QuantWorkspaceSnapshot } from '../../quant-domain';
 import { quantAuthenticityLabel } from '../../quant-domain';
 import { useCompactLayout } from '../../hooks/useCompactLayout';
-import { QuantActionCenter, QuantActivityFeed, QuantArtifactCards } from './QuantActivity';
+import { QuantActionCenter, QuantActivityFeed, QuantArtifactCards, QuantKernelCheckCard } from './QuantActivity';
 import { QuantGoalComposer } from './QuantGoalComposer';
 import { QuantInspector, type QuantInspectTarget } from './QuantInspector';
 import { QuantMarketWorkspace } from './QuantMarketWorkspace';
@@ -30,7 +30,21 @@ function QuantToolbar({ snapshot, onDestination, onInspect }: { snapshot: QuantW
 }
 
 function ProjectHeader({ snapshot, presentation }: { snapshot: QuantWorkspaceSnapshot; presentation: ReturnType<typeof presentQuantWorkspace> }) {
-  return <header className="quant-project-header"><div><p className="quant-eyebrow">Project · Run {String(snapshot.run.attemptNumber).padStart(2, '0')}</p><h1>{snapshot.project.goal}</h1><div><Status tone={presentation.statusTone}>{presentation.statusLabel}</Status><Badge tone="neutral">Auto Research</Badge><Badge tone="warning">{quantAuthenticityLabel(snapshot.authenticity)}</Badge></div></div><dl><div><dt>Approved scope</dt><dd>{snapshot.scope.symbol} · {snapshot.scope.interval} · {snapshot.scope.dateRange.start} – {snapshot.scope.dateRange.end}</dd></div><div><dt>Result</dt><dd>1 candidate retained · 1 rejected · 1 inconclusive</dd></div></dl></header>;
+  const retainedCount = snapshot.candidates.filter((candidate) => candidate.verdict === 'promising').length;
+  const rejectedCount = snapshot.candidates.filter((candidate) => candidate.verdict === 'rejected').length;
+  const inconclusiveCount = snapshot.candidates.filter((candidate) => candidate.verdict === 'inconclusive').length;
+  const result = snapshot.run.state === 'completed'
+    ? retainedCount === 0
+      ? 'No candidate passed validation · run completed normally'
+      : `${retainedCount} candidate retained · ${rejectedCount} rejected · ${inconclusiveCount} inconclusive`
+    : snapshot.run.state === 'waiting_for_review'
+      ? 'Agent output ready for human review'
+      : snapshot.run.state === 'failed'
+        ? 'Stopped safely · retained diagnostics available'
+        : snapshot.run.state === 'cancelled'
+          ? 'Cancelled · no later Agent output accepted'
+          : 'Pending synthetic Agent execution';
+  return <header className="quant-project-header"><div><p className="quant-eyebrow">Project · Run {String(snapshot.run.attemptNumber).padStart(2, '0')}</p><h1>{snapshot.project.goal}</h1><div><Status tone={presentation.statusTone}>{presentation.statusLabel}</Status><Badge tone="neutral">Auto Research</Badge><Badge tone="warning">{quantAuthenticityLabel(snapshot.authenticity)}</Badge></div></div><dl><div><dt>Approved scope</dt><dd>{snapshot.scope.symbol} · {snapshot.scope.interval} · {snapshot.scope.dateRange.start} – {snapshot.scope.dateRange.end}</dd></div><div><dt>Result</dt><dd>{result}</dd></div></dl></header>;
 }
 
 function OverviewPage({ destination, snapshot, onOpenWorkspace, onInspect, onComposer }: {
@@ -41,7 +55,7 @@ function OverviewPage({ destination, snapshot, onOpenWorkspace, onInspect, onCom
   onComposer: (command: QuantCommand, payload: Record<string, unknown>) => void;
 }) {
   if (destination === 'new_research') return <div className="quant-page quant-new-page"><div className="quant-page-title"><p className="quant-eyebrow">New Research</p><h1>Start from a bounded market question</h1><p>Choose Ask for a read-only fixture explanation or Plan for a reviewable scope. Auto Research stays unavailable until the API reports plan approval.</p></div><QuantGoalComposer snapshot={snapshot} large onSubmit={onComposer} /></div>;
-  if (destination === 'runs') return <div className="quant-page"><div className="quant-page-title"><p className="quant-eyebrow">Runs</p><h1>Research attempts</h1><p>Retry creates a new attempt; prior events, verdicts, and artifacts remain immutable.</p></div><button className="quant-run-card" onClick={onOpenWorkspace}><div><strong>{snapshot.project.title}</strong><span>Attempt {snapshot.run.attemptNumber} · {snapshot.run.mode.replace('_', ' ')}</span></div><Status tone="positive">Completed</Status><dl><div><dt>Experiments</dt><dd>{snapshot.run.usedExperiments} recorded</dd></div><div><dt>Repairs</dt><dd>{snapshot.run.usedRepairAttempts} recorded</dd></div><div><dt>Conclusion</dt><dd>Mixed candidate verdicts</dd></div></dl></button></div>;
+  if (destination === 'runs') { const runPresentation = presentQuantWorkspace(snapshot); const hasRetainedCandidate = snapshot.candidates.some((candidate) => candidate.verdict === 'promising'); return <div className="quant-page"><div className="quant-page-title"><p className="quant-eyebrow">Runs</p><h1>Research attempts</h1><p>Retry creates a new attempt; prior events, verdicts, and artifacts remain immutable.</p></div><button className="quant-run-card" onClick={onOpenWorkspace}><div><strong>{snapshot.project.title}</strong><span>Attempt {snapshot.run.attemptNumber} · {snapshot.run.mode.replace('_', ' ')}</span></div><Status tone={runPresentation.statusTone}>{runPresentation.statusLabel}</Status><dl><div><dt>Experiments</dt><dd>{snapshot.run.usedExperiments} recorded</dd></div><div><dt>Repairs</dt><dd>{snapshot.run.usedRepairAttempts} recorded</dd></div><div><dt>Conclusion</dt><dd>{snapshot.run.state === 'completed' ? hasRetainedCandidate ? 'Mixed candidate verdicts' : 'No candidate passed validation' : 'Pending Agent result'}</dd></div></dl></button></div>; }
   if (destination === 'data') return <div className="quant-page"><div className="quant-page-title"><p className="quant-eyebrow">Data</p><h1>Immutable datasets</h1><p>Phase 0 exposes only named fixtures. No live connection control is available.</p></div><article className="quant-data-card"><header><div><p className="quant-eyebrow">Dataset Snapshot</p><h2>{snapshot.dataset.name}</h2></div><Badge tone="warning">{quantAuthenticityLabel(snapshot.dataset.authenticity)}</Badge></header><dl><div><dt>Symbol / interval</dt><dd>{snapshot.dataset.symbol} · {snapshot.dataset.interval}</dd></div><div><dt>Date range</dt><dd>{snapshot.dataset.dateRange.start} – {snapshot.dataset.dateRange.end}</dd></div><div><dt>Bar count</dt><dd>{snapshot.dataset.barCount.toLocaleString()}</dd></div><div><dt>Schema</dt><dd>{snapshot.dataset.schemaVersion}</dd></div></dl><Button onClick={() => onInspect({ kind: 'dataset' })}>Inspect provenance</Button></article></div>;
   return <div className="quant-page"><div className="quant-page-title"><p className="quant-eyebrow">Settings</p><h1>Runtime and policy</h1><p>These are truthful, read-only capabilities for the deterministic Phase 0 fixture.</p></div><div className="quant-policy-grid"><article><span>Runtime</span><strong>{snapshot.runtimeLabel}</strong><small>Named fixture projection</small></article><article><span>Market network</span><strong>Disabled</strong><small>No live or historical provider retrieval</small></article><article><span>Arbitrary Python</span><strong>Disabled</strong><small>No code execution in this shell</small></article><article><span>Paper trading</span><strong>Disabled</strong><small>No broker connection or order action</small></article><article><span>Model</span><strong>{snapshot.modelLabel}</strong><small>No tokens or provider cost displayed</small></article></div></div>;
 }
@@ -54,14 +68,26 @@ function QuantWorkspaceView({ api, snapshot, onRefresh }: { api: QuantApi; snaps
   const [selectedCandidateId, setSelectedCandidateId] = useState('candidate-b');
   const [inspectorTarget, setInspectorTarget] = useState<QuantInspectTarget | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [commandPending, setCommandPending] = useState(false);
   const inspectorInvoker = useRef<HTMLElement | null>(null);
 
   const openInspector = (target: QuantInspectTarget) => { inspectorInvoker.current = document.activeElement as HTMLElement | null; setInspectorTarget(target); };
   const closeInspector = () => { setInspectorTarget(null); requestAnimationFrame(() => inspectorInvoker.current?.focus()); };
   const command = async (kind: QuantCommand, payload?: Record<string, unknown>) => {
-    const receipt = await api.sendCommand({ command: kind, expectedVersion: snapshot.run.rowVersion, idempotencyKey: idempotencyKey(kind), payload: { runId: snapshot.run.id, ...payload } });
-    setNotice(receipt.message);
-    if (receipt.status !== 'rejected') await onRefresh();
+    if (commandPending) return;
+    setCommandPending(true);
+    try {
+      const receipt = await api.sendCommand({ command: kind, expectedVersion: snapshot.run.rowVersion, idempotencyKey: idempotencyKey(kind), payload: { runId: snapshot.run.id, ...payload } });
+      setNotice(receipt.message);
+      if (receipt.status !== 'rejected') {
+        await onRefresh();
+        if (kind !== 'ask') setDestination('projects');
+      }
+    } catch (reason) {
+      setNotice(reason instanceof Error ? reason.message : 'The Agent command could not be completed.');
+    } finally {
+      setCommandPending(false);
+    }
   };
   const act = (action: QuantActionPresentation) => {
     if (action.kind === 'open_report') openInspector({ kind: 'report' });
@@ -70,7 +96,7 @@ function QuantWorkspaceView({ api, snapshot, onRefresh }: { api: QuantApi; snaps
     else void command(action.kind);
   };
 
-  const activityCanvas = <div className="quant-activity-pane"><QuantActionCenter presentation={presentation} onAction={act} /><QuantActivityFeed snapshot={snapshot} presentation={presentation} onInspect={(event) => openInspector({ kind: 'event', event })} /><QuantArtifactCards artifacts={presentation.primaryArtifacts} onInspect={(artifact) => openInspector({ kind: 'artifact', artifact })} /></div>;
+  const activityCanvas = <div className="quant-activity-pane"><QuantActionCenter presentation={presentation} onAction={act} /><QuantKernelCheckCard snapshot={snapshot} /><QuantActivityFeed snapshot={snapshot} presentation={presentation} onInspect={(event) => openInspector({ kind: 'event', event })} /><QuantArtifactCards artifacts={presentation.primaryArtifacts} onInspect={(artifact) => openInspector({ kind: 'artifact', artifact })} /></div>;
   const market = <QuantMarketWorkspace snapshot={snapshot} onInspect={openInspector} />;
   const report = <QuantStrategyReport snapshot={snapshot} candidates={presentation.candidates} selectedCandidateId={selectedCandidateId} onSelectCandidate={(id) => { setSelectedCandidateId(id); const candidate = snapshot.candidates.find((item) => item.id === id); if (candidate && compact) openInspector({ kind: 'candidate', candidate }); }} />;
 

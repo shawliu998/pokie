@@ -3,155 +3,227 @@
     "artifacts": [
       {
         "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-dataset-a120",
+        "digest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
         "id": "fixture-dataset",
         "origin": "Server fixture repository",
-        "relatedLabel": "SPY · 1D",
+        "relatedLabel": "SPY · 1D · synthetic weekdays",
         "status": "ready",
-        "summary": "Bounded synthetic OHLCV demonstration values.",
+        "summary": "1,564 deterministic weekday OHLCV rows used by the pure research kernel.",
         "title": "SPY Daily Synthetic Snapshot",
         "type": "dataset_snapshot"
-      },
-      {
-        "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-validation-5b20",
-        "id": "fixture-validation",
-        "origin": "Deterministic validator fixture",
-        "relatedLabel": "3 candidates",
-        "status": "ready",
-        "summary": "Candidate-scoped fixture verdicts.",
-        "title": "Synthetic Robustness Validation",
-        "type": "validation_report"
-      },
-      {
-        "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-report-4e91",
-        "id": "fixture-report",
-        "origin": "Server fixture projection",
-        "relatedLabel": "Attempt 1",
-        "status": "ready",
-        "summary": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
-        "title": "SPY Synthetic Research Report",
-        "type": "research_report"
       }
     ],
     "authenticity": "synthetic_fixture",
     "bars": [
       {
-        "close": 103,
+        "close": 100.036,
         "date": "2018-01-02",
-        "high": 104,
-        "low": 98,
-        "open": 100,
-        "volume": 1000
+        "high": 100.28609,
+        "low": 99.65025,
+        "open": 99.9,
+        "volume": 1000000
       },
       {
-        "close": 108,
-        "date": "2019-01-02",
-        "high": 110,
-        "low": 101,
-        "marker": "entry",
-        "open": 103,
-        "volume": 1200
+        "close": 113.045878,
+        "date": "2018-04-06",
+        "high": 113.498062,
+        "low": 112.496898,
+        "open": 112.948693,
+        "volume": 1374000
       },
       {
-        "close": 101,
-        "date": "2020-01-02",
-        "high": 112,
-        "low": 99,
-        "marker": "policy",
-        "open": 108,
-        "volume": 1400
+        "close": 106.463881,
+        "date": "2018-07-11",
+        "high": 106.888773,
+        "low": 106.064641,
+        "open": 106.489438,
+        "volume": 1357000
       },
       {
-        "close": 116,
-        "date": "2021-01-04",
-        "high": 118,
-        "low": 100,
-        "marker": "exit",
-        "open": 101,
-        "volume": 1300
+        "close": 117.249892,
+        "date": "2018-10-15",
+        "high": 117.676733,
+        "low": 116.839517,
+        "open": 117.266301,
+        "volume": 1340000
+      },
+      {
+        "close": 125.292744,
+        "date": "2019-01-17",
+        "high": 126.323359,
+        "low": 124.885543,
+        "open": 125.914138,
+        "volume": 1323000
+      },
+      {
+        "close": 123.003465,
+        "date": "2019-04-23",
+        "high": 123.372475,
+        "low": 122.571896,
+        "open": 122.940718,
+        "volume": 1306000
+      },
+      {
+        "close": 137.426946,
+        "date": "2019-07-26",
+        "high": 137.80487,
+        "low": 136.965452,
+        "open": 137.343146,
+        "volume": 1289000
+      },
+      {
+        "close": 132.449415,
+        "date": "2019-10-30",
+        "high": 133.339089,
+        "low": 132.118291,
+        "open": 133.006573,
+        "volume": 1272000
+      },
+      {
+        "close": 130.591656,
+        "date": "2020-02-03",
+        "high": 131.625662,
+        "low": 130.069289,
+        "open": 131.101257,
+        "volume": 1255000
+      },
+      {
+        "close": 118.607434,
+        "date": "2020-05-07",
+        "high": 119.052212,
+        "low": 117.649193,
+        "open": 118.092038,
+        "volume": 1238000
+      },
+      {
+        "close": 136.636854,
+        "date": "2020-08-11",
+        "high": 137.115083,
+        "low": 135.71597,
+        "open": 136.192644,
+        "volume": 1221000
+      },
+      {
+        "close": 184.864848,
+        "date": "2020-11-13",
+        "high": 185.465659,
+        "low": 183.646983,
+        "open": 184.245782,
+        "volume": 1204000
+      },
+      {
+        "close": 201.461413,
+        "date": "2021-02-16",
+        "high": 202.403197,
+        "low": 200.705933,
+        "open": 201.647021,
+        "volume": 1170000
+      },
+      {
+        "close": 199.988123,
+        "date": "2021-05-21",
+        "high": 200.688081,
+        "low": 198.834821,
+        "open": 199.533187,
+        "volume": 1153000
+      },
+      {
+        "close": 223.840853,
+        "date": "2021-08-25",
+        "high": 224.568336,
+        "low": 222.583886,
+        "open": 223.309642,
+        "volume": 1136000
+      },
+      {
+        "close": 212.968556,
+        "date": "2021-11-29",
+        "high": 214.125126,
+        "low": 212.32965,
+        "open": 213.484672,
+        "volume": 1119000
+      },
+      {
+        "close": 195.645973,
+        "date": "2022-03-03",
+        "high": 196.354956,
+        "low": 195.107947,
+        "open": 195.816461,
+        "volume": 1102000
+      },
+      {
+        "close": 211.658051,
+        "date": "2022-06-07",
+        "high": 212.187196,
+        "low": 209.883982,
+        "open": 210.410007,
+        "volume": 1085000
+      },
+      {
+        "close": 240.113648,
+        "date": "2022-09-09",
+        "high": 241.074103,
+        "low": 238.003922,
+        "open": 238.959761,
+        "volume": 1068000
+      },
+      {
+        "close": 321.07026,
+        "date": "2022-12-14",
+        "high": 322.274273,
+        "low": 318.298213,
+        "open": 319.496324,
+        "volume": 1051000
+      },
+      {
+        "close": 340.438969,
+        "date": "2023-03-20",
+        "high": 341.774195,
+        "low": 339.247433,
+        "open": 340.582157,
+        "volume": 1034000
+      },
+      {
+        "close": 342.99034,
+        "date": "2023-06-22",
+        "high": 344.105059,
+        "low": 340.927369,
+        "open": 342.038996,
+        "volume": 1017000
+      },
+      {
+        "close": 384.820385,
+        "date": "2023-09-26",
+        "high": 385.974846,
+        "low": 382.564139,
+        "open": 383.715285,
+        "volume": 1000000
+      },
+      {
+        "close": 365.251821,
+        "date": "2023-12-29",
+        "high": 366.256264,
+        "low": 363.600492,
+        "open": 364.603151,
+        "volume": 1374000
       }
     ],
-    "benchmark": {
-      "annualizedReturn": 10.8,
-      "maxDrawdown": -33.7,
-      "sharpe": 0.72,
-      "trades": 1
-    },
-    "candidates": [
-      {
-        "id": "candidate-a",
-        "metrics": {
-          "annualizedReturn": 9.6,
-          "maxDrawdown": -24.8,
-          "sharpe": 0.83,
-          "trades": 38
-        },
-        "name": "Candidate A · SMA 20/100",
-        "parameters": "fast=20 · slow=100",
-        "robustness": [
-          "Fails adjacent-window sensitivity check",
-          "Synthetic values only"
-        ],
-        "strategySpec": "family: sma_cross\nfast_window: 20\nslow_window: 100\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
-        "verdict": "rejected",
-        "verdictReason": "Parameter sensitivity"
-      },
-      {
-        "id": "candidate-b",
-        "metrics": {
-          "annualizedReturn": 8.9,
-          "maxDrawdown": -18.7,
-          "sharpe": 0.88,
-          "trades": 18
-        },
-        "name": "Candidate B · SMA 50/200",
-        "parameters": "fast=50 · slow=200",
-        "robustness": [
-          "One candidate-scoped repair retained",
-          "Synthetic values only"
-        ],
-        "strategySpec": "family: sma_cross\nfast_window: 50\nslow_window: 200\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
-        "verdict": "promising",
-        "verdictReason": "Candidate for paper evaluation"
-      },
-      {
-        "id": "candidate-c",
-        "metrics": {
-          "annualizedReturn": 9.3,
-          "maxDrawdown": -21.4,
-          "sharpe": 0.86,
-          "trades": 12
-        },
-        "name": "Candidate C · 200-day trend filter",
-        "parameters": "window=200",
-        "robustness": [
-          "Insufficient independent periods",
-          "Synthetic values only"
-        ],
-        "strategySpec": "family: trend_filter\nwindow: 200\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
-        "verdict": "inconclusive",
-        "verdictReason": "Too few independent trade periods"
-      }
-    ],
+    "benchmark": null,
+    "candidates": [],
     "composerLegalCommands": [],
     "dataset": {
       "authenticity": "synthetic_fixture",
-      "barCount": 4,
+      "barCount": 1564,
       "dateRange": {
         "end": "2023-12-29",
         "start": "2018-01-02"
       },
-      "digest": "sha256:fixture-dataset-a120",
-      "id": "fixture-spy-daily-v1",
+      "digest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
+      "id": "spy-daily-weekday-synthetic-v2",
       "interval": "1D",
-      "name": "SPY Daily Synthetic Fixture 2018–2023",
-      "parserVersion": "fixture-parser-v1",
-      "schemaVersion": "market-bars-fixture-v1",
+      "name": "SPY Daily Synthetic Weekday Fixture · 2018–2023",
+      "parserVersion": "deterministic-weekday-generator-v2",
+      "schemaVersion": "quant-daily-bars-v1",
       "symbol": "SPY"
     },
     "events": [
@@ -174,52 +246,29 @@
       {
         "actor": "system",
         "id": "fixture-event-3",
-        "safeSummary": "Candidate B fixture experiment stopped safely; the run did not fail.",
+        "safeSummary": "The fixture run was cancelled.",
         "sequence": 3,
         "timestamp": "2026-07-17T02:21:00Z",
-        "type": "backtest.failed"
-      },
-      {
-        "actor": "system",
-        "id": "fixture-event-4",
-        "safeSummary": "Candidate B fixture repair completed within the approved limit.",
-        "sequence": 4,
-        "timestamp": "2026-07-17T02:22:00Z",
-        "type": "repair.completed"
-      },
-      {
-        "actor": "validator",
-        "id": "fixture-event-5",
-        "safeSummary": "Candidate A rejected; candidate verdict is independent of run health.",
-        "sequence": 5,
-        "timestamp": "2026-07-17T02:23:00Z",
-        "type": "candidate.rejected"
-      },
-      {
-        "actor": "validator",
-        "id": "fixture-event-6",
-        "safeSummary": "Synthetic robustness validation completed.",
-        "sequence": 6,
-        "timestamp": "2026-07-17T02:24:00Z",
-        "type": "validation.completed"
-      },
-      {
-        "actor": "agent",
-        "id": "fixture-event-7",
-        "safeSummary": "Research Report generated from persisted synthetic fixture records.",
-        "sequence": 7,
-        "timestamp": "2026-07-17T02:25:00Z",
-        "type": "report.generated"
-      },
-      {
-        "actor": "system",
-        "id": "fixture-event-8",
-        "safeSummary": "The fixture run was cancelled.",
-        "sequence": 8,
-        "timestamp": "2026-07-17T02:26:00Z",
         "type": "run.cancelled"
       }
     ],
+    "kernelCheck": {
+      "barCount": 1564,
+      "benchmark": null,
+      "datasetDigest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
+      "datasetId": "spy-daily-weekday-synthetic-v2",
+      "engineVersion": "daily-bar-kernel-v1",
+      "execution": "signal_at_close_fill_next_open",
+      "feeRateBps": 10,
+      "limitations": [
+        "1,564 deterministic synthetic weekday bars are not market observations.",
+        "Results are not computed until an approved Agent run starts.",
+        "No network, broker, model, or arbitrary code execution is available."
+      ],
+      "slippageRateBps": 5,
+      "status": "available",
+      "strategies": []
+    },
     "limits": {
       "arbitraryPython": false,
       "internetAccess": false,
@@ -341,27 +390,13 @@
         "updatedAt": "2026-07-17T02:24:00Z"
       }
     ],
-    "report": {
-      "conclusion": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
-      "disclaimer": "Demonstration results are synthetic and are not investment advice, a recommendation, or evidence of future performance.",
-      "generationMethod": "Server-owned deterministic fixture projection",
-      "humanReviewStatus": "Fixture review record",
-      "id": "fixture-report",
-      "limitations": [
-        "All values are synthetic demonstration fixtures.",
-        "No real backtest or market-data retrieval occurred.",
-        "This is not investment advice."
-      ],
-      "proposedNextStep": "Review limitations; no broker or paper-trading action is available.",
-      "title": "SPY Synthetic Research Report",
-      "validatorVersion": "validator-fixture-v1"
-    },
+    "report": null,
     "run": {
       "attemptNumber": 1,
       "completedAt": "2026-07-17T02:24:00Z",
       "currentStepId": "experiments",
       "id": "55555555-5555-4555-8555-555555555502",
-      "latestSequence": 8,
+      "latestSequence": 3,
       "legalCommands": [
         "retry_run"
       ],
@@ -370,15 +405,15 @@
       "startedAt": "2026-07-17T02:18:00Z",
       "state": "cancelled",
       "traceRef": "fixture-trace-spy-01",
-      "usedExperiments": 3,
-      "usedRepairAttempts": 1
+      "usedExperiments": 0,
+      "usedRepairAttempts": 0
     },
     "runtimeLabel": "Deterministic fixture",
     "scope": {
       "assumptions": [
-        "Synthetic demonstration values",
-        "No network retrieval",
-        "No executable strategy code"
+        "1,564 generated synthetic weekday bars; no exchange calendar",
+        "10 bps fee and 5 bps slippage per fill",
+        "No network retrieval; only fixed typed strategy specifications"
       ],
       "benchmark": "SPY Buy and Hold",
       "dateRange": {
@@ -390,17 +425,7 @@
       "symbol": "SPY",
       "version": 1
     },
-    "trades": [
-      {
-        "candidateId": "candidate-b",
-        "entryDate": "2019-01-02",
-        "exitDate": "2021-01-04",
-        "holdingDays": 733,
-        "id": "fixture-trade-1",
-        "reason": "Synthetic fixture crossover record",
-        "returnPct": 7.4
-      }
-    ],
+    "trades": [],
     "version": "Phase 0 · server-fixture-v1",
     "workspaceName": "PokieQuant Research"
   },
@@ -408,34 +433,34 @@
     "artifacts": [
       {
         "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-dataset-a120",
+        "digest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
         "id": "fixture-dataset",
         "origin": "Server fixture repository",
-        "relatedLabel": "SPY · 1D",
+        "relatedLabel": "SPY · 1D · synthetic weekdays",
         "status": "ready",
-        "summary": "Bounded synthetic OHLCV demonstration values.",
+        "summary": "1,564 deterministic weekday OHLCV rows used by the pure research kernel.",
         "title": "SPY Daily Synthetic Snapshot",
         "type": "dataset_snapshot"
       },
       {
         "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-validation-5b20",
+        "digest": "sha256:6bfedffda38da79ed721f89387021bb6aac6c62e6b7b735423711d82a3e6f6fd",
         "id": "fixture-validation",
-        "origin": "Deterministic validator fixture",
-        "relatedLabel": "3 candidates",
+        "origin": "Computed by daily-bar-kernel-v1 from a digest-pinned synthetic dataset",
+        "relatedLabel": "3 computed candidates",
         "status": "ready",
-        "summary": "Candidate-scoped fixture verdicts.",
+        "summary": "Computed candidate metrics with fixed sensitivity and trade-count rules.",
         "title": "Synthetic Robustness Validation",
         "type": "validation_report"
       },
       {
         "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-report-4e91",
+        "digest": "sha256:bad516741b0db4f3d0b84bba2cc656c75ab6c0481c859568173dfe56c7be0a55",
         "id": "fixture-report",
-        "origin": "Server fixture projection",
+        "origin": "Computed by daily-bar-kernel-v1 from a digest-pinned synthetic dataset",
         "relatedLabel": "Attempt 1",
         "status": "reviewed",
-        "summary": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
+        "summary": "Candidate B passes the configured synthetic validation; Candidate A is rejected for sensitivity and Candidate C is inconclusive because it has too few closed trades.",
         "title": "SPY Synthetic Research Report",
         "type": "research_report"
       }
@@ -443,120 +468,316 @@
     "authenticity": "synthetic_fixture",
     "bars": [
       {
-        "close": 103,
+        "close": 100.036,
         "date": "2018-01-02",
-        "high": 104,
-        "low": 98,
-        "open": 100,
-        "volume": 1000
+        "high": 100.28609,
+        "low": 99.65025,
+        "open": 99.9,
+        "volume": 1000000
       },
       {
-        "close": 108,
-        "date": "2019-01-02",
-        "high": 110,
-        "low": 101,
+        "close": 113.045878,
+        "date": "2018-04-06",
+        "high": 113.498062,
+        "low": 112.496898,
+        "open": 112.948693,
+        "volume": 1374000
+      },
+      {
+        "close": 106.463881,
+        "date": "2018-07-11",
+        "high": 106.888773,
+        "low": 106.064641,
+        "open": 106.489438,
+        "volume": 1357000
+      },
+      {
+        "close": 116.388768,
+        "date": "2018-10-09",
+        "high": 116.737934,
+        "low": 116.009469,
         "marker": "entry",
-        "open": 103,
-        "volume": 1200
+        "open": 116.358545,
+        "volume": 1272000
       },
       {
-        "close": 101,
-        "date": "2020-01-02",
-        "high": 112,
-        "low": 99,
-        "marker": "policy",
-        "open": 108,
-        "volume": 1400
+        "close": 117.249892,
+        "date": "2018-10-15",
+        "high": 117.676733,
+        "low": 116.839517,
+        "open": 117.266301,
+        "volume": 1340000
       },
       {
-        "close": 116,
-        "date": "2021-01-04",
-        "high": 118,
-        "low": 100,
+        "close": 125.292744,
+        "date": "2019-01-17",
+        "high": 126.323359,
+        "low": 124.885543,
+        "open": 125.914138,
+        "volume": 1323000
+      },
+      {
+        "close": 123.003465,
+        "date": "2019-04-23",
+        "high": 123.372475,
+        "low": 122.571896,
+        "open": 122.940718,
+        "volume": 1306000
+      },
+      {
+        "close": 137.426946,
+        "date": "2019-07-26",
+        "high": 137.80487,
+        "low": 136.965452,
+        "open": 137.343146,
+        "volume": 1289000
+      },
+      {
+        "close": 132.449415,
+        "date": "2019-10-30",
+        "high": 133.339089,
+        "low": 132.118291,
+        "open": 133.006573,
+        "volume": 1272000
+      },
+      {
+        "close": 130.591656,
+        "date": "2020-02-03",
+        "high": 131.625662,
+        "low": 130.069289,
+        "open": 131.101257,
+        "volume": 1255000
+      },
+      {
+        "close": 129.983799,
+        "date": "2020-02-05",
+        "high": 130.643037,
+        "low": 129.65884,
         "marker": "exit",
-        "open": 101,
-        "volume": 1300
+        "open": 130.317244,
+        "volume": 1289000
+      },
+      {
+        "close": 118.607434,
+        "date": "2020-05-07",
+        "high": 119.052212,
+        "low": 117.649193,
+        "open": 118.092038,
+        "volume": 1238000
+      },
+      {
+        "close": 136.636854,
+        "date": "2020-08-11",
+        "high": 137.115083,
+        "low": 135.71597,
+        "open": 136.192644,
+        "volume": 1221000
+      },
+      {
+        "close": 138.89695,
+        "date": "2020-08-17",
+        "high": 139.452538,
+        "low": 137.526391,
+        "marker": "entry",
+        "open": 138.078706,
+        "volume": 1289000
+      },
+      {
+        "close": 184.864848,
+        "date": "2020-11-13",
+        "high": 185.465659,
+        "low": 183.646983,
+        "open": 184.245782,
+        "volume": 1204000
+      },
+      {
+        "close": 201.461413,
+        "date": "2021-02-16",
+        "high": 202.403197,
+        "low": 200.705933,
+        "open": 201.647021,
+        "volume": 1170000
+      },
+      {
+        "close": 199.988123,
+        "date": "2021-05-21",
+        "high": 200.688081,
+        "low": 198.834821,
+        "open": 199.533187,
+        "volume": 1153000
+      },
+      {
+        "close": 223.840853,
+        "date": "2021-08-25",
+        "high": 224.568336,
+        "low": 222.583886,
+        "open": 223.309642,
+        "volume": 1136000
+      },
+      {
+        "close": 212.968556,
+        "date": "2021-11-29",
+        "high": 214.125126,
+        "low": 212.32965,
+        "open": 213.484672,
+        "volume": 1119000
+      },
+      {
+        "close": 209.39494,
+        "date": "2022-02-01",
+        "high": 210.466758,
+        "low": 208.662058,
+        "marker": "exit",
+        "open": 209.732694,
+        "volume": 1119000
+      },
+      {
+        "close": 195.645973,
+        "date": "2022-03-03",
+        "high": 196.354956,
+        "low": 195.107947,
+        "open": 195.816461,
+        "volume": 1102000
+      },
+      {
+        "close": 211.658051,
+        "date": "2022-06-07",
+        "high": 212.187196,
+        "low": 209.883982,
+        "open": 210.410007,
+        "volume": 1085000
+      },
+      {
+        "close": 240.113648,
+        "date": "2022-09-09",
+        "high": 241.074103,
+        "low": 238.003922,
+        "open": 238.959761,
+        "volume": 1068000
+      },
+      {
+        "close": 321.07026,
+        "date": "2022-12-14",
+        "high": 322.274273,
+        "low": 318.298213,
+        "open": 319.496324,
+        "volume": 1051000
+      },
+      {
+        "close": 340.438969,
+        "date": "2023-03-20",
+        "high": 341.774195,
+        "low": 339.247433,
+        "open": 340.582157,
+        "volume": 1034000
+      },
+      {
+        "close": 342.99034,
+        "date": "2023-06-22",
+        "high": 344.105059,
+        "low": 340.927369,
+        "open": 342.038996,
+        "volume": 1017000
+      },
+      {
+        "close": 384.820385,
+        "date": "2023-09-26",
+        "high": 385.974846,
+        "low": 382.564139,
+        "open": 383.715285,
+        "volume": 1000000
+      },
+      {
+        "close": 365.251821,
+        "date": "2023-12-29",
+        "high": 366.256264,
+        "low": 363.600492,
+        "open": 364.603151,
+        "volume": 1374000
       }
     ],
     "benchmark": {
-      "annualizedReturn": 10.8,
-      "maxDrawdown": -33.7,
-      "sharpe": 0.72,
+      "annualizedReturn": 23.2,
+      "maxDrawdown": -23.8,
+      "sharpe": 5.3,
       "trades": 1
     },
     "candidates": [
       {
         "id": "candidate-a",
         "metrics": {
-          "annualizedReturn": 9.6,
-          "maxDrawdown": -24.8,
-          "sharpe": 0.83,
-          "trades": 38
+          "annualizedReturn": 20.6,
+          "maxDrawdown": -8.8,
+          "sharpe": 5.78,
+          "trades": 7
         },
         "name": "Candidate A · SMA 20/100",
         "parameters": "fast=20 · slow=100",
         "robustness": [
-          "Fails adjacent-window sensitivity check",
-          "Synthetic values only"
+          "10/80 versus 30/120 annualized-return range: 6.33 pp",
+          "Rejected by the configured >5 pp sensitivity rule",
+          "Metrics computed by the pure daily-bar kernel"
         ],
-        "strategySpec": "family: sma_cross\nfast_window: 20\nslow_window: 100\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
+        "strategySpec": "family: sma\nfast_period: 20\nslow_period: 100\nposition: long_or_cash",
+        "strategySpecVersion": "daily-bar-kernel-v1",
         "verdict": "rejected",
-        "verdictReason": "Parameter sensitivity"
+        "verdictReason": "Parameter sensitivity · 6.33 pp range"
       },
       {
         "id": "candidate-b",
         "metrics": {
-          "annualizedReturn": 8.9,
-          "maxDrawdown": -18.7,
-          "sharpe": 0.88,
-          "trades": 18
+          "annualizedReturn": 18.4,
+          "maxDrawdown": -11.1,
+          "sharpe": 5.07,
+          "trades": 2
         },
         "name": "Candidate B · SMA 50/200",
         "parameters": "fast=50 · slow=200",
         "robustness": [
-          "One candidate-scoped repair retained",
-          "Synthetic values only"
+          "40/180 versus 60/220 annualized-return range: 3.84 pp",
+          "Passes the configured ≤5 pp sensitivity rule",
+          "Synthetic evidence only; no paper-trading action is enabled"
         ],
-        "strategySpec": "family: sma_cross\nfast_window: 50\nslow_window: 200\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
+        "strategySpec": "family: sma\nfast_period: 50\nslow_period: 200\nposition: long_or_cash",
+        "strategySpecVersion": "daily-bar-kernel-v1",
         "verdict": "promising",
         "verdictReason": "Candidate for paper evaluation"
       },
       {
         "id": "candidate-c",
         "metrics": {
-          "annualizedReturn": 9.3,
-          "maxDrawdown": -21.4,
-          "sharpe": 0.86,
-          "trades": 12
+          "annualizedReturn": 16.3,
+          "maxDrawdown": -15.5,
+          "sharpe": 4.46,
+          "trades": 2
         },
-        "name": "Candidate C · 200-day trend filter",
-        "parameters": "window=200",
+        "name": "Candidate C · 200-day breakout",
+        "parameters": "lookback=200",
         "robustness": [
-          "Insufficient independent periods",
-          "Synthetic values only"
+          "Only 2 closed trades",
+          "Inconclusive under the configured minimum of 3",
+          "Metrics computed by the pure daily-bar kernel"
         ],
-        "strategySpec": "family: trend_filter\nwindow: 200\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
+        "strategySpec": "family: breakout\nperiod: 200\nposition: long_or_cash",
+        "strategySpecVersion": "daily-bar-kernel-v1",
         "verdict": "inconclusive",
-        "verdictReason": "Too few independent trade periods"
+        "verdictReason": "Too few closed trades"
       }
     ],
     "composerLegalCommands": [],
     "dataset": {
       "authenticity": "synthetic_fixture",
-      "barCount": 4,
+      "barCount": 1564,
       "dateRange": {
         "end": "2023-12-29",
         "start": "2018-01-02"
       },
-      "digest": "sha256:fixture-dataset-a120",
-      "id": "fixture-spy-daily-v1",
+      "digest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
+      "id": "spy-daily-weekday-synthetic-v2",
       "interval": "1D",
-      "name": "SPY Daily Synthetic Fixture 2018–2023",
-      "parserVersion": "fixture-parser-v1",
-      "schemaVersion": "market-bars-fixture-v1",
+      "name": "SPY Daily Synthetic Weekday Fixture · 2018–2023",
+      "parserVersion": "deterministic-weekday-generator-v2",
+      "schemaVersion": "quant-daily-bars-v1",
       "symbol": "SPY"
     },
     "events": [
@@ -625,6 +846,63 @@
         "type": "run.completed"
       }
     ],
+    "kernelCheck": {
+      "barCount": 1564,
+      "benchmark": {
+        "annualizedReturnPct": 23.22,
+        "finalEquity": 365069.65,
+        "id": "buy-and-hold",
+        "label": "Buy and Hold",
+        "maxDrawdownPct": -23.79,
+        "sharpe": 5.3,
+        "totalReturnPct": 265.07,
+        "tradeCount": 1
+      },
+      "datasetDigest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
+      "datasetId": "spy-daily-weekday-synthetic-v2",
+      "engineVersion": "daily-bar-kernel-v1",
+      "execution": "signal_at_close_fill_next_open",
+      "feeRateBps": 10,
+      "limitations": [
+        "1,564 deterministic synthetic weekday bars are not market observations.",
+        "Weekdays are generated without an exchange holiday calendar or corporate actions.",
+        "No network, broker, model, or arbitrary code execution is available."
+      ],
+      "slippageRateBps": 5,
+      "status": "verified",
+      "strategies": [
+        {
+          "annualizedReturnPct": 20.62,
+          "finalEquity": 319812.38,
+          "id": "candidate-a",
+          "label": "SMA 20/100",
+          "maxDrawdownPct": -8.8,
+          "sharpe": 5.78,
+          "totalReturnPct": 219.81,
+          "tradeCount": 7
+        },
+        {
+          "annualizedReturnPct": 18.38,
+          "finalEquity": 284705.02,
+          "id": "candidate-b",
+          "label": "SMA 50/200",
+          "maxDrawdownPct": -11.12,
+          "sharpe": 5.07,
+          "totalReturnPct": 184.71,
+          "tradeCount": 2
+        },
+        {
+          "annualizedReturnPct": 16.32,
+          "finalEquity": 255384.39,
+          "id": "candidate-c",
+          "label": "Breakout 200",
+          "maxDrawdownPct": -15.5,
+          "sharpe": 4.46,
+          "totalReturnPct": 155.38,
+          "tradeCount": 2
+        }
+      ]
+    },
     "limits": {
       "arbitraryPython": false,
       "internetAccess": false,
@@ -747,19 +1025,19 @@
       }
     ],
     "report": {
-      "conclusion": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
-      "disclaimer": "Demonstration results are synthetic and are not investment advice, a recommendation, or evidence of future performance.",
-      "generationMethod": "Server-owned deterministic fixture projection",
+      "conclusion": "Candidate B passes the configured synthetic validation; Candidate A is rejected for sensitivity and Candidate C is inconclusive because it has too few closed trades.",
+      "disclaimer": "Synthetic results are not investment advice, a recommendation, market evidence, or evidence of future performance.",
+      "generationMethod": "Computed by daily-bar-kernel-v1 from a digest-pinned synthetic dataset",
       "humanReviewStatus": "Fixture review record",
       "id": "fixture-report",
       "limitations": [
-        "All values are synthetic demonstration fixtures.",
-        "No real backtest or market-data retrieval occurred.",
-        "This is not investment advice."
+        "All bars and computed results are synthetic and are not market evidence.",
+        "The weekday generator omits exchange holidays, corporate actions, taxes, and liquidity constraints.",
+        "Validation thresholds are fixed demonstration policy, not an investment recommendation."
       ],
       "proposedNextStep": "Review limitations; no broker or paper-trading action is available.",
       "title": "SPY Synthetic Research Report",
-      "validatorVersion": "validator-fixture-v1"
+      "validatorVersion": "synthetic-validator-v1"
     },
     "run": {
       "attemptNumber": 1,
@@ -779,9 +1057,9 @@
     "runtimeLabel": "Deterministic fixture",
     "scope": {
       "assumptions": [
-        "Synthetic demonstration values",
-        "No network retrieval",
-        "No executable strategy code"
+        "1,564 generated synthetic weekday bars; no exchange calendar",
+        "10 bps fee and 5 bps slippage per fill",
+        "No network retrieval; only fixed typed strategy specifications"
       ],
       "benchmark": "SPY Buy and Hold",
       "dateRange": {
@@ -796,12 +1074,21 @@
     "trades": [
       {
         "candidateId": "candidate-b",
-        "entryDate": "2019-01-02",
-        "exitDate": "2021-01-04",
-        "holdingDays": 733,
-        "id": "fixture-trade-1",
-        "reason": "Synthetic fixture crossover record",
-        "returnPct": 7.4
+        "entryDate": "2018-10-09",
+        "exitDate": "2020-02-05",
+        "holdingDays": 484,
+        "id": "kernel-trade-1",
+        "reason": "SMA 50/200 signal; close observation filled at next open",
+        "returnPct": 11.66
+      },
+      {
+        "candidateId": "candidate-b",
+        "entryDate": "2020-08-17",
+        "exitDate": "2022-02-01",
+        "holdingDays": 533,
+        "id": "kernel-trade-2",
+        "reason": "SMA 50/200 signal; close observation filled at next open",
+        "returnPct": 51.44
       }
     ],
     "version": "Phase 0 · server-fixture-v1",
@@ -811,155 +1098,227 @@
     "artifacts": [
       {
         "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-dataset-a120",
+        "digest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
         "id": "fixture-dataset",
         "origin": "Server fixture repository",
-        "relatedLabel": "SPY · 1D",
+        "relatedLabel": "SPY · 1D · synthetic weekdays",
         "status": "ready",
-        "summary": "Bounded synthetic OHLCV demonstration values.",
+        "summary": "1,564 deterministic weekday OHLCV rows used by the pure research kernel.",
         "title": "SPY Daily Synthetic Snapshot",
         "type": "dataset_snapshot"
-      },
-      {
-        "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-validation-5b20",
-        "id": "fixture-validation",
-        "origin": "Deterministic validator fixture",
-        "relatedLabel": "3 candidates",
-        "status": "ready",
-        "summary": "Candidate-scoped fixture verdicts.",
-        "title": "Synthetic Robustness Validation",
-        "type": "validation_report"
-      },
-      {
-        "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-report-4e91",
-        "id": "fixture-report",
-        "origin": "Server fixture projection",
-        "relatedLabel": "Attempt 1",
-        "status": "ready",
-        "summary": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
-        "title": "SPY Synthetic Research Report",
-        "type": "research_report"
       }
     ],
     "authenticity": "synthetic_fixture",
     "bars": [
       {
-        "close": 103,
+        "close": 100.036,
         "date": "2018-01-02",
-        "high": 104,
-        "low": 98,
-        "open": 100,
-        "volume": 1000
+        "high": 100.28609,
+        "low": 99.65025,
+        "open": 99.9,
+        "volume": 1000000
       },
       {
-        "close": 108,
-        "date": "2019-01-02",
-        "high": 110,
-        "low": 101,
-        "marker": "entry",
-        "open": 103,
-        "volume": 1200
+        "close": 113.045878,
+        "date": "2018-04-06",
+        "high": 113.498062,
+        "low": 112.496898,
+        "open": 112.948693,
+        "volume": 1374000
       },
       {
-        "close": 101,
-        "date": "2020-01-02",
-        "high": 112,
-        "low": 99,
-        "marker": "policy",
-        "open": 108,
-        "volume": 1400
+        "close": 106.463881,
+        "date": "2018-07-11",
+        "high": 106.888773,
+        "low": 106.064641,
+        "open": 106.489438,
+        "volume": 1357000
       },
       {
-        "close": 116,
-        "date": "2021-01-04",
-        "high": 118,
-        "low": 100,
-        "marker": "exit",
-        "open": 101,
-        "volume": 1300
+        "close": 117.249892,
+        "date": "2018-10-15",
+        "high": 117.676733,
+        "low": 116.839517,
+        "open": 117.266301,
+        "volume": 1340000
+      },
+      {
+        "close": 125.292744,
+        "date": "2019-01-17",
+        "high": 126.323359,
+        "low": 124.885543,
+        "open": 125.914138,
+        "volume": 1323000
+      },
+      {
+        "close": 123.003465,
+        "date": "2019-04-23",
+        "high": 123.372475,
+        "low": 122.571896,
+        "open": 122.940718,
+        "volume": 1306000
+      },
+      {
+        "close": 137.426946,
+        "date": "2019-07-26",
+        "high": 137.80487,
+        "low": 136.965452,
+        "open": 137.343146,
+        "volume": 1289000
+      },
+      {
+        "close": 132.449415,
+        "date": "2019-10-30",
+        "high": 133.339089,
+        "low": 132.118291,
+        "open": 133.006573,
+        "volume": 1272000
+      },
+      {
+        "close": 130.591656,
+        "date": "2020-02-03",
+        "high": 131.625662,
+        "low": 130.069289,
+        "open": 131.101257,
+        "volume": 1255000
+      },
+      {
+        "close": 118.607434,
+        "date": "2020-05-07",
+        "high": 119.052212,
+        "low": 117.649193,
+        "open": 118.092038,
+        "volume": 1238000
+      },
+      {
+        "close": 136.636854,
+        "date": "2020-08-11",
+        "high": 137.115083,
+        "low": 135.71597,
+        "open": 136.192644,
+        "volume": 1221000
+      },
+      {
+        "close": 184.864848,
+        "date": "2020-11-13",
+        "high": 185.465659,
+        "low": 183.646983,
+        "open": 184.245782,
+        "volume": 1204000
+      },
+      {
+        "close": 201.461413,
+        "date": "2021-02-16",
+        "high": 202.403197,
+        "low": 200.705933,
+        "open": 201.647021,
+        "volume": 1170000
+      },
+      {
+        "close": 199.988123,
+        "date": "2021-05-21",
+        "high": 200.688081,
+        "low": 198.834821,
+        "open": 199.533187,
+        "volume": 1153000
+      },
+      {
+        "close": 223.840853,
+        "date": "2021-08-25",
+        "high": 224.568336,
+        "low": 222.583886,
+        "open": 223.309642,
+        "volume": 1136000
+      },
+      {
+        "close": 212.968556,
+        "date": "2021-11-29",
+        "high": 214.125126,
+        "low": 212.32965,
+        "open": 213.484672,
+        "volume": 1119000
+      },
+      {
+        "close": 195.645973,
+        "date": "2022-03-03",
+        "high": 196.354956,
+        "low": 195.107947,
+        "open": 195.816461,
+        "volume": 1102000
+      },
+      {
+        "close": 211.658051,
+        "date": "2022-06-07",
+        "high": 212.187196,
+        "low": 209.883982,
+        "open": 210.410007,
+        "volume": 1085000
+      },
+      {
+        "close": 240.113648,
+        "date": "2022-09-09",
+        "high": 241.074103,
+        "low": 238.003922,
+        "open": 238.959761,
+        "volume": 1068000
+      },
+      {
+        "close": 321.07026,
+        "date": "2022-12-14",
+        "high": 322.274273,
+        "low": 318.298213,
+        "open": 319.496324,
+        "volume": 1051000
+      },
+      {
+        "close": 340.438969,
+        "date": "2023-03-20",
+        "high": 341.774195,
+        "low": 339.247433,
+        "open": 340.582157,
+        "volume": 1034000
+      },
+      {
+        "close": 342.99034,
+        "date": "2023-06-22",
+        "high": 344.105059,
+        "low": 340.927369,
+        "open": 342.038996,
+        "volume": 1017000
+      },
+      {
+        "close": 384.820385,
+        "date": "2023-09-26",
+        "high": 385.974846,
+        "low": 382.564139,
+        "open": 383.715285,
+        "volume": 1000000
+      },
+      {
+        "close": 365.251821,
+        "date": "2023-12-29",
+        "high": 366.256264,
+        "low": 363.600492,
+        "open": 364.603151,
+        "volume": 1374000
       }
     ],
-    "benchmark": {
-      "annualizedReturn": 10.8,
-      "maxDrawdown": -33.7,
-      "sharpe": 0.72,
-      "trades": 1
-    },
-    "candidates": [
-      {
-        "id": "candidate-a",
-        "metrics": {
-          "annualizedReturn": 9.6,
-          "maxDrawdown": -24.8,
-          "sharpe": 0.83,
-          "trades": 38
-        },
-        "name": "Candidate A · SMA 20/100",
-        "parameters": "fast=20 · slow=100",
-        "robustness": [
-          "Fails adjacent-window sensitivity check",
-          "Synthetic values only"
-        ],
-        "strategySpec": "family: sma_cross\nfast_window: 20\nslow_window: 100\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
-        "verdict": "rejected",
-        "verdictReason": "Parameter sensitivity"
-      },
-      {
-        "id": "candidate-b",
-        "metrics": {
-          "annualizedReturn": 8.9,
-          "maxDrawdown": -18.7,
-          "sharpe": 0.88,
-          "trades": 18
-        },
-        "name": "Candidate B · SMA 50/200",
-        "parameters": "fast=50 · slow=200",
-        "robustness": [
-          "One candidate-scoped repair retained",
-          "Synthetic values only"
-        ],
-        "strategySpec": "family: sma_cross\nfast_window: 50\nslow_window: 200\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
-        "verdict": "promising",
-        "verdictReason": "Candidate for paper evaluation"
-      },
-      {
-        "id": "candidate-c",
-        "metrics": {
-          "annualizedReturn": 9.3,
-          "maxDrawdown": -21.4,
-          "sharpe": 0.86,
-          "trades": 12
-        },
-        "name": "Candidate C · 200-day trend filter",
-        "parameters": "window=200",
-        "robustness": [
-          "Insufficient independent periods",
-          "Synthetic values only"
-        ],
-        "strategySpec": "family: trend_filter\nwindow: 200\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
-        "verdict": "inconclusive",
-        "verdictReason": "Too few independent trade periods"
-      }
-    ],
+    "benchmark": null,
+    "candidates": [],
     "composerLegalCommands": [],
     "dataset": {
       "authenticity": "synthetic_fixture",
-      "barCount": 4,
+      "barCount": 1564,
       "dateRange": {
         "end": "2023-12-29",
         "start": "2018-01-02"
       },
-      "digest": "sha256:fixture-dataset-a120",
-      "id": "fixture-spy-daily-v1",
+      "digest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
+      "id": "spy-daily-weekday-synthetic-v2",
       "interval": "1D",
-      "name": "SPY Daily Synthetic Fixture 2018–2023",
-      "parserVersion": "fixture-parser-v1",
-      "schemaVersion": "market-bars-fixture-v1",
+      "name": "SPY Daily Synthetic Weekday Fixture · 2018–2023",
+      "parserVersion": "deterministic-weekday-generator-v2",
+      "schemaVersion": "quant-daily-bars-v1",
       "symbol": "SPY"
     },
     "events": [
@@ -990,44 +1349,29 @@
       {
         "actor": "system",
         "id": "fixture-event-4",
-        "safeSummary": "Candidate B fixture repair completed within the approved limit.",
+        "safeSummary": "The fixture worker stopped safely.",
         "sequence": 4,
         "timestamp": "2026-07-17T02:22:00Z",
-        "type": "repair.completed"
-      },
-      {
-        "actor": "validator",
-        "id": "fixture-event-5",
-        "safeSummary": "Candidate A rejected; candidate verdict is independent of run health.",
-        "sequence": 5,
-        "timestamp": "2026-07-17T02:23:00Z",
-        "type": "candidate.rejected"
-      },
-      {
-        "actor": "validator",
-        "id": "fixture-event-6",
-        "safeSummary": "Synthetic robustness validation completed.",
-        "sequence": 6,
-        "timestamp": "2026-07-17T02:24:00Z",
-        "type": "validation.completed"
-      },
-      {
-        "actor": "agent",
-        "id": "fixture-event-7",
-        "safeSummary": "Research Report generated from persisted synthetic fixture records.",
-        "sequence": 7,
-        "timestamp": "2026-07-17T02:25:00Z",
-        "type": "report.generated"
-      },
-      {
-        "actor": "system",
-        "id": "fixture-event-8",
-        "safeSummary": "The fixture worker stopped safely.",
-        "sequence": 8,
-        "timestamp": "2026-07-17T02:26:00Z",
         "type": "run.failed"
       }
     ],
+    "kernelCheck": {
+      "barCount": 1564,
+      "benchmark": null,
+      "datasetDigest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
+      "datasetId": "spy-daily-weekday-synthetic-v2",
+      "engineVersion": "daily-bar-kernel-v1",
+      "execution": "signal_at_close_fill_next_open",
+      "feeRateBps": 10,
+      "limitations": [
+        "1,564 deterministic synthetic weekday bars are not market observations.",
+        "Results are not computed until an approved Agent run starts.",
+        "No network, broker, model, or arbitrary code execution is available."
+      ],
+      "slippageRateBps": 5,
+      "status": "available",
+      "strategies": []
+    },
     "limits": {
       "arbitraryPython": false,
       "internetAccess": false,
@@ -1149,27 +1493,13 @@
         "updatedAt": "2026-07-17T02:24:00Z"
       }
     ],
-    "report": {
-      "conclusion": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
-      "disclaimer": "Demonstration results are synthetic and are not investment advice, a recommendation, or evidence of future performance.",
-      "generationMethod": "Server-owned deterministic fixture projection",
-      "humanReviewStatus": "Fixture review record",
-      "id": "fixture-report",
-      "limitations": [
-        "All values are synthetic demonstration fixtures.",
-        "No real backtest or market-data retrieval occurred.",
-        "This is not investment advice."
-      ],
-      "proposedNextStep": "Review limitations; no broker or paper-trading action is available.",
-      "title": "SPY Synthetic Research Report",
-      "validatorVersion": "validator-fixture-v1"
-    },
+    "report": null,
     "run": {
       "attemptNumber": 1,
       "completedAt": "2026-07-17T02:24:00Z",
       "currentStepId": "experiments",
       "id": "55555555-5555-4555-8555-555555555502",
-      "latestSequence": 8,
+      "latestSequence": 4,
       "legalCommands": [
         "retry_run"
       ],
@@ -1178,15 +1508,15 @@
       "startedAt": "2026-07-17T02:18:00Z",
       "state": "failed",
       "traceRef": "fixture-trace-spy-01",
-      "usedExperiments": 3,
-      "usedRepairAttempts": 1
+      "usedExperiments": 0,
+      "usedRepairAttempts": 0
     },
     "runtimeLabel": "Deterministic fixture",
     "scope": {
       "assumptions": [
-        "Synthetic demonstration values",
-        "No network retrieval",
-        "No executable strategy code"
+        "1,564 generated synthetic weekday bars; no exchange calendar",
+        "10 bps fee and 5 bps slippage per fill",
+        "No network retrieval; only fixed typed strategy specifications"
       ],
       "benchmark": "SPY Buy and Hold",
       "dateRange": {
@@ -1198,17 +1528,7 @@
       "symbol": "SPY",
       "version": 1
     },
-    "trades": [
-      {
-        "candidateId": "candidate-b",
-        "entryDate": "2019-01-02",
-        "exitDate": "2021-01-04",
-        "holdingDays": 733,
-        "id": "fixture-trade-1",
-        "reason": "Synthetic fixture crossover record",
-        "returnPct": 7.4
-      }
-    ],
+    "trades": [],
     "version": "Phase 0 · server-fixture-v1",
     "workspaceName": "PokieQuant Research"
   },
@@ -1216,34 +1536,34 @@
     "artifacts": [
       {
         "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-dataset-a120",
+        "digest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
         "id": "fixture-dataset",
         "origin": "Server fixture repository",
-        "relatedLabel": "SPY · 1D",
+        "relatedLabel": "SPY · 1D · synthetic weekdays",
         "status": "ready",
-        "summary": "Bounded synthetic OHLCV demonstration values.",
+        "summary": "1,564 deterministic weekday OHLCV rows used by the pure research kernel.",
         "title": "SPY Daily Synthetic Snapshot",
         "type": "dataset_snapshot"
       },
       {
         "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-validation-5b20",
+        "digest": "sha256:36eb47019e6ce7ee6877d7930ed2362c40d23dc51d9e00c2d2b17435add441ef",
         "id": "fixture-validation",
-        "origin": "Deterministic validator fixture",
-        "relatedLabel": "3 candidates",
+        "origin": "Computed by daily-bar-kernel-v1 from a digest-pinned synthetic dataset",
+        "relatedLabel": "3 computed candidates",
         "status": "ready",
-        "summary": "Candidate-scoped fixture verdicts.",
+        "summary": "Computed candidate metrics with fixed sensitivity and trade-count rules.",
         "title": "Synthetic Robustness Validation",
         "type": "validation_report"
       },
       {
         "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-report-4e91",
+        "digest": "sha256:ad169af63b9d50e95467998b71297afe129da456e7804f2f9ae3d91ca5a93636",
         "id": "fixture-report",
-        "origin": "Server fixture projection",
+        "origin": "Computed by daily-bar-kernel-v1 from a digest-pinned synthetic dataset",
         "relatedLabel": "Attempt 1",
         "status": "reviewed",
-        "summary": "No candidate passed validation; the research process still completed normally.",
+        "summary": "No candidate passed validation; the computed research process still completed normally.",
         "title": "SPY Synthetic Research Report",
         "type": "research_report"
       }
@@ -1251,102 +1571,301 @@
     "authenticity": "synthetic_fixture",
     "bars": [
       {
-        "close": 103,
+        "close": 100.036,
         "date": "2018-01-02",
-        "high": 104,
-        "low": 98,
-        "open": 100,
-        "volume": 1000
+        "high": 100.28609,
+        "low": 99.65025,
+        "open": 99.9,
+        "volume": 1000000
       },
       {
-        "close": 108,
-        "date": "2019-01-02",
-        "high": 110,
-        "low": 101,
+        "close": 113.045878,
+        "date": "2018-04-06",
+        "high": 113.498062,
+        "low": 112.496898,
+        "open": 112.948693,
+        "volume": 1374000
+      },
+      {
+        "close": 106.463881,
+        "date": "2018-07-11",
+        "high": 106.888773,
+        "low": 106.064641,
+        "open": 106.489438,
+        "volume": 1357000
+      },
+      {
+        "close": 116.388768,
+        "date": "2018-10-09",
+        "high": 116.737934,
+        "low": 116.009469,
         "marker": "entry",
-        "open": 103,
-        "volume": 1200
+        "open": 116.358545,
+        "volume": 1272000
       },
       {
-        "close": 101,
-        "date": "2020-01-02",
-        "high": 112,
-        "low": 99,
-        "marker": "policy",
-        "open": 108,
-        "volume": 1400
+        "close": 117.249892,
+        "date": "2018-10-15",
+        "high": 117.676733,
+        "low": 116.839517,
+        "open": 117.266301,
+        "volume": 1340000
       },
       {
-        "close": 116,
-        "date": "2021-01-04",
-        "high": 118,
-        "low": 100,
+        "close": 125.292744,
+        "date": "2019-01-17",
+        "high": 126.323359,
+        "low": 124.885543,
+        "open": 125.914138,
+        "volume": 1323000
+      },
+      {
+        "close": 123.003465,
+        "date": "2019-04-23",
+        "high": 123.372475,
+        "low": 122.571896,
+        "open": 122.940718,
+        "volume": 1306000
+      },
+      {
+        "close": 137.426946,
+        "date": "2019-07-26",
+        "high": 137.80487,
+        "low": 136.965452,
+        "open": 137.343146,
+        "volume": 1289000
+      },
+      {
+        "close": 132.449415,
+        "date": "2019-10-30",
+        "high": 133.339089,
+        "low": 132.118291,
+        "open": 133.006573,
+        "volume": 1272000
+      },
+      {
+        "close": 130.591656,
+        "date": "2020-02-03",
+        "high": 131.625662,
+        "low": 130.069289,
+        "open": 131.101257,
+        "volume": 1255000
+      },
+      {
+        "close": 129.983799,
+        "date": "2020-02-05",
+        "high": 130.643037,
+        "low": 129.65884,
         "marker": "exit",
-        "open": 101,
-        "volume": 1300
+        "open": 130.317244,
+        "volume": 1289000
+      },
+      {
+        "close": 118.607434,
+        "date": "2020-05-07",
+        "high": 119.052212,
+        "low": 117.649193,
+        "open": 118.092038,
+        "volume": 1238000
+      },
+      {
+        "close": 136.636854,
+        "date": "2020-08-11",
+        "high": 137.115083,
+        "low": 135.71597,
+        "open": 136.192644,
+        "volume": 1221000
+      },
+      {
+        "close": 138.89695,
+        "date": "2020-08-17",
+        "high": 139.452538,
+        "low": 137.526391,
+        "marker": "entry",
+        "open": 138.078706,
+        "volume": 1289000
+      },
+      {
+        "close": 184.864848,
+        "date": "2020-11-13",
+        "high": 185.465659,
+        "low": 183.646983,
+        "open": 184.245782,
+        "volume": 1204000
+      },
+      {
+        "close": 201.461413,
+        "date": "2021-02-16",
+        "high": 202.403197,
+        "low": 200.705933,
+        "open": 201.647021,
+        "volume": 1170000
+      },
+      {
+        "close": 199.988123,
+        "date": "2021-05-21",
+        "high": 200.688081,
+        "low": 198.834821,
+        "open": 199.533187,
+        "volume": 1153000
+      },
+      {
+        "close": 223.840853,
+        "date": "2021-08-25",
+        "high": 224.568336,
+        "low": 222.583886,
+        "open": 223.309642,
+        "volume": 1136000
+      },
+      {
+        "close": 212.968556,
+        "date": "2021-11-29",
+        "high": 214.125126,
+        "low": 212.32965,
+        "open": 213.484672,
+        "volume": 1119000
+      },
+      {
+        "close": 209.39494,
+        "date": "2022-02-01",
+        "high": 210.466758,
+        "low": 208.662058,
+        "marker": "exit",
+        "open": 209.732694,
+        "volume": 1119000
+      },
+      {
+        "close": 195.645973,
+        "date": "2022-03-03",
+        "high": 196.354956,
+        "low": 195.107947,
+        "open": 195.816461,
+        "volume": 1102000
+      },
+      {
+        "close": 211.658051,
+        "date": "2022-06-07",
+        "high": 212.187196,
+        "low": 209.883982,
+        "open": 210.410007,
+        "volume": 1085000
+      },
+      {
+        "close": 240.113648,
+        "date": "2022-09-09",
+        "high": 241.074103,
+        "low": 238.003922,
+        "open": 238.959761,
+        "volume": 1068000
+      },
+      {
+        "close": 321.07026,
+        "date": "2022-12-14",
+        "high": 322.274273,
+        "low": 318.298213,
+        "open": 319.496324,
+        "volume": 1051000
+      },
+      {
+        "close": 340.438969,
+        "date": "2023-03-20",
+        "high": 341.774195,
+        "low": 339.247433,
+        "open": 340.582157,
+        "volume": 1034000
+      },
+      {
+        "close": 342.99034,
+        "date": "2023-06-22",
+        "high": 344.105059,
+        "low": 340.927369,
+        "open": 342.038996,
+        "volume": 1017000
+      },
+      {
+        "close": 384.820385,
+        "date": "2023-09-26",
+        "high": 385.974846,
+        "low": 382.564139,
+        "open": 383.715285,
+        "volume": 1000000
+      },
+      {
+        "close": 365.251821,
+        "date": "2023-12-29",
+        "high": 366.256264,
+        "low": 363.600492,
+        "open": 364.603151,
+        "volume": 1374000
       }
     ],
     "benchmark": {
-      "annualizedReturn": 10.8,
-      "maxDrawdown": -33.7,
-      "sharpe": 0.72,
+      "annualizedReturn": 23.2,
+      "maxDrawdown": -23.8,
+      "sharpe": 5.3,
       "trades": 1
     },
     "candidates": [
       {
         "id": "candidate-a",
         "metrics": {
-          "annualizedReturn": 9.6,
-          "maxDrawdown": -24.8,
-          "sharpe": 0.83,
-          "trades": 38
+          "annualizedReturn": 20.6,
+          "maxDrawdown": -8.8,
+          "sharpe": 5.78,
+          "trades": 7
         },
         "name": "Candidate A · SMA 20/100",
         "parameters": "fast=20 · slow=100",
         "robustness": [
-          "Fails adjacent-window sensitivity check",
-          "Synthetic values only"
+          "10/80 versus 30/120 annualized-return range: 6.33 pp",
+          "Rejected by the configured >5 pp sensitivity rule",
+          "Metrics computed by the pure daily-bar kernel",
+          "No-viable-candidate fixture override retained for lifecycle regression"
         ],
-        "strategySpec": "family: sma_cross\nfast_window: 20\nslow_window: 100\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
+        "strategySpec": "family: sma\nfast_period: 20\nslow_period: 100\nposition: long_or_cash",
+        "strategySpecVersion": "daily-bar-kernel-v1",
         "verdict": "rejected",
-        "verdictReason": "Parameter sensitivity"
+        "verdictReason": "Failed configured validation"
       },
       {
         "id": "candidate-b",
         "metrics": {
-          "annualizedReturn": 8.9,
-          "maxDrawdown": -18.7,
-          "sharpe": 0.88,
-          "trades": 18
+          "annualizedReturn": 18.4,
+          "maxDrawdown": -11.1,
+          "sharpe": 5.07,
+          "trades": 2
         },
         "name": "Candidate B · SMA 50/200",
         "parameters": "fast=50 · slow=200",
         "robustness": [
-          "One candidate-scoped repair retained",
-          "Synthetic values only"
+          "40/180 versus 60/220 annualized-return range: 3.84 pp",
+          "Passes the configured ≤5 pp sensitivity rule",
+          "Synthetic evidence only; no paper-trading action is enabled",
+          "No-viable-candidate fixture override retained for lifecycle regression"
         ],
-        "strategySpec": "family: sma_cross\nfast_window: 50\nslow_window: 200\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
+        "strategySpec": "family: sma\nfast_period: 50\nslow_period: 200\nposition: long_or_cash",
+        "strategySpecVersion": "daily-bar-kernel-v1",
         "verdict": "rejected",
         "verdictReason": "Failed configured validation"
       },
       {
         "id": "candidate-c",
         "metrics": {
-          "annualizedReturn": 9.3,
-          "maxDrawdown": -21.4,
-          "sharpe": 0.86,
-          "trades": 12
+          "annualizedReturn": 16.3,
+          "maxDrawdown": -15.5,
+          "sharpe": 4.46,
+          "trades": 2
         },
-        "name": "Candidate C · 200-day trend filter",
-        "parameters": "window=200",
+        "name": "Candidate C · 200-day breakout",
+        "parameters": "lookback=200",
         "robustness": [
-          "Insufficient independent periods",
-          "Synthetic values only"
+          "Only 2 closed trades",
+          "Inconclusive under the configured minimum of 3",
+          "Metrics computed by the pure daily-bar kernel",
+          "No-viable-candidate fixture override retained for lifecycle regression"
         ],
-        "strategySpec": "family: trend_filter\nwindow: 200\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
+        "strategySpec": "family: breakout\nperiod: 200\nposition: long_or_cash",
+        "strategySpecVersion": "daily-bar-kernel-v1",
         "verdict": "rejected",
         "verdictReason": "Failed configured validation"
       }
@@ -1354,17 +1873,17 @@
     "composerLegalCommands": [],
     "dataset": {
       "authenticity": "synthetic_fixture",
-      "barCount": 4,
+      "barCount": 1564,
       "dateRange": {
         "end": "2023-12-29",
         "start": "2018-01-02"
       },
-      "digest": "sha256:fixture-dataset-a120",
-      "id": "fixture-spy-daily-v1",
+      "digest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
+      "id": "spy-daily-weekday-synthetic-v2",
       "interval": "1D",
-      "name": "SPY Daily Synthetic Fixture 2018–2023",
-      "parserVersion": "fixture-parser-v1",
-      "schemaVersion": "market-bars-fixture-v1",
+      "name": "SPY Daily Synthetic Weekday Fixture · 2018–2023",
+      "parserVersion": "deterministic-weekday-generator-v2",
+      "schemaVersion": "quant-daily-bars-v1",
       "symbol": "SPY"
     },
     "events": [
@@ -1433,6 +1952,63 @@
         "type": "run.completed"
       }
     ],
+    "kernelCheck": {
+      "barCount": 1564,
+      "benchmark": {
+        "annualizedReturnPct": 23.22,
+        "finalEquity": 365069.65,
+        "id": "buy-and-hold",
+        "label": "Buy and Hold",
+        "maxDrawdownPct": -23.79,
+        "sharpe": 5.3,
+        "totalReturnPct": 265.07,
+        "tradeCount": 1
+      },
+      "datasetDigest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
+      "datasetId": "spy-daily-weekday-synthetic-v2",
+      "engineVersion": "daily-bar-kernel-v1",
+      "execution": "signal_at_close_fill_next_open",
+      "feeRateBps": 10,
+      "limitations": [
+        "1,564 deterministic synthetic weekday bars are not market observations.",
+        "Weekdays are generated without an exchange holiday calendar or corporate actions.",
+        "No network, broker, model, or arbitrary code execution is available."
+      ],
+      "slippageRateBps": 5,
+      "status": "verified",
+      "strategies": [
+        {
+          "annualizedReturnPct": 20.62,
+          "finalEquity": 319812.38,
+          "id": "candidate-a",
+          "label": "SMA 20/100",
+          "maxDrawdownPct": -8.8,
+          "sharpe": 5.78,
+          "totalReturnPct": 219.81,
+          "tradeCount": 7
+        },
+        {
+          "annualizedReturnPct": 18.38,
+          "finalEquity": 284705.02,
+          "id": "candidate-b",
+          "label": "SMA 50/200",
+          "maxDrawdownPct": -11.12,
+          "sharpe": 5.07,
+          "totalReturnPct": 184.71,
+          "tradeCount": 2
+        },
+        {
+          "annualizedReturnPct": 16.32,
+          "finalEquity": 255384.39,
+          "id": "candidate-c",
+          "label": "Breakout 200",
+          "maxDrawdownPct": -15.5,
+          "sharpe": 4.46,
+          "totalReturnPct": 155.38,
+          "tradeCount": 2
+        }
+      ]
+    },
     "limits": {
       "arbitraryPython": false,
       "internetAccess": false,
@@ -1555,19 +2131,19 @@
       }
     ],
     "report": {
-      "conclusion": "No candidate passed validation; the research process still completed normally.",
-      "disclaimer": "Demonstration results are synthetic and are not investment advice, a recommendation, or evidence of future performance.",
-      "generationMethod": "Server-owned deterministic fixture projection",
+      "conclusion": "No candidate passed validation; the computed research process still completed normally.",
+      "disclaimer": "Synthetic results are not investment advice, a recommendation, market evidence, or evidence of future performance.",
+      "generationMethod": "Computed by daily-bar-kernel-v1 from a digest-pinned synthetic dataset",
       "humanReviewStatus": "Fixture review record",
       "id": "fixture-report",
       "limitations": [
-        "All values are synthetic demonstration fixtures.",
-        "No real backtest or market-data retrieval occurred.",
-        "This is not investment advice."
+        "All bars and computed results are synthetic and are not market evidence.",
+        "The weekday generator omits exchange holidays, corporate actions, taxes, and liquidity constraints.",
+        "Validation thresholds are fixed demonstration policy, not an investment recommendation."
       ],
       "proposedNextStep": "Review limitations; no broker or paper-trading action is available.",
       "title": "SPY Synthetic Research Report",
-      "validatorVersion": "validator-fixture-v1"
+      "validatorVersion": "synthetic-validator-v1"
     },
     "run": {
       "attemptNumber": 1,
@@ -1587,9 +2163,9 @@
     "runtimeLabel": "Deterministic fixture",
     "scope": {
       "assumptions": [
-        "Synthetic demonstration values",
-        "No network retrieval",
-        "No executable strategy code"
+        "1,564 generated synthetic weekday bars; no exchange calendar",
+        "10 bps fee and 5 bps slippage per fill",
+        "No network retrieval; only fixed typed strategy specifications"
       ],
       "benchmark": "SPY Buy and Hold",
       "dateRange": {
@@ -1604,12 +2180,21 @@
     "trades": [
       {
         "candidateId": "candidate-b",
-        "entryDate": "2019-01-02",
-        "exitDate": "2021-01-04",
-        "holdingDays": 733,
-        "id": "fixture-trade-1",
-        "reason": "Synthetic fixture crossover record",
-        "returnPct": 7.4
+        "entryDate": "2018-10-09",
+        "exitDate": "2020-02-05",
+        "holdingDays": 484,
+        "id": "kernel-trade-1",
+        "reason": "SMA 50/200 signal; close observation filled at next open",
+        "returnPct": 11.66
+      },
+      {
+        "candidateId": "candidate-b",
+        "entryDate": "2020-08-17",
+        "exitDate": "2022-02-01",
+        "holdingDays": 533,
+        "id": "kernel-trade-2",
+        "reason": "SMA 50/200 signal; close observation filled at next open",
+        "returnPct": 51.44
       }
     ],
     "version": "Phase 0 · server-fixture-v1",
@@ -1619,155 +2204,227 @@
     "artifacts": [
       {
         "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-dataset-a120",
+        "digest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
         "id": "fixture-dataset",
         "origin": "Server fixture repository",
-        "relatedLabel": "SPY · 1D",
+        "relatedLabel": "SPY · 1D · synthetic weekdays",
         "status": "ready",
-        "summary": "Bounded synthetic OHLCV demonstration values.",
+        "summary": "1,564 deterministic weekday OHLCV rows used by the pure research kernel.",
         "title": "SPY Daily Synthetic Snapshot",
         "type": "dataset_snapshot"
-      },
-      {
-        "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-validation-5b20",
-        "id": "fixture-validation",
-        "origin": "Deterministic validator fixture",
-        "relatedLabel": "3 candidates",
-        "status": "ready",
-        "summary": "Candidate-scoped fixture verdicts.",
-        "title": "Synthetic Robustness Validation",
-        "type": "validation_report"
-      },
-      {
-        "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-report-4e91",
-        "id": "fixture-report",
-        "origin": "Server fixture projection",
-        "relatedLabel": "Attempt 1",
-        "status": "ready",
-        "summary": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
-        "title": "SPY Synthetic Research Report",
-        "type": "research_report"
       }
     ],
     "authenticity": "synthetic_fixture",
     "bars": [
       {
-        "close": 103,
+        "close": 100.036,
         "date": "2018-01-02",
-        "high": 104,
-        "low": 98,
-        "open": 100,
-        "volume": 1000
+        "high": 100.28609,
+        "low": 99.65025,
+        "open": 99.9,
+        "volume": 1000000
       },
       {
-        "close": 108,
-        "date": "2019-01-02",
-        "high": 110,
-        "low": 101,
-        "marker": "entry",
-        "open": 103,
-        "volume": 1200
+        "close": 113.045878,
+        "date": "2018-04-06",
+        "high": 113.498062,
+        "low": 112.496898,
+        "open": 112.948693,
+        "volume": 1374000
       },
       {
-        "close": 101,
-        "date": "2020-01-02",
-        "high": 112,
-        "low": 99,
-        "marker": "policy",
-        "open": 108,
-        "volume": 1400
+        "close": 106.463881,
+        "date": "2018-07-11",
+        "high": 106.888773,
+        "low": 106.064641,
+        "open": 106.489438,
+        "volume": 1357000
       },
       {
-        "close": 116,
-        "date": "2021-01-04",
-        "high": 118,
-        "low": 100,
-        "marker": "exit",
-        "open": 101,
-        "volume": 1300
+        "close": 117.249892,
+        "date": "2018-10-15",
+        "high": 117.676733,
+        "low": 116.839517,
+        "open": 117.266301,
+        "volume": 1340000
+      },
+      {
+        "close": 125.292744,
+        "date": "2019-01-17",
+        "high": 126.323359,
+        "low": 124.885543,
+        "open": 125.914138,
+        "volume": 1323000
+      },
+      {
+        "close": 123.003465,
+        "date": "2019-04-23",
+        "high": 123.372475,
+        "low": 122.571896,
+        "open": 122.940718,
+        "volume": 1306000
+      },
+      {
+        "close": 137.426946,
+        "date": "2019-07-26",
+        "high": 137.80487,
+        "low": 136.965452,
+        "open": 137.343146,
+        "volume": 1289000
+      },
+      {
+        "close": 132.449415,
+        "date": "2019-10-30",
+        "high": 133.339089,
+        "low": 132.118291,
+        "open": 133.006573,
+        "volume": 1272000
+      },
+      {
+        "close": 130.591656,
+        "date": "2020-02-03",
+        "high": 131.625662,
+        "low": 130.069289,
+        "open": 131.101257,
+        "volume": 1255000
+      },
+      {
+        "close": 118.607434,
+        "date": "2020-05-07",
+        "high": 119.052212,
+        "low": 117.649193,
+        "open": 118.092038,
+        "volume": 1238000
+      },
+      {
+        "close": 136.636854,
+        "date": "2020-08-11",
+        "high": 137.115083,
+        "low": 135.71597,
+        "open": 136.192644,
+        "volume": 1221000
+      },
+      {
+        "close": 184.864848,
+        "date": "2020-11-13",
+        "high": 185.465659,
+        "low": 183.646983,
+        "open": 184.245782,
+        "volume": 1204000
+      },
+      {
+        "close": 201.461413,
+        "date": "2021-02-16",
+        "high": 202.403197,
+        "low": 200.705933,
+        "open": 201.647021,
+        "volume": 1170000
+      },
+      {
+        "close": 199.988123,
+        "date": "2021-05-21",
+        "high": 200.688081,
+        "low": 198.834821,
+        "open": 199.533187,
+        "volume": 1153000
+      },
+      {
+        "close": 223.840853,
+        "date": "2021-08-25",
+        "high": 224.568336,
+        "low": 222.583886,
+        "open": 223.309642,
+        "volume": 1136000
+      },
+      {
+        "close": 212.968556,
+        "date": "2021-11-29",
+        "high": 214.125126,
+        "low": 212.32965,
+        "open": 213.484672,
+        "volume": 1119000
+      },
+      {
+        "close": 195.645973,
+        "date": "2022-03-03",
+        "high": 196.354956,
+        "low": 195.107947,
+        "open": 195.816461,
+        "volume": 1102000
+      },
+      {
+        "close": 211.658051,
+        "date": "2022-06-07",
+        "high": 212.187196,
+        "low": 209.883982,
+        "open": 210.410007,
+        "volume": 1085000
+      },
+      {
+        "close": 240.113648,
+        "date": "2022-09-09",
+        "high": 241.074103,
+        "low": 238.003922,
+        "open": 238.959761,
+        "volume": 1068000
+      },
+      {
+        "close": 321.07026,
+        "date": "2022-12-14",
+        "high": 322.274273,
+        "low": 318.298213,
+        "open": 319.496324,
+        "volume": 1051000
+      },
+      {
+        "close": 340.438969,
+        "date": "2023-03-20",
+        "high": 341.774195,
+        "low": 339.247433,
+        "open": 340.582157,
+        "volume": 1034000
+      },
+      {
+        "close": 342.99034,
+        "date": "2023-06-22",
+        "high": 344.105059,
+        "low": 340.927369,
+        "open": 342.038996,
+        "volume": 1017000
+      },
+      {
+        "close": 384.820385,
+        "date": "2023-09-26",
+        "high": 385.974846,
+        "low": 382.564139,
+        "open": 383.715285,
+        "volume": 1000000
+      },
+      {
+        "close": 365.251821,
+        "date": "2023-12-29",
+        "high": 366.256264,
+        "low": 363.600492,
+        "open": 364.603151,
+        "volume": 1374000
       }
     ],
-    "benchmark": {
-      "annualizedReturn": 10.8,
-      "maxDrawdown": -33.7,
-      "sharpe": 0.72,
-      "trades": 1
-    },
-    "candidates": [
-      {
-        "id": "candidate-a",
-        "metrics": {
-          "annualizedReturn": 9.6,
-          "maxDrawdown": -24.8,
-          "sharpe": 0.83,
-          "trades": 38
-        },
-        "name": "Candidate A · SMA 20/100",
-        "parameters": "fast=20 · slow=100",
-        "robustness": [
-          "Fails adjacent-window sensitivity check",
-          "Synthetic values only"
-        ],
-        "strategySpec": "family: sma_cross\nfast_window: 20\nslow_window: 100\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
-        "verdict": "rejected",
-        "verdictReason": "Parameter sensitivity"
-      },
-      {
-        "id": "candidate-b",
-        "metrics": {
-          "annualizedReturn": 8.9,
-          "maxDrawdown": -18.7,
-          "sharpe": 0.88,
-          "trades": 18
-        },
-        "name": "Candidate B · SMA 50/200",
-        "parameters": "fast=50 · slow=200",
-        "robustness": [
-          "One candidate-scoped repair retained",
-          "Synthetic values only"
-        ],
-        "strategySpec": "family: sma_cross\nfast_window: 50\nslow_window: 200\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
-        "verdict": "promising",
-        "verdictReason": "Candidate for paper evaluation"
-      },
-      {
-        "id": "candidate-c",
-        "metrics": {
-          "annualizedReturn": 9.3,
-          "maxDrawdown": -21.4,
-          "sharpe": 0.86,
-          "trades": 12
-        },
-        "name": "Candidate C · 200-day trend filter",
-        "parameters": "window=200",
-        "robustness": [
-          "Insufficient independent periods",
-          "Synthetic values only"
-        ],
-        "strategySpec": "family: trend_filter\nwindow: 200\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
-        "verdict": "inconclusive",
-        "verdictReason": "Too few independent trade periods"
-      }
-    ],
+    "benchmark": null,
+    "candidates": [],
     "composerLegalCommands": [],
     "dataset": {
       "authenticity": "synthetic_fixture",
-      "barCount": 4,
+      "barCount": 1564,
       "dateRange": {
         "end": "2023-12-29",
         "start": "2018-01-02"
       },
-      "digest": "sha256:fixture-dataset-a120",
-      "id": "fixture-spy-daily-v1",
+      "digest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
+      "id": "spy-daily-weekday-synthetic-v2",
       "interval": "1D",
-      "name": "SPY Daily Synthetic Fixture 2018–2023",
-      "parserVersion": "fixture-parser-v1",
-      "schemaVersion": "market-bars-fixture-v1",
+      "name": "SPY Daily Synthetic Weekday Fixture · 2018–2023",
+      "parserVersion": "deterministic-weekday-generator-v2",
+      "schemaVersion": "quant-daily-bars-v1",
       "symbol": "SPY"
     },
     "events": [
@@ -1778,64 +2435,25 @@
         "sequence": 1,
         "timestamp": "2026-07-17T02:19:00Z",
         "type": "run.created"
-      },
-      {
-        "actor": "system",
-        "id": "fixture-event-2",
-        "safeSummary": "Pinned synthetic SPY fixture snapshot loaded.",
-        "sequence": 2,
-        "timestamp": "2026-07-17T02:20:00Z",
-        "type": "data.load.completed"
-      },
-      {
-        "actor": "system",
-        "id": "fixture-event-3",
-        "safeSummary": "Candidate B fixture experiment stopped safely; the run did not fail.",
-        "sequence": 3,
-        "timestamp": "2026-07-17T02:21:00Z",
-        "type": "backtest.failed"
-      },
-      {
-        "actor": "system",
-        "id": "fixture-event-4",
-        "safeSummary": "Candidate B fixture repair completed within the approved limit.",
-        "sequence": 4,
-        "timestamp": "2026-07-17T02:22:00Z",
-        "type": "repair.completed"
-      },
-      {
-        "actor": "validator",
-        "id": "fixture-event-5",
-        "safeSummary": "Candidate A rejected; candidate verdict is independent of run health.",
-        "sequence": 5,
-        "timestamp": "2026-07-17T02:23:00Z",
-        "type": "candidate.rejected"
-      },
-      {
-        "actor": "validator",
-        "id": "fixture-event-6",
-        "safeSummary": "Synthetic robustness validation completed.",
-        "sequence": 6,
-        "timestamp": "2026-07-17T02:24:00Z",
-        "type": "validation.completed"
-      },
-      {
-        "actor": "agent",
-        "id": "fixture-event-7",
-        "safeSummary": "Research Report generated from persisted synthetic fixture records.",
-        "sequence": 7,
-        "timestamp": "2026-07-17T02:25:00Z",
-        "type": "report.generated"
-      },
-      {
-        "actor": "system",
-        "id": "fixture-event-8",
-        "safeSummary": "The synthetic plan is waiting for approval.",
-        "sequence": 8,
-        "timestamp": "2026-07-17T02:26:00Z",
-        "type": "run.completed"
       }
     ],
+    "kernelCheck": {
+      "barCount": 1564,
+      "benchmark": null,
+      "datasetDigest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
+      "datasetId": "spy-daily-weekday-synthetic-v2",
+      "engineVersion": "daily-bar-kernel-v1",
+      "execution": "signal_at_close_fill_next_open",
+      "feeRateBps": 10,
+      "limitations": [
+        "1,564 deterministic synthetic weekday bars are not market observations.",
+        "Results are not computed until an approved Agent run starts.",
+        "No network, broker, model, or arbitrary code execution is available."
+      ],
+      "slippageRateBps": 5,
+      "status": "available",
+      "strategies": []
+    },
     "limits": {
       "arbitraryPython": false,
       "internetAccess": false,
@@ -1957,27 +2575,13 @@
         "updatedAt": "2026-07-17T02:24:00Z"
       }
     ],
-    "report": {
-      "conclusion": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
-      "disclaimer": "Demonstration results are synthetic and are not investment advice, a recommendation, or evidence of future performance.",
-      "generationMethod": "Server-owned deterministic fixture projection",
-      "humanReviewStatus": "Fixture review record",
-      "id": "fixture-report",
-      "limitations": [
-        "All values are synthetic demonstration fixtures.",
-        "No real backtest or market-data retrieval occurred.",
-        "This is not investment advice."
-      ],
-      "proposedNextStep": "Review limitations; no broker or paper-trading action is available.",
-      "title": "SPY Synthetic Research Report",
-      "validatorVersion": "validator-fixture-v1"
-    },
+    "report": null,
     "run": {
       "attemptNumber": 1,
       "completedAt": null,
       "currentStepId": "scope",
       "id": "55555555-5555-4555-8555-555555555502",
-      "latestSequence": 8,
+      "latestSequence": 1,
       "legalCommands": [
         "approve_plan",
         "request_plan_changes",
@@ -1988,15 +2592,15 @@
       "startedAt": "2026-07-17T02:18:00Z",
       "state": "waiting_plan_approval",
       "traceRef": "fixture-trace-spy-01",
-      "usedExperiments": 3,
-      "usedRepairAttempts": 1
+      "usedExperiments": 0,
+      "usedRepairAttempts": 0
     },
     "runtimeLabel": "Deterministic fixture",
     "scope": {
       "assumptions": [
-        "Synthetic demonstration values",
-        "No network retrieval",
-        "No executable strategy code"
+        "1,564 generated synthetic weekday bars; no exchange calendar",
+        "10 bps fee and 5 bps slippage per fill",
+        "No network retrieval; only fixed typed strategy specifications"
       ],
       "benchmark": "SPY Buy and Hold",
       "dateRange": {
@@ -2008,17 +2612,7 @@
       "symbol": "SPY",
       "version": 1
     },
-    "trades": [
-      {
-        "candidateId": "candidate-b",
-        "entryDate": "2019-01-02",
-        "exitDate": "2021-01-04",
-        "holdingDays": 733,
-        "id": "fixture-trade-1",
-        "reason": "Synthetic fixture crossover record",
-        "returnPct": 7.4
-      }
-    ],
+    "trades": [],
     "version": "Phase 0 · server-fixture-v1",
     "workspaceName": "PokieQuant Research"
   },
@@ -2026,158 +2620,230 @@
     "artifacts": [
       {
         "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-dataset-a120",
+        "digest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
         "id": "fixture-dataset",
         "origin": "Server fixture repository",
-        "relatedLabel": "SPY · 1D",
+        "relatedLabel": "SPY · 1D · synthetic weekdays",
         "status": "ready",
-        "summary": "Bounded synthetic OHLCV demonstration values.",
+        "summary": "1,564 deterministic weekday OHLCV rows used by the pure research kernel.",
         "title": "SPY Daily Synthetic Snapshot",
         "type": "dataset_snapshot"
-      },
-      {
-        "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-validation-5b20",
-        "id": "fixture-validation",
-        "origin": "Deterministic validator fixture",
-        "relatedLabel": "3 candidates",
-        "status": "ready",
-        "summary": "Candidate-scoped fixture verdicts.",
-        "title": "Synthetic Robustness Validation",
-        "type": "validation_report"
-      },
-      {
-        "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-report-4e91",
-        "id": "fixture-report",
-        "origin": "Server fixture projection",
-        "relatedLabel": "Attempt 1",
-        "status": "ready",
-        "summary": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
-        "title": "SPY Synthetic Research Report",
-        "type": "research_report"
       }
     ],
     "authenticity": "synthetic_fixture",
     "bars": [
       {
-        "close": 103,
+        "close": 100.036,
         "date": "2018-01-02",
-        "high": 104,
-        "low": 98,
-        "open": 100,
-        "volume": 1000
+        "high": 100.28609,
+        "low": 99.65025,
+        "open": 99.9,
+        "volume": 1000000
       },
       {
-        "close": 108,
-        "date": "2019-01-02",
-        "high": 110,
-        "low": 101,
-        "marker": "entry",
-        "open": 103,
-        "volume": 1200
+        "close": 113.045878,
+        "date": "2018-04-06",
+        "high": 113.498062,
+        "low": 112.496898,
+        "open": 112.948693,
+        "volume": 1374000
       },
       {
-        "close": 101,
-        "date": "2020-01-02",
-        "high": 112,
-        "low": 99,
-        "marker": "policy",
-        "open": 108,
-        "volume": 1400
+        "close": 106.463881,
+        "date": "2018-07-11",
+        "high": 106.888773,
+        "low": 106.064641,
+        "open": 106.489438,
+        "volume": 1357000
       },
       {
-        "close": 116,
-        "date": "2021-01-04",
-        "high": 118,
-        "low": 100,
-        "marker": "exit",
-        "open": 101,
-        "volume": 1300
+        "close": 117.249892,
+        "date": "2018-10-15",
+        "high": 117.676733,
+        "low": 116.839517,
+        "open": 117.266301,
+        "volume": 1340000
+      },
+      {
+        "close": 125.292744,
+        "date": "2019-01-17",
+        "high": 126.323359,
+        "low": 124.885543,
+        "open": 125.914138,
+        "volume": 1323000
+      },
+      {
+        "close": 123.003465,
+        "date": "2019-04-23",
+        "high": 123.372475,
+        "low": 122.571896,
+        "open": 122.940718,
+        "volume": 1306000
+      },
+      {
+        "close": 137.426946,
+        "date": "2019-07-26",
+        "high": 137.80487,
+        "low": 136.965452,
+        "open": 137.343146,
+        "volume": 1289000
+      },
+      {
+        "close": 132.449415,
+        "date": "2019-10-30",
+        "high": 133.339089,
+        "low": 132.118291,
+        "open": 133.006573,
+        "volume": 1272000
+      },
+      {
+        "close": 130.591656,
+        "date": "2020-02-03",
+        "high": 131.625662,
+        "low": 130.069289,
+        "open": 131.101257,
+        "volume": 1255000
+      },
+      {
+        "close": 118.607434,
+        "date": "2020-05-07",
+        "high": 119.052212,
+        "low": 117.649193,
+        "open": 118.092038,
+        "volume": 1238000
+      },
+      {
+        "close": 136.636854,
+        "date": "2020-08-11",
+        "high": 137.115083,
+        "low": 135.71597,
+        "open": 136.192644,
+        "volume": 1221000
+      },
+      {
+        "close": 184.864848,
+        "date": "2020-11-13",
+        "high": 185.465659,
+        "low": 183.646983,
+        "open": 184.245782,
+        "volume": 1204000
+      },
+      {
+        "close": 201.461413,
+        "date": "2021-02-16",
+        "high": 202.403197,
+        "low": 200.705933,
+        "open": 201.647021,
+        "volume": 1170000
+      },
+      {
+        "close": 199.988123,
+        "date": "2021-05-21",
+        "high": 200.688081,
+        "low": 198.834821,
+        "open": 199.533187,
+        "volume": 1153000
+      },
+      {
+        "close": 223.840853,
+        "date": "2021-08-25",
+        "high": 224.568336,
+        "low": 222.583886,
+        "open": 223.309642,
+        "volume": 1136000
+      },
+      {
+        "close": 212.968556,
+        "date": "2021-11-29",
+        "high": 214.125126,
+        "low": 212.32965,
+        "open": 213.484672,
+        "volume": 1119000
+      },
+      {
+        "close": 195.645973,
+        "date": "2022-03-03",
+        "high": 196.354956,
+        "low": 195.107947,
+        "open": 195.816461,
+        "volume": 1102000
+      },
+      {
+        "close": 211.658051,
+        "date": "2022-06-07",
+        "high": 212.187196,
+        "low": 209.883982,
+        "open": 210.410007,
+        "volume": 1085000
+      },
+      {
+        "close": 240.113648,
+        "date": "2022-09-09",
+        "high": 241.074103,
+        "low": 238.003922,
+        "open": 238.959761,
+        "volume": 1068000
+      },
+      {
+        "close": 321.07026,
+        "date": "2022-12-14",
+        "high": 322.274273,
+        "low": 318.298213,
+        "open": 319.496324,
+        "volume": 1051000
+      },
+      {
+        "close": 340.438969,
+        "date": "2023-03-20",
+        "high": 341.774195,
+        "low": 339.247433,
+        "open": 340.582157,
+        "volume": 1034000
+      },
+      {
+        "close": 342.99034,
+        "date": "2023-06-22",
+        "high": 344.105059,
+        "low": 340.927369,
+        "open": 342.038996,
+        "volume": 1017000
+      },
+      {
+        "close": 384.820385,
+        "date": "2023-09-26",
+        "high": 385.974846,
+        "low": 382.564139,
+        "open": 383.715285,
+        "volume": 1000000
+      },
+      {
+        "close": 365.251821,
+        "date": "2023-12-29",
+        "high": 366.256264,
+        "low": 363.600492,
+        "open": 364.603151,
+        "volume": 1374000
       }
     ],
-    "benchmark": {
-      "annualizedReturn": 10.8,
-      "maxDrawdown": -33.7,
-      "sharpe": 0.72,
-      "trades": 1
-    },
-    "candidates": [
-      {
-        "id": "candidate-a",
-        "metrics": {
-          "annualizedReturn": 9.6,
-          "maxDrawdown": -24.8,
-          "sharpe": 0.83,
-          "trades": 38
-        },
-        "name": "Candidate A · SMA 20/100",
-        "parameters": "fast=20 · slow=100",
-        "robustness": [
-          "Fails adjacent-window sensitivity check",
-          "Synthetic values only"
-        ],
-        "strategySpec": "family: sma_cross\nfast_window: 20\nslow_window: 100\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
-        "verdict": "rejected",
-        "verdictReason": "Parameter sensitivity"
-      },
-      {
-        "id": "candidate-b",
-        "metrics": {
-          "annualizedReturn": 8.9,
-          "maxDrawdown": -18.7,
-          "sharpe": 0.88,
-          "trades": 18
-        },
-        "name": "Candidate B · SMA 50/200",
-        "parameters": "fast=50 · slow=200",
-        "robustness": [
-          "One candidate-scoped repair retained",
-          "Synthetic values only"
-        ],
-        "strategySpec": "family: sma_cross\nfast_window: 50\nslow_window: 200\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
-        "verdict": "promising",
-        "verdictReason": "Candidate for paper evaluation"
-      },
-      {
-        "id": "candidate-c",
-        "metrics": {
-          "annualizedReturn": 9.3,
-          "maxDrawdown": -21.4,
-          "sharpe": 0.86,
-          "trades": 12
-        },
-        "name": "Candidate C · 200-day trend filter",
-        "parameters": "window=200",
-        "robustness": [
-          "Insufficient independent periods",
-          "Synthetic values only"
-        ],
-        "strategySpec": "family: trend_filter\nwindow: 200\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
-        "verdict": "inconclusive",
-        "verdictReason": "Too few independent trade periods"
-      }
-    ],
+    "benchmark": null,
+    "candidates": [],
     "composerLegalCommands": [
       "ask",
       "generate_plan"
     ],
     "dataset": {
       "authenticity": "synthetic_fixture",
-      "barCount": 4,
+      "barCount": 1564,
       "dateRange": {
         "end": "2023-12-29",
         "start": "2018-01-02"
       },
-      "digest": "sha256:fixture-dataset-a120",
-      "id": "fixture-spy-daily-v1",
+      "digest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
+      "id": "spy-daily-weekday-synthetic-v2",
       "interval": "1D",
-      "name": "SPY Daily Synthetic Fixture 2018–2023",
-      "parserVersion": "fixture-parser-v1",
-      "schemaVersion": "market-bars-fixture-v1",
+      "name": "SPY Daily Synthetic Weekday Fixture · 2018–2023",
+      "parserVersion": "deterministic-weekday-generator-v2",
+      "schemaVersion": "quant-daily-bars-v1",
       "symbol": "SPY"
     },
     "events": [
@@ -2188,64 +2854,25 @@
         "sequence": 1,
         "timestamp": "2026-07-17T02:19:00Z",
         "type": "run.created"
-      },
-      {
-        "actor": "system",
-        "id": "fixture-event-2",
-        "safeSummary": "Pinned synthetic SPY fixture snapshot loaded.",
-        "sequence": 2,
-        "timestamp": "2026-07-17T02:20:00Z",
-        "type": "data.load.completed"
-      },
-      {
-        "actor": "system",
-        "id": "fixture-event-3",
-        "safeSummary": "Candidate B fixture experiment stopped safely; the run did not fail.",
-        "sequence": 3,
-        "timestamp": "2026-07-17T02:21:00Z",
-        "type": "backtest.failed"
-      },
-      {
-        "actor": "system",
-        "id": "fixture-event-4",
-        "safeSummary": "Candidate B fixture repair completed within the approved limit.",
-        "sequence": 4,
-        "timestamp": "2026-07-17T02:22:00Z",
-        "type": "repair.completed"
-      },
-      {
-        "actor": "validator",
-        "id": "fixture-event-5",
-        "safeSummary": "Candidate A rejected; candidate verdict is independent of run health.",
-        "sequence": 5,
-        "timestamp": "2026-07-17T02:23:00Z",
-        "type": "candidate.rejected"
-      },
-      {
-        "actor": "validator",
-        "id": "fixture-event-6",
-        "safeSummary": "Synthetic robustness validation completed.",
-        "sequence": 6,
-        "timestamp": "2026-07-17T02:24:00Z",
-        "type": "validation.completed"
-      },
-      {
-        "actor": "agent",
-        "id": "fixture-event-7",
-        "safeSummary": "Research Report generated from persisted synthetic fixture records.",
-        "sequence": 7,
-        "timestamp": "2026-07-17T02:25:00Z",
-        "type": "report.generated"
-      },
-      {
-        "actor": "system",
-        "id": "fixture-event-8",
-        "safeSummary": "Scope is ready for planning.",
-        "sequence": 8,
-        "timestamp": "2026-07-17T02:26:00Z",
-        "type": "run.completed"
       }
     ],
+    "kernelCheck": {
+      "barCount": 1564,
+      "benchmark": null,
+      "datasetDigest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
+      "datasetId": "spy-daily-weekday-synthetic-v2",
+      "engineVersion": "daily-bar-kernel-v1",
+      "execution": "signal_at_close_fill_next_open",
+      "feeRateBps": 10,
+      "limitations": [
+        "1,564 deterministic synthetic weekday bars are not market observations.",
+        "Results are not computed until an approved Agent run starts.",
+        "No network, broker, model, or arbitrary code execution is available."
+      ],
+      "slippageRateBps": 5,
+      "status": "available",
+      "strategies": []
+    },
     "limits": {
       "arbitraryPython": false,
       "internetAccess": false,
@@ -2367,27 +2994,13 @@
         "updatedAt": "2026-07-17T02:24:00Z"
       }
     ],
-    "report": {
-      "conclusion": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
-      "disclaimer": "Demonstration results are synthetic and are not investment advice, a recommendation, or evidence of future performance.",
-      "generationMethod": "Server-owned deterministic fixture projection",
-      "humanReviewStatus": "Fixture review record",
-      "id": "fixture-report",
-      "limitations": [
-        "All values are synthetic demonstration fixtures.",
-        "No real backtest or market-data retrieval occurred.",
-        "This is not investment advice."
-      ],
-      "proposedNextStep": "Review limitations; no broker or paper-trading action is available.",
-      "title": "SPY Synthetic Research Report",
-      "validatorVersion": "validator-fixture-v1"
-    },
+    "report": null,
     "run": {
       "attemptNumber": 1,
       "completedAt": null,
       "currentStepId": "scope",
       "id": "55555555-5555-4555-8555-555555555502",
-      "latestSequence": 8,
+      "latestSequence": 1,
       "legalCommands": [
         "generate_plan"
       ],
@@ -2396,15 +3009,15 @@
       "startedAt": "2026-07-17T02:18:00Z",
       "state": "draft",
       "traceRef": "fixture-trace-spy-01",
-      "usedExperiments": 3,
-      "usedRepairAttempts": 1
+      "usedExperiments": 0,
+      "usedRepairAttempts": 0
     },
     "runtimeLabel": "Deterministic fixture",
     "scope": {
       "assumptions": [
-        "Synthetic demonstration values",
-        "No network retrieval",
-        "No executable strategy code"
+        "1,564 generated synthetic weekday bars; no exchange calendar",
+        "10 bps fee and 5 bps slippage per fill",
+        "No network retrieval; only fixed typed strategy specifications"
       ],
       "benchmark": "SPY Buy and Hold",
       "dateRange": {
@@ -2416,17 +3029,7 @@
       "symbol": "SPY",
       "version": 1
     },
-    "trades": [
-      {
-        "candidateId": "candidate-b",
-        "entryDate": "2019-01-02",
-        "exitDate": "2021-01-04",
-        "holdingDays": 733,
-        "id": "fixture-trade-1",
-        "reason": "Synthetic fixture crossover record",
-        "returnPct": 7.4
-      }
-    ],
+    "trades": [],
     "version": "Phase 0 · server-fixture-v1",
     "workspaceName": "PokieQuant Research"
   },
@@ -2434,155 +3037,227 @@
     "artifacts": [
       {
         "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-dataset-a120",
+        "digest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
         "id": "fixture-dataset",
         "origin": "Server fixture repository",
-        "relatedLabel": "SPY · 1D",
+        "relatedLabel": "SPY · 1D · synthetic weekdays",
         "status": "ready",
-        "summary": "Bounded synthetic OHLCV demonstration values.",
+        "summary": "1,564 deterministic weekday OHLCV rows used by the pure research kernel.",
         "title": "SPY Daily Synthetic Snapshot",
         "type": "dataset_snapshot"
-      },
-      {
-        "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-validation-5b20",
-        "id": "fixture-validation",
-        "origin": "Deterministic validator fixture",
-        "relatedLabel": "3 candidates",
-        "status": "ready",
-        "summary": "Candidate-scoped fixture verdicts.",
-        "title": "Synthetic Robustness Validation",
-        "type": "validation_report"
-      },
-      {
-        "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-report-4e91",
-        "id": "fixture-report",
-        "origin": "Server fixture projection",
-        "relatedLabel": "Attempt 1",
-        "status": "ready",
-        "summary": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
-        "title": "SPY Synthetic Research Report",
-        "type": "research_report"
       }
     ],
     "authenticity": "synthetic_fixture",
     "bars": [
       {
-        "close": 103,
+        "close": 100.036,
         "date": "2018-01-02",
-        "high": 104,
-        "low": 98,
-        "open": 100,
-        "volume": 1000
+        "high": 100.28609,
+        "low": 99.65025,
+        "open": 99.9,
+        "volume": 1000000
       },
       {
-        "close": 108,
-        "date": "2019-01-02",
-        "high": 110,
-        "low": 101,
-        "marker": "entry",
-        "open": 103,
-        "volume": 1200
+        "close": 113.045878,
+        "date": "2018-04-06",
+        "high": 113.498062,
+        "low": 112.496898,
+        "open": 112.948693,
+        "volume": 1374000
       },
       {
-        "close": 101,
-        "date": "2020-01-02",
-        "high": 112,
-        "low": 99,
-        "marker": "policy",
-        "open": 108,
-        "volume": 1400
+        "close": 106.463881,
+        "date": "2018-07-11",
+        "high": 106.888773,
+        "low": 106.064641,
+        "open": 106.489438,
+        "volume": 1357000
       },
       {
-        "close": 116,
-        "date": "2021-01-04",
-        "high": 118,
-        "low": 100,
-        "marker": "exit",
-        "open": 101,
-        "volume": 1300
+        "close": 117.249892,
+        "date": "2018-10-15",
+        "high": 117.676733,
+        "low": 116.839517,
+        "open": 117.266301,
+        "volume": 1340000
+      },
+      {
+        "close": 125.292744,
+        "date": "2019-01-17",
+        "high": 126.323359,
+        "low": 124.885543,
+        "open": 125.914138,
+        "volume": 1323000
+      },
+      {
+        "close": 123.003465,
+        "date": "2019-04-23",
+        "high": 123.372475,
+        "low": 122.571896,
+        "open": 122.940718,
+        "volume": 1306000
+      },
+      {
+        "close": 137.426946,
+        "date": "2019-07-26",
+        "high": 137.80487,
+        "low": 136.965452,
+        "open": 137.343146,
+        "volume": 1289000
+      },
+      {
+        "close": 132.449415,
+        "date": "2019-10-30",
+        "high": 133.339089,
+        "low": 132.118291,
+        "open": 133.006573,
+        "volume": 1272000
+      },
+      {
+        "close": 130.591656,
+        "date": "2020-02-03",
+        "high": 131.625662,
+        "low": 130.069289,
+        "open": 131.101257,
+        "volume": 1255000
+      },
+      {
+        "close": 118.607434,
+        "date": "2020-05-07",
+        "high": 119.052212,
+        "low": 117.649193,
+        "open": 118.092038,
+        "volume": 1238000
+      },
+      {
+        "close": 136.636854,
+        "date": "2020-08-11",
+        "high": 137.115083,
+        "low": 135.71597,
+        "open": 136.192644,
+        "volume": 1221000
+      },
+      {
+        "close": 184.864848,
+        "date": "2020-11-13",
+        "high": 185.465659,
+        "low": 183.646983,
+        "open": 184.245782,
+        "volume": 1204000
+      },
+      {
+        "close": 201.461413,
+        "date": "2021-02-16",
+        "high": 202.403197,
+        "low": 200.705933,
+        "open": 201.647021,
+        "volume": 1170000
+      },
+      {
+        "close": 199.988123,
+        "date": "2021-05-21",
+        "high": 200.688081,
+        "low": 198.834821,
+        "open": 199.533187,
+        "volume": 1153000
+      },
+      {
+        "close": 223.840853,
+        "date": "2021-08-25",
+        "high": 224.568336,
+        "low": 222.583886,
+        "open": 223.309642,
+        "volume": 1136000
+      },
+      {
+        "close": 212.968556,
+        "date": "2021-11-29",
+        "high": 214.125126,
+        "low": 212.32965,
+        "open": 213.484672,
+        "volume": 1119000
+      },
+      {
+        "close": 195.645973,
+        "date": "2022-03-03",
+        "high": 196.354956,
+        "low": 195.107947,
+        "open": 195.816461,
+        "volume": 1102000
+      },
+      {
+        "close": 211.658051,
+        "date": "2022-06-07",
+        "high": 212.187196,
+        "low": 209.883982,
+        "open": 210.410007,
+        "volume": 1085000
+      },
+      {
+        "close": 240.113648,
+        "date": "2022-09-09",
+        "high": 241.074103,
+        "low": 238.003922,
+        "open": 238.959761,
+        "volume": 1068000
+      },
+      {
+        "close": 321.07026,
+        "date": "2022-12-14",
+        "high": 322.274273,
+        "low": 318.298213,
+        "open": 319.496324,
+        "volume": 1051000
+      },
+      {
+        "close": 340.438969,
+        "date": "2023-03-20",
+        "high": 341.774195,
+        "low": 339.247433,
+        "open": 340.582157,
+        "volume": 1034000
+      },
+      {
+        "close": 342.99034,
+        "date": "2023-06-22",
+        "high": 344.105059,
+        "low": 340.927369,
+        "open": 342.038996,
+        "volume": 1017000
+      },
+      {
+        "close": 384.820385,
+        "date": "2023-09-26",
+        "high": 385.974846,
+        "low": 382.564139,
+        "open": 383.715285,
+        "volume": 1000000
+      },
+      {
+        "close": 365.251821,
+        "date": "2023-12-29",
+        "high": 366.256264,
+        "low": 363.600492,
+        "open": 364.603151,
+        "volume": 1374000
       }
     ],
-    "benchmark": {
-      "annualizedReturn": 10.8,
-      "maxDrawdown": -33.7,
-      "sharpe": 0.72,
-      "trades": 1
-    },
-    "candidates": [
-      {
-        "id": "candidate-a",
-        "metrics": {
-          "annualizedReturn": 9.6,
-          "maxDrawdown": -24.8,
-          "sharpe": 0.83,
-          "trades": 38
-        },
-        "name": "Candidate A · SMA 20/100",
-        "parameters": "fast=20 · slow=100",
-        "robustness": [
-          "Fails adjacent-window sensitivity check",
-          "Synthetic values only"
-        ],
-        "strategySpec": "family: sma_cross\nfast_window: 20\nslow_window: 100\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
-        "verdict": "rejected",
-        "verdictReason": "Parameter sensitivity"
-      },
-      {
-        "id": "candidate-b",
-        "metrics": {
-          "annualizedReturn": 8.9,
-          "maxDrawdown": -18.7,
-          "sharpe": 0.88,
-          "trades": 18
-        },
-        "name": "Candidate B · SMA 50/200",
-        "parameters": "fast=50 · slow=200",
-        "robustness": [
-          "One candidate-scoped repair retained",
-          "Synthetic values only"
-        ],
-        "strategySpec": "family: sma_cross\nfast_window: 50\nslow_window: 200\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
-        "verdict": "promising",
-        "verdictReason": "Candidate for paper evaluation"
-      },
-      {
-        "id": "candidate-c",
-        "metrics": {
-          "annualizedReturn": 9.3,
-          "maxDrawdown": -21.4,
-          "sharpe": 0.86,
-          "trades": 12
-        },
-        "name": "Candidate C · 200-day trend filter",
-        "parameters": "window=200",
-        "robustness": [
-          "Insufficient independent periods",
-          "Synthetic values only"
-        ],
-        "strategySpec": "family: trend_filter\nwindow: 200\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
-        "verdict": "inconclusive",
-        "verdictReason": "Too few independent trade periods"
-      }
-    ],
+    "benchmark": null,
+    "candidates": [],
     "composerLegalCommands": [],
     "dataset": {
       "authenticity": "synthetic_fixture",
-      "barCount": 4,
+      "barCount": 1564,
       "dateRange": {
         "end": "2023-12-29",
         "start": "2018-01-02"
       },
-      "digest": "sha256:fixture-dataset-a120",
-      "id": "fixture-spy-daily-v1",
+      "digest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
+      "id": "spy-daily-weekday-synthetic-v2",
       "interval": "1D",
-      "name": "SPY Daily Synthetic Fixture 2018–2023",
-      "parserVersion": "fixture-parser-v1",
-      "schemaVersion": "market-bars-fixture-v1",
+      "name": "SPY Daily Synthetic Weekday Fixture · 2018–2023",
+      "parserVersion": "deterministic-weekday-generator-v2",
+      "schemaVersion": "quant-daily-bars-v1",
       "symbol": "SPY"
     },
     "events": [
@@ -2617,40 +3292,25 @@
         "sequence": 4,
         "timestamp": "2026-07-17T02:22:00Z",
         "type": "repair.completed"
-      },
-      {
-        "actor": "validator",
-        "id": "fixture-event-5",
-        "safeSummary": "Candidate A rejected; candidate verdict is independent of run health.",
-        "sequence": 5,
-        "timestamp": "2026-07-17T02:23:00Z",
-        "type": "candidate.rejected"
-      },
-      {
-        "actor": "validator",
-        "id": "fixture-event-6",
-        "safeSummary": "Synthetic robustness validation completed.",
-        "sequence": 6,
-        "timestamp": "2026-07-17T02:24:00Z",
-        "type": "validation.completed"
-      },
-      {
-        "actor": "agent",
-        "id": "fixture-event-7",
-        "safeSummary": "Research Report generated from persisted synthetic fixture records.",
-        "sequence": 7,
-        "timestamp": "2026-07-17T02:25:00Z",
-        "type": "report.generated"
-      },
-      {
-        "actor": "system",
-        "id": "fixture-event-8",
-        "safeSummary": "Candidate B is in a bounded fixture repair.",
-        "sequence": 8,
-        "timestamp": "2026-07-17T02:26:00Z",
-        "type": "run.completed"
       }
     ],
+    "kernelCheck": {
+      "barCount": 1564,
+      "benchmark": null,
+      "datasetDigest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
+      "datasetId": "spy-daily-weekday-synthetic-v2",
+      "engineVersion": "daily-bar-kernel-v1",
+      "execution": "signal_at_close_fill_next_open",
+      "feeRateBps": 10,
+      "limitations": [
+        "1,564 deterministic synthetic weekday bars are not market observations.",
+        "Results are not computed until an approved Agent run starts.",
+        "No network, broker, model, or arbitrary code execution is available."
+      ],
+      "slippageRateBps": 5,
+      "status": "available",
+      "strategies": []
+    },
     "limits": {
       "arbitraryPython": false,
       "internetAccess": false,
@@ -2772,27 +3432,13 @@
         "updatedAt": "2026-07-17T02:24:00Z"
       }
     ],
-    "report": {
-      "conclusion": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
-      "disclaimer": "Demonstration results are synthetic and are not investment advice, a recommendation, or evidence of future performance.",
-      "generationMethod": "Server-owned deterministic fixture projection",
-      "humanReviewStatus": "Fixture review record",
-      "id": "fixture-report",
-      "limitations": [
-        "All values are synthetic demonstration fixtures.",
-        "No real backtest or market-data retrieval occurred.",
-        "This is not investment advice."
-      ],
-      "proposedNextStep": "Review limitations; no broker or paper-trading action is available.",
-      "title": "SPY Synthetic Research Report",
-      "validatorVersion": "validator-fixture-v1"
-    },
+    "report": null,
     "run": {
       "attemptNumber": 1,
       "completedAt": null,
       "currentStepId": "repair",
       "id": "55555555-5555-4555-8555-555555555502",
-      "latestSequence": 8,
+      "latestSequence": 4,
       "legalCommands": [
         "cancel_run"
       ],
@@ -2801,15 +3447,15 @@
       "startedAt": "2026-07-17T02:18:00Z",
       "state": "repairing",
       "traceRef": "fixture-trace-spy-01",
-      "usedExperiments": 3,
+      "usedExperiments": 1,
       "usedRepairAttempts": 1
     },
     "runtimeLabel": "Deterministic fixture",
     "scope": {
       "assumptions": [
-        "Synthetic demonstration values",
-        "No network retrieval",
-        "No executable strategy code"
+        "1,564 generated synthetic weekday bars; no exchange calendar",
+        "10 bps fee and 5 bps slippage per fill",
+        "No network retrieval; only fixed typed strategy specifications"
       ],
       "benchmark": "SPY Buy and Hold",
       "dateRange": {
@@ -2821,17 +3467,7 @@
       "symbol": "SPY",
       "version": 1
     },
-    "trades": [
-      {
-        "candidateId": "candidate-b",
-        "entryDate": "2019-01-02",
-        "exitDate": "2021-01-04",
-        "holdingDays": 733,
-        "id": "fixture-trade-1",
-        "reason": "Synthetic fixture crossover record",
-        "returnPct": 7.4
-      }
-    ],
+    "trades": [],
     "version": "Phase 0 · server-fixture-v1",
     "workspaceName": "PokieQuant Research"
   },
@@ -2839,155 +3475,227 @@
     "artifacts": [
       {
         "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-dataset-a120",
+        "digest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
         "id": "fixture-dataset",
         "origin": "Server fixture repository",
-        "relatedLabel": "SPY · 1D",
+        "relatedLabel": "SPY · 1D · synthetic weekdays",
         "status": "ready",
-        "summary": "Bounded synthetic OHLCV demonstration values.",
+        "summary": "1,564 deterministic weekday OHLCV rows used by the pure research kernel.",
         "title": "SPY Daily Synthetic Snapshot",
         "type": "dataset_snapshot"
-      },
-      {
-        "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-validation-5b20",
-        "id": "fixture-validation",
-        "origin": "Deterministic validator fixture",
-        "relatedLabel": "3 candidates",
-        "status": "ready",
-        "summary": "Candidate-scoped fixture verdicts.",
-        "title": "Synthetic Robustness Validation",
-        "type": "validation_report"
-      },
-      {
-        "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-report-4e91",
-        "id": "fixture-report",
-        "origin": "Server fixture projection",
-        "relatedLabel": "Attempt 1",
-        "status": "ready",
-        "summary": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
-        "title": "SPY Synthetic Research Report",
-        "type": "research_report"
       }
     ],
     "authenticity": "synthetic_fixture",
     "bars": [
       {
-        "close": 103,
+        "close": 100.036,
         "date": "2018-01-02",
-        "high": 104,
-        "low": 98,
-        "open": 100,
-        "volume": 1000
+        "high": 100.28609,
+        "low": 99.65025,
+        "open": 99.9,
+        "volume": 1000000
       },
       {
-        "close": 108,
-        "date": "2019-01-02",
-        "high": 110,
-        "low": 101,
-        "marker": "entry",
-        "open": 103,
-        "volume": 1200
+        "close": 113.045878,
+        "date": "2018-04-06",
+        "high": 113.498062,
+        "low": 112.496898,
+        "open": 112.948693,
+        "volume": 1374000
       },
       {
-        "close": 101,
-        "date": "2020-01-02",
-        "high": 112,
-        "low": 99,
-        "marker": "policy",
-        "open": 108,
-        "volume": 1400
+        "close": 106.463881,
+        "date": "2018-07-11",
+        "high": 106.888773,
+        "low": 106.064641,
+        "open": 106.489438,
+        "volume": 1357000
       },
       {
-        "close": 116,
-        "date": "2021-01-04",
-        "high": 118,
-        "low": 100,
-        "marker": "exit",
-        "open": 101,
-        "volume": 1300
+        "close": 117.249892,
+        "date": "2018-10-15",
+        "high": 117.676733,
+        "low": 116.839517,
+        "open": 117.266301,
+        "volume": 1340000
+      },
+      {
+        "close": 125.292744,
+        "date": "2019-01-17",
+        "high": 126.323359,
+        "low": 124.885543,
+        "open": 125.914138,
+        "volume": 1323000
+      },
+      {
+        "close": 123.003465,
+        "date": "2019-04-23",
+        "high": 123.372475,
+        "low": 122.571896,
+        "open": 122.940718,
+        "volume": 1306000
+      },
+      {
+        "close": 137.426946,
+        "date": "2019-07-26",
+        "high": 137.80487,
+        "low": 136.965452,
+        "open": 137.343146,
+        "volume": 1289000
+      },
+      {
+        "close": 132.449415,
+        "date": "2019-10-30",
+        "high": 133.339089,
+        "low": 132.118291,
+        "open": 133.006573,
+        "volume": 1272000
+      },
+      {
+        "close": 130.591656,
+        "date": "2020-02-03",
+        "high": 131.625662,
+        "low": 130.069289,
+        "open": 131.101257,
+        "volume": 1255000
+      },
+      {
+        "close": 118.607434,
+        "date": "2020-05-07",
+        "high": 119.052212,
+        "low": 117.649193,
+        "open": 118.092038,
+        "volume": 1238000
+      },
+      {
+        "close": 136.636854,
+        "date": "2020-08-11",
+        "high": 137.115083,
+        "low": 135.71597,
+        "open": 136.192644,
+        "volume": 1221000
+      },
+      {
+        "close": 184.864848,
+        "date": "2020-11-13",
+        "high": 185.465659,
+        "low": 183.646983,
+        "open": 184.245782,
+        "volume": 1204000
+      },
+      {
+        "close": 201.461413,
+        "date": "2021-02-16",
+        "high": 202.403197,
+        "low": 200.705933,
+        "open": 201.647021,
+        "volume": 1170000
+      },
+      {
+        "close": 199.988123,
+        "date": "2021-05-21",
+        "high": 200.688081,
+        "low": 198.834821,
+        "open": 199.533187,
+        "volume": 1153000
+      },
+      {
+        "close": 223.840853,
+        "date": "2021-08-25",
+        "high": 224.568336,
+        "low": 222.583886,
+        "open": 223.309642,
+        "volume": 1136000
+      },
+      {
+        "close": 212.968556,
+        "date": "2021-11-29",
+        "high": 214.125126,
+        "low": 212.32965,
+        "open": 213.484672,
+        "volume": 1119000
+      },
+      {
+        "close": 195.645973,
+        "date": "2022-03-03",
+        "high": 196.354956,
+        "low": 195.107947,
+        "open": 195.816461,
+        "volume": 1102000
+      },
+      {
+        "close": 211.658051,
+        "date": "2022-06-07",
+        "high": 212.187196,
+        "low": 209.883982,
+        "open": 210.410007,
+        "volume": 1085000
+      },
+      {
+        "close": 240.113648,
+        "date": "2022-09-09",
+        "high": 241.074103,
+        "low": 238.003922,
+        "open": 238.959761,
+        "volume": 1068000
+      },
+      {
+        "close": 321.07026,
+        "date": "2022-12-14",
+        "high": 322.274273,
+        "low": 318.298213,
+        "open": 319.496324,
+        "volume": 1051000
+      },
+      {
+        "close": 340.438969,
+        "date": "2023-03-20",
+        "high": 341.774195,
+        "low": 339.247433,
+        "open": 340.582157,
+        "volume": 1034000
+      },
+      {
+        "close": 342.99034,
+        "date": "2023-06-22",
+        "high": 344.105059,
+        "low": 340.927369,
+        "open": 342.038996,
+        "volume": 1017000
+      },
+      {
+        "close": 384.820385,
+        "date": "2023-09-26",
+        "high": 385.974846,
+        "low": 382.564139,
+        "open": 383.715285,
+        "volume": 1000000
+      },
+      {
+        "close": 365.251821,
+        "date": "2023-12-29",
+        "high": 366.256264,
+        "low": 363.600492,
+        "open": 364.603151,
+        "volume": 1374000
       }
     ],
-    "benchmark": {
-      "annualizedReturn": 10.8,
-      "maxDrawdown": -33.7,
-      "sharpe": 0.72,
-      "trades": 1
-    },
-    "candidates": [
-      {
-        "id": "candidate-a",
-        "metrics": {
-          "annualizedReturn": 9.6,
-          "maxDrawdown": -24.8,
-          "sharpe": 0.83,
-          "trades": 38
-        },
-        "name": "Candidate A · SMA 20/100",
-        "parameters": "fast=20 · slow=100",
-        "robustness": [
-          "Fails adjacent-window sensitivity check",
-          "Synthetic values only"
-        ],
-        "strategySpec": "family: sma_cross\nfast_window: 20\nslow_window: 100\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
-        "verdict": "rejected",
-        "verdictReason": "Parameter sensitivity"
-      },
-      {
-        "id": "candidate-b",
-        "metrics": {
-          "annualizedReturn": 8.9,
-          "maxDrawdown": -18.7,
-          "sharpe": 0.88,
-          "trades": 18
-        },
-        "name": "Candidate B · SMA 50/200",
-        "parameters": "fast=50 · slow=200",
-        "robustness": [
-          "One candidate-scoped repair retained",
-          "Synthetic values only"
-        ],
-        "strategySpec": "family: sma_cross\nfast_window: 50\nslow_window: 200\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
-        "verdict": "promising",
-        "verdictReason": "Candidate for paper evaluation"
-      },
-      {
-        "id": "candidate-c",
-        "metrics": {
-          "annualizedReturn": 9.3,
-          "maxDrawdown": -21.4,
-          "sharpe": 0.86,
-          "trades": 12
-        },
-        "name": "Candidate C · 200-day trend filter",
-        "parameters": "window=200",
-        "robustness": [
-          "Insufficient independent periods",
-          "Synthetic values only"
-        ],
-        "strategySpec": "family: trend_filter\nwindow: 200\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
-        "verdict": "inconclusive",
-        "verdictReason": "Too few independent trade periods"
-      }
-    ],
+    "benchmark": null,
+    "candidates": [],
     "composerLegalCommands": [],
     "dataset": {
       "authenticity": "synthetic_fixture",
-      "barCount": 4,
+      "barCount": 1564,
       "dateRange": {
         "end": "2023-12-29",
         "start": "2018-01-02"
       },
-      "digest": "sha256:fixture-dataset-a120",
-      "id": "fixture-spy-daily-v1",
+      "digest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
+      "id": "spy-daily-weekday-synthetic-v2",
       "interval": "1D",
-      "name": "SPY Daily Synthetic Fixture 2018–2023",
-      "parserVersion": "fixture-parser-v1",
-      "schemaVersion": "market-bars-fixture-v1",
+      "name": "SPY Daily Synthetic Weekday Fixture · 2018–2023",
+      "parserVersion": "deterministic-weekday-generator-v2",
+      "schemaVersion": "quant-daily-bars-v1",
       "symbol": "SPY"
     },
     "events": [
@@ -3006,56 +3714,25 @@
         "sequence": 2,
         "timestamp": "2026-07-17T02:20:00Z",
         "type": "data.load.completed"
-      },
-      {
-        "actor": "system",
-        "id": "fixture-event-3",
-        "safeSummary": "Candidate B fixture experiment stopped safely; the run did not fail.",
-        "sequence": 3,
-        "timestamp": "2026-07-17T02:21:00Z",
-        "type": "backtest.failed"
-      },
-      {
-        "actor": "system",
-        "id": "fixture-event-4",
-        "safeSummary": "Candidate B fixture repair completed within the approved limit.",
-        "sequence": 4,
-        "timestamp": "2026-07-17T02:22:00Z",
-        "type": "repair.completed"
-      },
-      {
-        "actor": "validator",
-        "id": "fixture-event-5",
-        "safeSummary": "Candidate A rejected; candidate verdict is independent of run health.",
-        "sequence": 5,
-        "timestamp": "2026-07-17T02:23:00Z",
-        "type": "candidate.rejected"
-      },
-      {
-        "actor": "validator",
-        "id": "fixture-event-6",
-        "safeSummary": "Synthetic robustness validation completed.",
-        "sequence": 6,
-        "timestamp": "2026-07-17T02:24:00Z",
-        "type": "validation.completed"
-      },
-      {
-        "actor": "agent",
-        "id": "fixture-event-7",
-        "safeSummary": "Research Report generated from persisted synthetic fixture records.",
-        "sequence": 7,
-        "timestamp": "2026-07-17T02:25:00Z",
-        "type": "report.generated"
-      },
-      {
-        "actor": "system",
-        "id": "fixture-event-8",
-        "safeSummary": "Fixture experiments are being recorded.",
-        "sequence": 8,
-        "timestamp": "2026-07-17T02:26:00Z",
-        "type": "run.completed"
       }
     ],
+    "kernelCheck": {
+      "barCount": 1564,
+      "benchmark": null,
+      "datasetDigest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
+      "datasetId": "spy-daily-weekday-synthetic-v2",
+      "engineVersion": "daily-bar-kernel-v1",
+      "execution": "signal_at_close_fill_next_open",
+      "feeRateBps": 10,
+      "limitations": [
+        "1,564 deterministic synthetic weekday bars are not market observations.",
+        "Results are not computed until an approved Agent run starts.",
+        "No network, broker, model, or arbitrary code execution is available."
+      ],
+      "slippageRateBps": 5,
+      "status": "available",
+      "strategies": []
+    },
     "limits": {
       "arbitraryPython": false,
       "internetAccess": false,
@@ -3161,7 +3838,7 @@
       "goal": "Evaluate bounded SPY trend hypotheses with synthetic evidence.",
       "id": "55555555-5555-4555-8555-555555555501",
       "needsAction": false,
-      "statusLabel": "Fixture experiments are being recorded.",
+      "statusLabel": "The approved synthetic Agent is ready to run.",
       "symbol": "SPY",
       "title": "SPY · Trend Research",
       "updatedAt": "2026-07-17T02:24:00Z"
@@ -3171,34 +3848,21 @@
         "goal": "Evaluate bounded SPY trend hypotheses with synthetic evidence.",
         "id": "55555555-5555-4555-8555-555555555501",
         "needsAction": false,
-        "statusLabel": "Fixture experiments are being recorded.",
+        "statusLabel": "The approved synthetic Agent is ready to run.",
         "symbol": "SPY",
         "title": "SPY · Trend Research",
         "updatedAt": "2026-07-17T02:24:00Z"
       }
     ],
-    "report": {
-      "conclusion": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
-      "disclaimer": "Demonstration results are synthetic and are not investment advice, a recommendation, or evidence of future performance.",
-      "generationMethod": "Server-owned deterministic fixture projection",
-      "humanReviewStatus": "Fixture review record",
-      "id": "fixture-report",
-      "limitations": [
-        "All values are synthetic demonstration fixtures.",
-        "No real backtest or market-data retrieval occurred.",
-        "This is not investment advice."
-      ],
-      "proposedNextStep": "Review limitations; no broker or paper-trading action is available.",
-      "title": "SPY Synthetic Research Report",
-      "validatorVersion": "validator-fixture-v1"
-    },
+    "report": null,
     "run": {
       "attemptNumber": 1,
       "completedAt": null,
       "currentStepId": "experiments",
       "id": "55555555-5555-4555-8555-555555555502",
-      "latestSequence": 8,
+      "latestSequence": 2,
       "legalCommands": [
+        "run_fixture",
         "cancel_run"
       ],
       "mode": "auto_research",
@@ -3206,15 +3870,15 @@
       "startedAt": "2026-07-17T02:18:00Z",
       "state": "running_experiments",
       "traceRef": "fixture-trace-spy-01",
-      "usedExperiments": 3,
-      "usedRepairAttempts": 1
+      "usedExperiments": 1,
+      "usedRepairAttempts": 0
     },
     "runtimeLabel": "Deterministic fixture",
     "scope": {
       "assumptions": [
-        "Synthetic demonstration values",
-        "No network retrieval",
-        "No executable strategy code"
+        "1,564 generated synthetic weekday bars; no exchange calendar",
+        "10 bps fee and 5 bps slippage per fill",
+        "No network retrieval; only fixed typed strategy specifications"
       ],
       "benchmark": "SPY Buy and Hold",
       "dateRange": {
@@ -3226,17 +3890,7 @@
       "symbol": "SPY",
       "version": 1
     },
-    "trades": [
-      {
-        "candidateId": "candidate-b",
-        "entryDate": "2019-01-02",
-        "exitDate": "2021-01-04",
-        "holdingDays": 733,
-        "id": "fixture-trade-1",
-        "reason": "Synthetic fixture crossover record",
-        "returnPct": 7.4
-      }
-    ],
+    "trades": [],
     "version": "Phase 0 · server-fixture-v1",
     "workspaceName": "PokieQuant Research"
   },
@@ -3244,155 +3898,340 @@
     "artifacts": [
       {
         "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-dataset-a120",
+        "digest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
         "id": "fixture-dataset",
         "origin": "Server fixture repository",
-        "relatedLabel": "SPY · 1D",
+        "relatedLabel": "SPY · 1D · synthetic weekdays",
         "status": "ready",
-        "summary": "Bounded synthetic OHLCV demonstration values.",
+        "summary": "1,564 deterministic weekday OHLCV rows used by the pure research kernel.",
         "title": "SPY Daily Synthetic Snapshot",
         "type": "dataset_snapshot"
       },
       {
         "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-validation-5b20",
+        "digest": "sha256:6bfedffda38da79ed721f89387021bb6aac6c62e6b7b735423711d82a3e6f6fd",
         "id": "fixture-validation",
-        "origin": "Deterministic validator fixture",
-        "relatedLabel": "3 candidates",
+        "origin": "Computed by daily-bar-kernel-v1 from a digest-pinned synthetic dataset",
+        "relatedLabel": "3 computed candidates",
         "status": "ready",
-        "summary": "Candidate-scoped fixture verdicts.",
+        "summary": "Computed candidate metrics with fixed sensitivity and trade-count rules.",
         "title": "Synthetic Robustness Validation",
         "type": "validation_report"
-      },
-      {
-        "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-report-4e91",
-        "id": "fixture-report",
-        "origin": "Server fixture projection",
-        "relatedLabel": "Attempt 1",
-        "status": "ready",
-        "summary": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
-        "title": "SPY Synthetic Research Report",
-        "type": "research_report"
       }
     ],
     "authenticity": "synthetic_fixture",
     "bars": [
       {
-        "close": 103,
+        "close": 100.036,
         "date": "2018-01-02",
-        "high": 104,
-        "low": 98,
-        "open": 100,
-        "volume": 1000
+        "high": 100.28609,
+        "low": 99.65025,
+        "open": 99.9,
+        "volume": 1000000
       },
       {
-        "close": 108,
-        "date": "2019-01-02",
-        "high": 110,
-        "low": 101,
+        "close": 113.045878,
+        "date": "2018-04-06",
+        "high": 113.498062,
+        "low": 112.496898,
+        "open": 112.948693,
+        "volume": 1374000
+      },
+      {
+        "close": 106.463881,
+        "date": "2018-07-11",
+        "high": 106.888773,
+        "low": 106.064641,
+        "open": 106.489438,
+        "volume": 1357000
+      },
+      {
+        "close": 116.388768,
+        "date": "2018-10-09",
+        "high": 116.737934,
+        "low": 116.009469,
         "marker": "entry",
-        "open": 103,
-        "volume": 1200
+        "open": 116.358545,
+        "volume": 1272000
       },
       {
-        "close": 101,
-        "date": "2020-01-02",
-        "high": 112,
-        "low": 99,
-        "marker": "policy",
-        "open": 108,
-        "volume": 1400
+        "close": 117.249892,
+        "date": "2018-10-15",
+        "high": 117.676733,
+        "low": 116.839517,
+        "open": 117.266301,
+        "volume": 1340000
       },
       {
-        "close": 116,
-        "date": "2021-01-04",
-        "high": 118,
-        "low": 100,
+        "close": 125.292744,
+        "date": "2019-01-17",
+        "high": 126.323359,
+        "low": 124.885543,
+        "open": 125.914138,
+        "volume": 1323000
+      },
+      {
+        "close": 123.003465,
+        "date": "2019-04-23",
+        "high": 123.372475,
+        "low": 122.571896,
+        "open": 122.940718,
+        "volume": 1306000
+      },
+      {
+        "close": 137.426946,
+        "date": "2019-07-26",
+        "high": 137.80487,
+        "low": 136.965452,
+        "open": 137.343146,
+        "volume": 1289000
+      },
+      {
+        "close": 132.449415,
+        "date": "2019-10-30",
+        "high": 133.339089,
+        "low": 132.118291,
+        "open": 133.006573,
+        "volume": 1272000
+      },
+      {
+        "close": 130.591656,
+        "date": "2020-02-03",
+        "high": 131.625662,
+        "low": 130.069289,
+        "open": 131.101257,
+        "volume": 1255000
+      },
+      {
+        "close": 129.983799,
+        "date": "2020-02-05",
+        "high": 130.643037,
+        "low": 129.65884,
         "marker": "exit",
-        "open": 101,
-        "volume": 1300
+        "open": 130.317244,
+        "volume": 1289000
+      },
+      {
+        "close": 118.607434,
+        "date": "2020-05-07",
+        "high": 119.052212,
+        "low": 117.649193,
+        "open": 118.092038,
+        "volume": 1238000
+      },
+      {
+        "close": 136.636854,
+        "date": "2020-08-11",
+        "high": 137.115083,
+        "low": 135.71597,
+        "open": 136.192644,
+        "volume": 1221000
+      },
+      {
+        "close": 138.89695,
+        "date": "2020-08-17",
+        "high": 139.452538,
+        "low": 137.526391,
+        "marker": "entry",
+        "open": 138.078706,
+        "volume": 1289000
+      },
+      {
+        "close": 184.864848,
+        "date": "2020-11-13",
+        "high": 185.465659,
+        "low": 183.646983,
+        "open": 184.245782,
+        "volume": 1204000
+      },
+      {
+        "close": 201.461413,
+        "date": "2021-02-16",
+        "high": 202.403197,
+        "low": 200.705933,
+        "open": 201.647021,
+        "volume": 1170000
+      },
+      {
+        "close": 199.988123,
+        "date": "2021-05-21",
+        "high": 200.688081,
+        "low": 198.834821,
+        "open": 199.533187,
+        "volume": 1153000
+      },
+      {
+        "close": 223.840853,
+        "date": "2021-08-25",
+        "high": 224.568336,
+        "low": 222.583886,
+        "open": 223.309642,
+        "volume": 1136000
+      },
+      {
+        "close": 212.968556,
+        "date": "2021-11-29",
+        "high": 214.125126,
+        "low": 212.32965,
+        "open": 213.484672,
+        "volume": 1119000
+      },
+      {
+        "close": 209.39494,
+        "date": "2022-02-01",
+        "high": 210.466758,
+        "low": 208.662058,
+        "marker": "exit",
+        "open": 209.732694,
+        "volume": 1119000
+      },
+      {
+        "close": 195.645973,
+        "date": "2022-03-03",
+        "high": 196.354956,
+        "low": 195.107947,
+        "open": 195.816461,
+        "volume": 1102000
+      },
+      {
+        "close": 211.658051,
+        "date": "2022-06-07",
+        "high": 212.187196,
+        "low": 209.883982,
+        "open": 210.410007,
+        "volume": 1085000
+      },
+      {
+        "close": 240.113648,
+        "date": "2022-09-09",
+        "high": 241.074103,
+        "low": 238.003922,
+        "open": 238.959761,
+        "volume": 1068000
+      },
+      {
+        "close": 321.07026,
+        "date": "2022-12-14",
+        "high": 322.274273,
+        "low": 318.298213,
+        "open": 319.496324,
+        "volume": 1051000
+      },
+      {
+        "close": 340.438969,
+        "date": "2023-03-20",
+        "high": 341.774195,
+        "low": 339.247433,
+        "open": 340.582157,
+        "volume": 1034000
+      },
+      {
+        "close": 342.99034,
+        "date": "2023-06-22",
+        "high": 344.105059,
+        "low": 340.927369,
+        "open": 342.038996,
+        "volume": 1017000
+      },
+      {
+        "close": 384.820385,
+        "date": "2023-09-26",
+        "high": 385.974846,
+        "low": 382.564139,
+        "open": 383.715285,
+        "volume": 1000000
+      },
+      {
+        "close": 365.251821,
+        "date": "2023-12-29",
+        "high": 366.256264,
+        "low": 363.600492,
+        "open": 364.603151,
+        "volume": 1374000
       }
     ],
     "benchmark": {
-      "annualizedReturn": 10.8,
-      "maxDrawdown": -33.7,
-      "sharpe": 0.72,
+      "annualizedReturn": 23.2,
+      "maxDrawdown": -23.8,
+      "sharpe": 5.3,
       "trades": 1
     },
     "candidates": [
       {
         "id": "candidate-a",
         "metrics": {
-          "annualizedReturn": 9.6,
-          "maxDrawdown": -24.8,
-          "sharpe": 0.83,
-          "trades": 38
+          "annualizedReturn": 20.6,
+          "maxDrawdown": -8.8,
+          "sharpe": 5.78,
+          "trades": 7
         },
         "name": "Candidate A · SMA 20/100",
         "parameters": "fast=20 · slow=100",
         "robustness": [
-          "Fails adjacent-window sensitivity check",
-          "Synthetic values only"
+          "10/80 versus 30/120 annualized-return range: 6.33 pp",
+          "Rejected by the configured >5 pp sensitivity rule",
+          "Metrics computed by the pure daily-bar kernel"
         ],
-        "strategySpec": "family: sma_cross\nfast_window: 20\nslow_window: 100\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
+        "strategySpec": "family: sma\nfast_period: 20\nslow_period: 100\nposition: long_or_cash",
+        "strategySpecVersion": "daily-bar-kernel-v1",
         "verdict": "rejected",
-        "verdictReason": "Parameter sensitivity"
+        "verdictReason": "Parameter sensitivity · 6.33 pp range"
       },
       {
         "id": "candidate-b",
         "metrics": {
-          "annualizedReturn": 8.9,
-          "maxDrawdown": -18.7,
-          "sharpe": 0.88,
-          "trades": 18
+          "annualizedReturn": 18.4,
+          "maxDrawdown": -11.1,
+          "sharpe": 5.07,
+          "trades": 2
         },
         "name": "Candidate B · SMA 50/200",
         "parameters": "fast=50 · slow=200",
         "robustness": [
-          "One candidate-scoped repair retained",
-          "Synthetic values only"
+          "40/180 versus 60/220 annualized-return range: 3.84 pp",
+          "Passes the configured ≤5 pp sensitivity rule",
+          "Synthetic evidence only; no paper-trading action is enabled"
         ],
-        "strategySpec": "family: sma_cross\nfast_window: 50\nslow_window: 200\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
+        "strategySpec": "family: sma\nfast_period: 50\nslow_period: 200\nposition: long_or_cash",
+        "strategySpecVersion": "daily-bar-kernel-v1",
         "verdict": "promising",
         "verdictReason": "Candidate for paper evaluation"
       },
       {
         "id": "candidate-c",
         "metrics": {
-          "annualizedReturn": 9.3,
-          "maxDrawdown": -21.4,
-          "sharpe": 0.86,
-          "trades": 12
+          "annualizedReturn": 16.3,
+          "maxDrawdown": -15.5,
+          "sharpe": 4.46,
+          "trades": 2
         },
-        "name": "Candidate C · 200-day trend filter",
-        "parameters": "window=200",
+        "name": "Candidate C · 200-day breakout",
+        "parameters": "lookback=200",
         "robustness": [
-          "Insufficient independent periods",
-          "Synthetic values only"
+          "Only 2 closed trades",
+          "Inconclusive under the configured minimum of 3",
+          "Metrics computed by the pure daily-bar kernel"
         ],
-        "strategySpec": "family: trend_filter\nwindow: 200\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
+        "strategySpec": "family: breakout\nperiod: 200\nposition: long_or_cash",
+        "strategySpecVersion": "daily-bar-kernel-v1",
         "verdict": "inconclusive",
-        "verdictReason": "Too few independent trade periods"
+        "verdictReason": "Too few closed trades"
       }
     ],
     "composerLegalCommands": [],
     "dataset": {
       "authenticity": "synthetic_fixture",
-      "barCount": 4,
+      "barCount": 1564,
       "dateRange": {
         "end": "2023-12-29",
         "start": "2018-01-02"
       },
-      "digest": "sha256:fixture-dataset-a120",
-      "id": "fixture-spy-daily-v1",
+      "digest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
+      "id": "spy-daily-weekday-synthetic-v2",
       "interval": "1D",
-      "name": "SPY Daily Synthetic Fixture 2018–2023",
-      "parserVersion": "fixture-parser-v1",
-      "schemaVersion": "market-bars-fixture-v1",
+      "name": "SPY Daily Synthetic Weekday Fixture · 2018–2023",
+      "parserVersion": "deterministic-weekday-generator-v2",
+      "schemaVersion": "quant-daily-bars-v1",
       "symbol": "SPY"
     },
     "events": [
@@ -3443,24 +4282,65 @@
         "sequence": 6,
         "timestamp": "2026-07-17T02:24:00Z",
         "type": "validation.completed"
-      },
-      {
-        "actor": "agent",
-        "id": "fixture-event-7",
-        "safeSummary": "Research Report generated from persisted synthetic fixture records.",
-        "sequence": 7,
-        "timestamp": "2026-07-17T02:25:00Z",
-        "type": "report.generated"
-      },
-      {
-        "actor": "system",
-        "id": "fixture-event-8",
-        "safeSummary": "Fixture robustness validation is active.",
-        "sequence": 8,
-        "timestamp": "2026-07-17T02:26:00Z",
-        "type": "run.completed"
       }
     ],
+    "kernelCheck": {
+      "barCount": 1564,
+      "benchmark": {
+        "annualizedReturnPct": 23.22,
+        "finalEquity": 365069.65,
+        "id": "buy-and-hold",
+        "label": "Buy and Hold",
+        "maxDrawdownPct": -23.79,
+        "sharpe": 5.3,
+        "totalReturnPct": 265.07,
+        "tradeCount": 1
+      },
+      "datasetDigest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
+      "datasetId": "spy-daily-weekday-synthetic-v2",
+      "engineVersion": "daily-bar-kernel-v1",
+      "execution": "signal_at_close_fill_next_open",
+      "feeRateBps": 10,
+      "limitations": [
+        "1,564 deterministic synthetic weekday bars are not market observations.",
+        "Weekdays are generated without an exchange holiday calendar or corporate actions.",
+        "No network, broker, model, or arbitrary code execution is available."
+      ],
+      "slippageRateBps": 5,
+      "status": "verified",
+      "strategies": [
+        {
+          "annualizedReturnPct": 20.62,
+          "finalEquity": 319812.38,
+          "id": "candidate-a",
+          "label": "SMA 20/100",
+          "maxDrawdownPct": -8.8,
+          "sharpe": 5.78,
+          "totalReturnPct": 219.81,
+          "tradeCount": 7
+        },
+        {
+          "annualizedReturnPct": 18.38,
+          "finalEquity": 284705.02,
+          "id": "candidate-b",
+          "label": "SMA 50/200",
+          "maxDrawdownPct": -11.12,
+          "sharpe": 5.07,
+          "totalReturnPct": 184.71,
+          "tradeCount": 2
+        },
+        {
+          "annualizedReturnPct": 16.32,
+          "finalEquity": 255384.39,
+          "id": "candidate-c",
+          "label": "Breakout 200",
+          "maxDrawdownPct": -15.5,
+          "sharpe": 4.46,
+          "totalReturnPct": 155.38,
+          "tradeCount": 2
+        }
+      ]
+    },
     "limits": {
       "arbitraryPython": false,
       "internetAccess": false,
@@ -3582,27 +4462,13 @@
         "updatedAt": "2026-07-17T02:24:00Z"
       }
     ],
-    "report": {
-      "conclusion": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
-      "disclaimer": "Demonstration results are synthetic and are not investment advice, a recommendation, or evidence of future performance.",
-      "generationMethod": "Server-owned deterministic fixture projection",
-      "humanReviewStatus": "Fixture review record",
-      "id": "fixture-report",
-      "limitations": [
-        "All values are synthetic demonstration fixtures.",
-        "No real backtest or market-data retrieval occurred.",
-        "This is not investment advice."
-      ],
-      "proposedNextStep": "Review limitations; no broker or paper-trading action is available.",
-      "title": "SPY Synthetic Research Report",
-      "validatorVersion": "validator-fixture-v1"
-    },
+    "report": null,
     "run": {
       "attemptNumber": 1,
       "completedAt": null,
       "currentStepId": "validation",
       "id": "55555555-5555-4555-8555-555555555502",
-      "latestSequence": 8,
+      "latestSequence": 6,
       "legalCommands": [
         "cancel_run"
       ],
@@ -3617,9 +4483,9 @@
     "runtimeLabel": "Deterministic fixture",
     "scope": {
       "assumptions": [
-        "Synthetic demonstration values",
-        "No network retrieval",
-        "No executable strategy code"
+        "1,564 generated synthetic weekday bars; no exchange calendar",
+        "10 bps fee and 5 bps slippage per fill",
+        "No network retrieval; only fixed typed strategy specifications"
       ],
       "benchmark": "SPY Buy and Hold",
       "dateRange": {
@@ -3631,17 +4497,7 @@
       "symbol": "SPY",
       "version": 1
     },
-    "trades": [
-      {
-        "candidateId": "candidate-b",
-        "entryDate": "2019-01-02",
-        "exitDate": "2021-01-04",
-        "holdingDays": 733,
-        "id": "fixture-trade-1",
-        "reason": "Synthetic fixture crossover record",
-        "returnPct": 7.4
-      }
-    ],
+    "trades": [],
     "version": "Phase 0 · server-fixture-v1",
     "workspaceName": "PokieQuant Research"
   },
@@ -3649,34 +4505,34 @@
     "artifacts": [
       {
         "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-dataset-a120",
+        "digest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
         "id": "fixture-dataset",
         "origin": "Server fixture repository",
-        "relatedLabel": "SPY · 1D",
+        "relatedLabel": "SPY · 1D · synthetic weekdays",
         "status": "ready",
-        "summary": "Bounded synthetic OHLCV demonstration values.",
+        "summary": "1,564 deterministic weekday OHLCV rows used by the pure research kernel.",
         "title": "SPY Daily Synthetic Snapshot",
         "type": "dataset_snapshot"
       },
       {
         "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-validation-5b20",
+        "digest": "sha256:6bfedffda38da79ed721f89387021bb6aac6c62e6b7b735423711d82a3e6f6fd",
         "id": "fixture-validation",
-        "origin": "Deterministic validator fixture",
-        "relatedLabel": "3 candidates",
+        "origin": "Computed by daily-bar-kernel-v1 from a digest-pinned synthetic dataset",
+        "relatedLabel": "3 computed candidates",
         "status": "ready",
-        "summary": "Candidate-scoped fixture verdicts.",
+        "summary": "Computed candidate metrics with fixed sensitivity and trade-count rules.",
         "title": "Synthetic Robustness Validation",
         "type": "validation_report"
       },
       {
         "authenticity": "synthetic_fixture",
-        "digest": "sha256:fixture-report-4e91",
+        "digest": "sha256:bad516741b0db4f3d0b84bba2cc656c75ab6c0481c859568173dfe56c7be0a55",
         "id": "fixture-report",
-        "origin": "Server fixture projection",
+        "origin": "Computed by daily-bar-kernel-v1 from a digest-pinned synthetic dataset",
         "relatedLabel": "Attempt 1",
         "status": "ready",
-        "summary": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
+        "summary": "Candidate B passes the configured synthetic validation; Candidate A is rejected for sensitivity and Candidate C is inconclusive because it has too few closed trades.",
         "title": "SPY Synthetic Research Report",
         "type": "research_report"
       }
@@ -3684,120 +4540,316 @@
     "authenticity": "synthetic_fixture",
     "bars": [
       {
-        "close": 103,
+        "close": 100.036,
         "date": "2018-01-02",
-        "high": 104,
-        "low": 98,
-        "open": 100,
-        "volume": 1000
+        "high": 100.28609,
+        "low": 99.65025,
+        "open": 99.9,
+        "volume": 1000000
       },
       {
-        "close": 108,
-        "date": "2019-01-02",
-        "high": 110,
-        "low": 101,
+        "close": 113.045878,
+        "date": "2018-04-06",
+        "high": 113.498062,
+        "low": 112.496898,
+        "open": 112.948693,
+        "volume": 1374000
+      },
+      {
+        "close": 106.463881,
+        "date": "2018-07-11",
+        "high": 106.888773,
+        "low": 106.064641,
+        "open": 106.489438,
+        "volume": 1357000
+      },
+      {
+        "close": 116.388768,
+        "date": "2018-10-09",
+        "high": 116.737934,
+        "low": 116.009469,
         "marker": "entry",
-        "open": 103,
-        "volume": 1200
+        "open": 116.358545,
+        "volume": 1272000
       },
       {
-        "close": 101,
-        "date": "2020-01-02",
-        "high": 112,
-        "low": 99,
-        "marker": "policy",
-        "open": 108,
-        "volume": 1400
+        "close": 117.249892,
+        "date": "2018-10-15",
+        "high": 117.676733,
+        "low": 116.839517,
+        "open": 117.266301,
+        "volume": 1340000
       },
       {
-        "close": 116,
-        "date": "2021-01-04",
-        "high": 118,
-        "low": 100,
+        "close": 125.292744,
+        "date": "2019-01-17",
+        "high": 126.323359,
+        "low": 124.885543,
+        "open": 125.914138,
+        "volume": 1323000
+      },
+      {
+        "close": 123.003465,
+        "date": "2019-04-23",
+        "high": 123.372475,
+        "low": 122.571896,
+        "open": 122.940718,
+        "volume": 1306000
+      },
+      {
+        "close": 137.426946,
+        "date": "2019-07-26",
+        "high": 137.80487,
+        "low": 136.965452,
+        "open": 137.343146,
+        "volume": 1289000
+      },
+      {
+        "close": 132.449415,
+        "date": "2019-10-30",
+        "high": 133.339089,
+        "low": 132.118291,
+        "open": 133.006573,
+        "volume": 1272000
+      },
+      {
+        "close": 130.591656,
+        "date": "2020-02-03",
+        "high": 131.625662,
+        "low": 130.069289,
+        "open": 131.101257,
+        "volume": 1255000
+      },
+      {
+        "close": 129.983799,
+        "date": "2020-02-05",
+        "high": 130.643037,
+        "low": 129.65884,
         "marker": "exit",
-        "open": 101,
-        "volume": 1300
+        "open": 130.317244,
+        "volume": 1289000
+      },
+      {
+        "close": 118.607434,
+        "date": "2020-05-07",
+        "high": 119.052212,
+        "low": 117.649193,
+        "open": 118.092038,
+        "volume": 1238000
+      },
+      {
+        "close": 136.636854,
+        "date": "2020-08-11",
+        "high": 137.115083,
+        "low": 135.71597,
+        "open": 136.192644,
+        "volume": 1221000
+      },
+      {
+        "close": 138.89695,
+        "date": "2020-08-17",
+        "high": 139.452538,
+        "low": 137.526391,
+        "marker": "entry",
+        "open": 138.078706,
+        "volume": 1289000
+      },
+      {
+        "close": 184.864848,
+        "date": "2020-11-13",
+        "high": 185.465659,
+        "low": 183.646983,
+        "open": 184.245782,
+        "volume": 1204000
+      },
+      {
+        "close": 201.461413,
+        "date": "2021-02-16",
+        "high": 202.403197,
+        "low": 200.705933,
+        "open": 201.647021,
+        "volume": 1170000
+      },
+      {
+        "close": 199.988123,
+        "date": "2021-05-21",
+        "high": 200.688081,
+        "low": 198.834821,
+        "open": 199.533187,
+        "volume": 1153000
+      },
+      {
+        "close": 223.840853,
+        "date": "2021-08-25",
+        "high": 224.568336,
+        "low": 222.583886,
+        "open": 223.309642,
+        "volume": 1136000
+      },
+      {
+        "close": 212.968556,
+        "date": "2021-11-29",
+        "high": 214.125126,
+        "low": 212.32965,
+        "open": 213.484672,
+        "volume": 1119000
+      },
+      {
+        "close": 209.39494,
+        "date": "2022-02-01",
+        "high": 210.466758,
+        "low": 208.662058,
+        "marker": "exit",
+        "open": 209.732694,
+        "volume": 1119000
+      },
+      {
+        "close": 195.645973,
+        "date": "2022-03-03",
+        "high": 196.354956,
+        "low": 195.107947,
+        "open": 195.816461,
+        "volume": 1102000
+      },
+      {
+        "close": 211.658051,
+        "date": "2022-06-07",
+        "high": 212.187196,
+        "low": 209.883982,
+        "open": 210.410007,
+        "volume": 1085000
+      },
+      {
+        "close": 240.113648,
+        "date": "2022-09-09",
+        "high": 241.074103,
+        "low": 238.003922,
+        "open": 238.959761,
+        "volume": 1068000
+      },
+      {
+        "close": 321.07026,
+        "date": "2022-12-14",
+        "high": 322.274273,
+        "low": 318.298213,
+        "open": 319.496324,
+        "volume": 1051000
+      },
+      {
+        "close": 340.438969,
+        "date": "2023-03-20",
+        "high": 341.774195,
+        "low": 339.247433,
+        "open": 340.582157,
+        "volume": 1034000
+      },
+      {
+        "close": 342.99034,
+        "date": "2023-06-22",
+        "high": 344.105059,
+        "low": 340.927369,
+        "open": 342.038996,
+        "volume": 1017000
+      },
+      {
+        "close": 384.820385,
+        "date": "2023-09-26",
+        "high": 385.974846,
+        "low": 382.564139,
+        "open": 383.715285,
+        "volume": 1000000
+      },
+      {
+        "close": 365.251821,
+        "date": "2023-12-29",
+        "high": 366.256264,
+        "low": 363.600492,
+        "open": 364.603151,
+        "volume": 1374000
       }
     ],
     "benchmark": {
-      "annualizedReturn": 10.8,
-      "maxDrawdown": -33.7,
-      "sharpe": 0.72,
+      "annualizedReturn": 23.2,
+      "maxDrawdown": -23.8,
+      "sharpe": 5.3,
       "trades": 1
     },
     "candidates": [
       {
         "id": "candidate-a",
         "metrics": {
-          "annualizedReturn": 9.6,
-          "maxDrawdown": -24.8,
-          "sharpe": 0.83,
-          "trades": 38
+          "annualizedReturn": 20.6,
+          "maxDrawdown": -8.8,
+          "sharpe": 5.78,
+          "trades": 7
         },
         "name": "Candidate A · SMA 20/100",
         "parameters": "fast=20 · slow=100",
         "robustness": [
-          "Fails adjacent-window sensitivity check",
-          "Synthetic values only"
+          "10/80 versus 30/120 annualized-return range: 6.33 pp",
+          "Rejected by the configured >5 pp sensitivity rule",
+          "Metrics computed by the pure daily-bar kernel"
         ],
-        "strategySpec": "family: sma_cross\nfast_window: 20\nslow_window: 100\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
+        "strategySpec": "family: sma\nfast_period: 20\nslow_period: 100\nposition: long_or_cash",
+        "strategySpecVersion": "daily-bar-kernel-v1",
         "verdict": "rejected",
-        "verdictReason": "Parameter sensitivity"
+        "verdictReason": "Parameter sensitivity · 6.33 pp range"
       },
       {
         "id": "candidate-b",
         "metrics": {
-          "annualizedReturn": 8.9,
-          "maxDrawdown": -18.7,
-          "sharpe": 0.88,
-          "trades": 18
+          "annualizedReturn": 18.4,
+          "maxDrawdown": -11.1,
+          "sharpe": 5.07,
+          "trades": 2
         },
         "name": "Candidate B · SMA 50/200",
         "parameters": "fast=50 · slow=200",
         "robustness": [
-          "One candidate-scoped repair retained",
-          "Synthetic values only"
+          "40/180 versus 60/220 annualized-return range: 3.84 pp",
+          "Passes the configured ≤5 pp sensitivity rule",
+          "Synthetic evidence only; no paper-trading action is enabled"
         ],
-        "strategySpec": "family: sma_cross\nfast_window: 50\nslow_window: 200\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
+        "strategySpec": "family: sma\nfast_period: 50\nslow_period: 200\nposition: long_or_cash",
+        "strategySpecVersion": "daily-bar-kernel-v1",
         "verdict": "promising",
         "verdictReason": "Candidate for paper evaluation"
       },
       {
         "id": "candidate-c",
         "metrics": {
-          "annualizedReturn": 9.3,
-          "maxDrawdown": -21.4,
-          "sharpe": 0.86,
-          "trades": 12
+          "annualizedReturn": 16.3,
+          "maxDrawdown": -15.5,
+          "sharpe": 4.46,
+          "trades": 2
         },
-        "name": "Candidate C · 200-day trend filter",
-        "parameters": "window=200",
+        "name": "Candidate C · 200-day breakout",
+        "parameters": "lookback=200",
         "robustness": [
-          "Insufficient independent periods",
-          "Synthetic values only"
+          "Only 2 closed trades",
+          "Inconclusive under the configured minimum of 3",
+          "Metrics computed by the pure daily-bar kernel"
         ],
-        "strategySpec": "family: trend_filter\nwindow: 200\nposition: long_or_cash",
-        "strategySpecVersion": "strategy-fixture-v1",
+        "strategySpec": "family: breakout\nperiod: 200\nposition: long_or_cash",
+        "strategySpecVersion": "daily-bar-kernel-v1",
         "verdict": "inconclusive",
-        "verdictReason": "Too few independent trade periods"
+        "verdictReason": "Too few closed trades"
       }
     ],
     "composerLegalCommands": [],
     "dataset": {
       "authenticity": "synthetic_fixture",
-      "barCount": 4,
+      "barCount": 1564,
       "dateRange": {
         "end": "2023-12-29",
         "start": "2018-01-02"
       },
-      "digest": "sha256:fixture-dataset-a120",
-      "id": "fixture-spy-daily-v1",
+      "digest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
+      "id": "spy-daily-weekday-synthetic-v2",
       "interval": "1D",
-      "name": "SPY Daily Synthetic Fixture 2018–2023",
-      "parserVersion": "fixture-parser-v1",
-      "schemaVersion": "market-bars-fixture-v1",
+      "name": "SPY Daily Synthetic Weekday Fixture · 2018–2023",
+      "parserVersion": "deterministic-weekday-generator-v2",
+      "schemaVersion": "quant-daily-bars-v1",
       "symbol": "SPY"
     },
     "events": [
@@ -3856,16 +4908,65 @@
         "sequence": 7,
         "timestamp": "2026-07-17T02:25:00Z",
         "type": "report.generated"
-      },
-      {
-        "actor": "system",
-        "id": "fixture-event-8",
-        "safeSummary": "The fixture report is waiting for review.",
-        "sequence": 8,
-        "timestamp": "2026-07-17T02:26:00Z",
-        "type": "run.completed"
       }
     ],
+    "kernelCheck": {
+      "barCount": 1564,
+      "benchmark": {
+        "annualizedReturnPct": 23.22,
+        "finalEquity": 365069.65,
+        "id": "buy-and-hold",
+        "label": "Buy and Hold",
+        "maxDrawdownPct": -23.79,
+        "sharpe": 5.3,
+        "totalReturnPct": 265.07,
+        "tradeCount": 1
+      },
+      "datasetDigest": "sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919",
+      "datasetId": "spy-daily-weekday-synthetic-v2",
+      "engineVersion": "daily-bar-kernel-v1",
+      "execution": "signal_at_close_fill_next_open",
+      "feeRateBps": 10,
+      "limitations": [
+        "1,564 deterministic synthetic weekday bars are not market observations.",
+        "Weekdays are generated without an exchange holiday calendar or corporate actions.",
+        "No network, broker, model, or arbitrary code execution is available."
+      ],
+      "slippageRateBps": 5,
+      "status": "verified",
+      "strategies": [
+        {
+          "annualizedReturnPct": 20.62,
+          "finalEquity": 319812.38,
+          "id": "candidate-a",
+          "label": "SMA 20/100",
+          "maxDrawdownPct": -8.8,
+          "sharpe": 5.78,
+          "totalReturnPct": 219.81,
+          "tradeCount": 7
+        },
+        {
+          "annualizedReturnPct": 18.38,
+          "finalEquity": 284705.02,
+          "id": "candidate-b",
+          "label": "SMA 50/200",
+          "maxDrawdownPct": -11.12,
+          "sharpe": 5.07,
+          "totalReturnPct": 184.71,
+          "tradeCount": 2
+        },
+        {
+          "annualizedReturnPct": 16.32,
+          "finalEquity": 255384.39,
+          "id": "candidate-c",
+          "label": "Breakout 200",
+          "maxDrawdownPct": -15.5,
+          "sharpe": 4.46,
+          "totalReturnPct": 155.38,
+          "tradeCount": 2
+        }
+      ]
+    },
     "limits": {
       "arbitraryPython": false,
       "internetAccess": false,
@@ -3988,26 +5089,26 @@
       }
     ],
     "report": {
-      "conclusion": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
-      "disclaimer": "Demonstration results are synthetic and are not investment advice, a recommendation, or evidence of future performance.",
-      "generationMethod": "Server-owned deterministic fixture projection",
+      "conclusion": "Candidate B passes the configured synthetic validation; Candidate A is rejected for sensitivity and Candidate C is inconclusive because it has too few closed trades.",
+      "disclaimer": "Synthetic results are not investment advice, a recommendation, market evidence, or evidence of future performance.",
+      "generationMethod": "Computed by daily-bar-kernel-v1 from a digest-pinned synthetic dataset",
       "humanReviewStatus": "Fixture review record",
       "id": "fixture-report",
       "limitations": [
-        "All values are synthetic demonstration fixtures.",
-        "No real backtest or market-data retrieval occurred.",
-        "This is not investment advice."
+        "All bars and computed results are synthetic and are not market evidence.",
+        "The weekday generator omits exchange holidays, corporate actions, taxes, and liquidity constraints.",
+        "Validation thresholds are fixed demonstration policy, not an investment recommendation."
       ],
       "proposedNextStep": "Review limitations; no broker or paper-trading action is available.",
       "title": "SPY Synthetic Research Report",
-      "validatorVersion": "validator-fixture-v1"
+      "validatorVersion": "synthetic-validator-v1"
     },
     "run": {
       "attemptNumber": 1,
       "completedAt": null,
       "currentStepId": "decision",
       "id": "55555555-5555-4555-8555-555555555502",
-      "latestSequence": 8,
+      "latestSequence": 7,
       "legalCommands": [
         "complete_review"
       ],
@@ -4022,9 +5123,9 @@
     "runtimeLabel": "Deterministic fixture",
     "scope": {
       "assumptions": [
-        "Synthetic demonstration values",
-        "No network retrieval",
-        "No executable strategy code"
+        "1,564 generated synthetic weekday bars; no exchange calendar",
+        "10 bps fee and 5 bps slippage per fill",
+        "No network retrieval; only fixed typed strategy specifications"
       ],
       "benchmark": "SPY Buy and Hold",
       "dateRange": {
@@ -4039,12 +5140,21 @@
     "trades": [
       {
         "candidateId": "candidate-b",
-        "entryDate": "2019-01-02",
-        "exitDate": "2021-01-04",
-        "holdingDays": 733,
-        "id": "fixture-trade-1",
-        "reason": "Synthetic fixture crossover record",
-        "returnPct": 7.4
+        "entryDate": "2018-10-09",
+        "exitDate": "2020-02-05",
+        "holdingDays": 484,
+        "id": "kernel-trade-1",
+        "reason": "SMA 50/200 signal; close observation filled at next open",
+        "returnPct": 11.66
+      },
+      {
+        "candidateId": "candidate-b",
+        "entryDate": "2020-08-17",
+        "exitDate": "2022-02-01",
+        "holdingDays": 533,
+        "id": "kernel-trade-2",
+        "reason": "SMA 50/200 signal; close observation filled at next open",
+        "returnPct": 51.44
       }
     ],
     "version": "Phase 0 · server-fixture-v1",

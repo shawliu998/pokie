@@ -26,6 +26,7 @@ export type QuantCommand =
   | 'ask'
   | 'generate_plan'
   | 'start_auto_research'
+  | 'run_fixture'
   | 'approve_plan'
   | 'request_plan_changes'
   | 'approve_execution'
@@ -186,6 +187,31 @@ export interface ResearchReport {
   disclaimer: string;
 }
 
+export interface QuantKernelResult {
+  id: string;
+  label: string;
+  totalReturnPct: number;
+  annualizedReturnPct: number;
+  maxDrawdownPct: number;
+  sharpe: number;
+  tradeCount: number;
+  finalEquity: number;
+}
+
+export interface QuantKernelCheck {
+  status: 'available' | 'verified';
+  engineVersion: string;
+  datasetId: string;
+  datasetDigest: string;
+  barCount: number;
+  execution: 'signal_at_close_fill_next_open';
+  feeRateBps: number;
+  slippageRateBps: number;
+  benchmark: QuantKernelResult | null;
+  strategies: QuantKernelResult[];
+  limitations: string[];
+}
+
 export interface QuantWorkspaceSnapshot {
   workspaceName: string;
   version: string;
@@ -202,10 +228,11 @@ export interface QuantWorkspaceSnapshot {
   artifacts: QuantArtifact[];
   dataset: DatasetSnapshot;
   bars: MarketBar[];
-  benchmark: BacktestMetrics;
+  kernelCheck: QuantKernelCheck;
+  benchmark: BacktestMetrics | null;
   candidates: QuantCandidate[];
   trades: TradeRecord[];
-  report: ResearchReport;
+  report: ResearchReport | null;
   composerLegalCommands: QuantCommand[];
 }
 

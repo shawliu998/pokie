@@ -2,7 +2,7 @@
 
 PokieQuant is a governed desktop workspace for bounded, auditable quantitative-research workflows.
 
-Phase 0 is a deterministic shell and contract integration. Every displayed bar, metric, trade, candidate verdict, event, and report is a **Synthetic Demo Fixture**. Phase 0 does not retrieve market data, call a model, run a real backtest, execute arbitrary Python or shell commands, connect to a broker, place orders, or provide investment advice.
+Phase 0 is a deterministic shell and contract integration. Every displayed bar, metric, trade, candidate verdict, event, and report is a **Synthetic Demo Fixture**. A pure local daily-bar kernel runs three fixed strategies and a benchmark over 1,564 deterministic synthetic weekday bars. Candidate metrics, closed trades, validation verdicts, artifact digests, and report copy are derived from that pure kernel. Phase 0 does not retrieve market data, call a model, execute arbitrary Python or shell commands, connect to a broker, place orders, or provide investment advice.
 
 ## Phase 0 status
 
@@ -18,12 +18,15 @@ Implemented:
 - a registered `quant-fixture` worker path with lease, heartbeat, fencing, stale-claim rejection, and cancellation fence invalidation;
 - Mac navigation, Plan/Activity/Market/Strategy Report/Inspector surfaces, visible authenticity labels, and read-only policy status;
 - Mac lifecycle commands routed through the authenticated API snapshot adapter; React does not assign run state;
+- a usable synthetic Agent path: persist a custom research goal, generate and approve a plan, trigger the bounded kernel only from the approved run command, review its report, complete the run, and recover the same state after refresh;
+- immutable daily-bar contracts with canonical digest validation plus a pure long/cash SMA, RSI, breakout, and Buy-and-Hold kernel using close-signal/next-open execution and explicit costs;
+- a truthful API/UI engine evidence card and computed candidate/report projection over 1,564 digest-pinned synthetic weekday bars;
 - tests that keep candidate rejection separate from run failure and assert that the fixture runtime imports no network, process, or arbitrary-execution facilities.
 
 Still intentionally not implemented:
 
 - real or provider-sourced OHLCV/news data;
-- a quantitative backtesting or optimization engine;
+- real or statistically useful market evidence, production backtest orchestration, broad parameter search, or optimization (the implemented dataset and results are deterministic synthetic demonstrations);
 - Spark/Jupyter/sandbox or uploaded-code execution;
 - model/provider calls, web search, or external network access;
 - paper or live trading, broker credentials, order routing, or portfolio execution;
@@ -92,6 +95,13 @@ Run the additive Phase 0 gate:
 
 ```bash
 ./scripts/verify_pokiequant_shell.sh
+```
+
+Regenerate the checked browser and Mac fixture projections after changing the
+server-owned fixture contract:
+
+```bash
+python3 scripts/generate_quant_workspace_fixtures.py
 ```
 
 The gate checks Quant contracts, API, runtime fixtures, OpenAPI drift, Mac lint/typecheck/unit/build, license/provenance boundaries, fixture labels, disabled capability claims, and removal of active Glint product-intelligence copy from the main path. It does not enable live connector or model smoke tests.

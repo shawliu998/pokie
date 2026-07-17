@@ -13,7 +13,7 @@ describe('presentQuantWorkspace', () => {
     expect(presentation.statusLabel).toBe('Completed');
     expect(presentation.statusTone).toBe('positive');
     expect(presentation.candidates).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: 'candidate-a', verdictLabel: 'Rejected', reason: 'Parameter sensitivity' }),
+      expect.objectContaining({ id: 'candidate-a', verdictLabel: 'Rejected', reason: 'Parameter sensitivity · 6.33 pp range' }),
       expect.objectContaining({ id: 'candidate-c', verdictLabel: 'Inconclusive' }),
     ]));
   });
@@ -27,7 +27,7 @@ describe('presentQuantWorkspace', () => {
 
   it('shows view actions plus only commands declared legal by the API snapshot', () => {
     const presentation = presentQuantWorkspace(fixture());
-    expect(presentation.actions.map((action) => action.kind)).toEqual(['open_report', 'compare_candidates', 'start_new_run']);
+    expect(presentation.actions.map((action) => action.kind)).toEqual(['open_report', 'compare_candidates']);
     expect(presentation.actions.map((action) => action.kind)).not.toContain('retry_run');
     expect(presentation.actions.map((action) => action.kind)).not.toContain('cancel_run');
   });
@@ -45,5 +45,21 @@ describe('presentQuantWorkspace', () => {
     const serialized = JSON.stringify(presentQuantWorkspace(fixture()));
     expect(serialized).not.toMatch(/token|usedCost|providerCost/i);
     expect(serialized).not.toMatch(/\d+%/);
+  });
+
+  it('exposes the API-owned synthetic Agent start only after plan approval', () => {
+    const snapshot = fixture();
+    snapshot.run = {
+      ...snapshot.run,
+      state: 'running_experiments',
+      legalCommands: ['run_fixture', 'cancel_run'],
+    };
+    snapshot.candidates = [];
+    const presentation = presentQuantWorkspace(snapshot);
+    expect(presentation.statusLabel).toBe('Ready to run');
+    expect(presentation.actions).toEqual([
+      { kind: 'run_fixture', label: 'Run Synthetic Agent', tone: 'primary' },
+      { kind: 'cancel_run', label: 'Cancel Run', tone: 'default' },
+    ]);
   });
 });

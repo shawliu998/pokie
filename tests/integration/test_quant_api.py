@@ -8,6 +8,8 @@ from uuid import UUID
 import pytest
 from fastapi.testclient import TestClient
 
+from services.api.app.modules.quant import snapshot as quant_snapshot_module
+from services.api.app.modules.quant.kernel_check import build_quant_kernel_check
 from services.api.app.modules.quant.snapshot import FIXTURE_STATES, quant_workspace_fixture
 from services.api.app.modules.quant.store import QuantStore
 from services.worker.app.pipelines.quant_fixture import run_quant_fixture_once
@@ -200,6 +202,63 @@ def test_server_owned_workspace_fixture_states(
         assert all(candidate["verdict"] != "promising" for candidate in snapshot["candidates"])
         assert "still completed normally" in snapshot["report"]["conclusion"]
     assert all(artifact["authenticity"] == "synthetic_fixture" for artifact in snapshot["artifacts"])
+    if expected_state in {
+        "draft",
+        "waiting_plan_approval",
+        "running_experiments",
+        "repairing",
+        "failed",
+        "cancelled",
+    }:
+        assert snapshot["candidates"] == []
+        assert snapshot["trades"] == []
+        assert snapshot["benchmark"] is None
+        assert snapshot["report"] is None
+        assert snapshot["kernelCheck"]["status"] == "available"
+        assert snapshot["kernelCheck"]["strategies"] == []
+        assert all("marker" not in bar for bar in snapshot["bars"])
+
+
+def test_workspace_fixture_exposes_computed_kernel_research_evidence() -> None:
+    snapshot = quant_workspace_fixture("quant-completed")
+    check = snapshot["kernelCheck"]
+
+    assert check == build_quant_kernel_check()
+    assert check["status"] == "verified"
+    assert check["datasetDigest"] == snapshot["dataset"]["digest"]
+    assert check["barCount"] == snapshot["dataset"]["barCount"] == 1564
+    assert len(snapshot["bars"]) < snapshot["dataset"]["barCount"]
+    assert check["benchmark"]["annualizedReturnPct"] == pytest.approx(
+        snapshot["benchmark"]["annualizedReturn"], abs=0.05
+    )
+    assert [result["id"] for result in check["strategies"]] == [
+        "candidate-a",
+        "candidate-b",
+        "candidate-c",
+    ]
+    assert snapshot["candidates"][1]["metrics"] == {
+        "annualizedReturn": 18.4,
+        "maxDrawdown": -11.1,
+        "sharpe": 5.07,
+        "trades": 2,
+    }
+    assert "computed" in snapshot["report"]["generationMethod"].lower()
+    assert "synthetic" in snapshot["report"]["limitations"][0].lower()
+
+
+def test_pre_execution_snapshot_does_not_run_research_kernel(monkeypatch: Any) -> None:
+    def fail_if_called(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        raise AssertionError("pre-execution snapshot must not run the research kernel")
+
+    monkeypatch.setattr(quant_snapshot_module, "build_quant_kernel_check", fail_if_called)
+    monkeypatch.setattr(
+        quant_snapshot_module, "build_quant_research_projection", fail_if_called
+    )
+
+    snapshot = quant_workspace_fixture("quant-ready")
+    assert snapshot["kernelCheck"]["status"] == "available"
+    assert snapshot["benchmark"] is None
+    assert snapshot["candidates"] == []
 
 
 def test_workspace_fixture_command_is_api_owned_and_refreshable(
@@ -212,21 +271,24 @@ def test_workspace_fixture_command_is_api_owned_and_refreshable(
         "X-Workspace-ID": workspace["workspace_id"],
     }
     ready = client.get("/v1/quant/workspace-snapshot", headers=headers).json()
+    custom_goal = "Compare a bounded SPY trend hypothesis with synthetic evidence."
     response = client.post(
         "/v1/quant/workspace-snapshot/commands",
         headers={**headers, "Idempotency-Key": str(UUID(int=10))},
         json={
             "command": "generate_plan",
             "expected_row_version": ready["run"]["rowVersion"],
-            "payload": {},
+            "payload": {"goal": custom_goal},
         },
     )
     assert response.status_code == 200, response.text
     planned = response.json()
     assert planned["run"]["state"] == "waiting_plan_approval"
+    assert planned["project"]["goal"] == custom_goal
     assert planned["run"]["rowVersion"] == ready["run"]["rowVersion"] + 1
     refreshed = client.get("/v1/quant/workspace-snapshot", headers=headers).json()
     assert refreshed["run"] == planned["run"]
+    assert refreshed["project"]["goal"] == custom_goal
 
     stale = client.post(
         "/v1/quant/workspace-snapshot/commands",
@@ -238,6 +300,84 @@ def test_workspace_fixture_command_is_api_owned_and_refreshable(
         },
     )
     assert stale.status_code == 409
+
+
+def test_synthetic_agent_runs_only_after_plan_approval_and_waits_for_review(
+    client: TestClient, principal_id: str, monkeypatch: Any
+) -> None:
+    workspace = _workspace(client, principal_id, name="Agent workflow workspace")
+    monkeypatch.setenv("POKIEQUANT_E2E_RUN_STATE", "quant-ready")
+    headers = {
+        "Authorization": f"Bearer {principal_id}",
+        "X-Workspace-ID": workspace["workspace_id"],
+    }
+
+    snapshot = client.get("/v1/quant/workspace-snapshot", headers=headers).json()
+    for index, command in enumerate(
+        ("generate_plan", "approve_plan", "run_fixture", "complete_review"), start=20
+    ):
+        response = client.post(
+            "/v1/quant/workspace-snapshot/commands",
+            headers={**headers, "Idempotency-Key": str(UUID(int=index))},
+            json={
+                "command": command,
+                "expected_row_version": snapshot["run"]["rowVersion"],
+                "payload": (
+                    {"goal": "Synthetic Agent end-to-end research."}
+                    if command == "generate_plan"
+                    else {}
+                ),
+            },
+        )
+        assert response.status_code == 200, response.text
+        snapshot = response.json()
+        if command == "run_fixture":
+            assert snapshot["run"]["state"] == "waiting_for_review"
+            assert "complete_review" in snapshot["run"]["legalCommands"]
+
+    assert snapshot["run"]["state"] == "completed"
+    assert snapshot["project"]["goal"] == "Synthetic Agent end-to-end research."
+
+
+def test_approved_fixture_goal_cannot_change_during_execution(
+    client: TestClient, principal_id: str, monkeypatch: Any
+) -> None:
+    workspace = _workspace(client, principal_id, name="Immutable approved goal workspace")
+    monkeypatch.setenv("POKIEQUANT_E2E_RUN_STATE", "quant-ready")
+    headers = {
+        "Authorization": f"Bearer {principal_id}",
+        "X-Workspace-ID": workspace["workspace_id"],
+    }
+    snapshot = client.get("/v1/quant/workspace-snapshot", headers=headers).json()
+    approved_goal = "Evaluate the approved synthetic trend scope."
+    for index, (command, payload) in enumerate(
+        (("generate_plan", {"goal": approved_goal}), ("approve_plan", {})), start=40
+    ):
+        response = client.post(
+            "/v1/quant/workspace-snapshot/commands",
+            headers={**headers, "Idempotency-Key": str(UUID(int=index))},
+            json={
+                "command": command,
+                "expected_row_version": snapshot["run"]["rowVersion"],
+                "payload": payload,
+            },
+        )
+        assert response.status_code == 200, response.text
+        snapshot = response.json()
+
+    rejected = client.post(
+        "/v1/quant/workspace-snapshot/commands",
+        headers={**headers, "Idempotency-Key": str(UUID(int=42))},
+        json={
+            "command": "run_fixture",
+            "expected_row_version": snapshot["run"]["rowVersion"],
+            "payload": {"goal": "Replace the approved goal."},
+        },
+    )
+    assert rejected.status_code == 409
+    refreshed = client.get("/v1/quant/workspace-snapshot", headers=headers).json()
+    assert refreshed["run"]["state"] == "running_experiments"
+    assert refreshed["project"]["goal"] == approved_goal
 
 
 def test_quant_repository_survives_fresh_adapter_and_is_workspace_scoped(
@@ -345,6 +485,13 @@ def test_browser_fixture_bundle_matches_server_fixture_contract() -> None:
     bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
     assert set(bundle) == set(FIXTURE_STATES)
     assert bundle == {state: quant_workspace_fixture(state) for state in sorted(FIXTURE_STATES)}
+
+    mac_fixture_path = (
+        Path(__file__).parents[2]
+        / "apps/mac/src/features/quant/quant-fixture.generated.json"
+    )
+    mac_fixture = json.loads(mac_fixture_path.read_text(encoding="utf-8"))
+    assert mac_fixture == quant_workspace_fixture("quant-completed")
 
 
 def test_quant_commands_are_idempotent_and_retry_returns_one_child(

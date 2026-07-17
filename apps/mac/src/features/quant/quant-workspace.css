@@ -75,12 +75,22 @@
 .quant-plan>footer i { width:15px; height:15px; display:grid; place-items:center; border:1px solid var(--border); border-radius:50%; font-style:normal; font-size:7px; }
 
 .quant-activity-pane { height:100%; overflow:auto; padding:13px 14px 24px; background:var(--background); }
-.quant-action-center, .quant-current-action, .quant-artifact-card { border:1px solid var(--border); border-radius:6px; background:var(--surface); }
+.quant-action-center, .quant-current-action, .quant-kernel-check, .quant-artifact-card { border:1px solid var(--border); border-radius:6px; background:var(--surface); }
 .quant-action-center { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; padding:11px 12px; border-left:3px solid var(--positive); }
 .quant-action-center h3, .quant-current-action h3 { margin:0; font-size:12.5px; line-height:18px; }
 .quant-action-center p:not(.quant-eyebrow) { margin:3px 0; color:var(--muted); font-size:10.5px; line-height:15px; }
 .quant-action-center small { color:var(--faint); font-size:9.5px; }
 .quant-action-buttons { display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end; }
+.quant-kernel-check { margin-bottom:12px; padding:10px 11px; border-left:3px solid var(--positive); }
+.quant-kernel-check>header { display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
+.quant-kernel-check h3 { margin:0; font-size:12px; line-height:17px; }
+.quant-kernel-check>p { margin:5px 0 8px; color:var(--muted); font-size:10px; line-height:14px; }
+.quant-kernel-check dl { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px; margin:0; }
+.quant-kernel-check dl>div { padding:5px 6px; background:var(--surface-subtle); border-radius:4px; }
+.quant-kernel-check dt { color:var(--faint); font-size:8.5px; text-transform:uppercase; }
+.quant-kernel-check dd { margin:2px 0 0; font-size:9.5px; }
+.quant-kernel-check footer { display:flex; justify-content:space-between; gap:8px; margin-top:8px; color:var(--faint); font-size:8.5px; }
+.quant-kernel-check code { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .quant-current-action { margin-bottom:14px; padding:11px 12px; border-left:3px solid var(--positive); }
 .quant-current-action>header { display:flex; justify-content:space-between; gap:8px; }
 .quant-current-action>p { margin:5px 0 9px; color:var(--muted); font-size:10.5px; line-height:15px; }

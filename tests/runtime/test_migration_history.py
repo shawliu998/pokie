@@ -176,6 +176,7 @@ def _assert_critical_head_shape(engine: Engine) -> None:
             "workspace_id",
             "state_json",
             "fixture_state",
+            "fixture_input_json",
             "fixture_row_version",
             "worker_lease_token",
             "worker_lease_expires_at",

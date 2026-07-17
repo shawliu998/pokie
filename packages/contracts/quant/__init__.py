@@ -1,5 +1,12 @@
 """Quant surface contracts."""
 
+from .data import (
+    QUANT_DAILY_BAR_SCHEMA_VERSION,
+    QuantDailyBar,
+    QuantDailyBarDataset,
+    QuantDailyBarInterval,
+    QuantDatasetProvenance,
+)
 from .enums import (
     QuantArtifactKind,
     QuantArtifactReviewStatus,

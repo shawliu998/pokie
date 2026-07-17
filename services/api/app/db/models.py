@@ -97,6 +97,7 @@ class QuantRepositoryState(Timestamped, Versioned, Authentic, Base):
     )
     state_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     fixture_state: Mapped[str | None] = mapped_column(String(48), nullable=True)
+    fixture_input_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     fixture_row_version: Mapped[int] = mapped_column(Integer, default=8)
     worker_lease_token: Mapped[str | None] = mapped_column(String(96), nullable=True)
     worker_lease_expires_at: Mapped[datetime | None] = mapped_column(

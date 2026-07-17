@@ -52,6 +52,7 @@ def command_workspace_snapshot(
             workspace_id=context.workspace_id,
             command=body.command,
             expected_row_version=body.expected_row_version,
+            payload=body.payload,
         )
     except ValueError as exc:
         raise invalid_state(str(exc)) from exc

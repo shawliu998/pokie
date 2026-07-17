@@ -1,6 +1,6 @@
 # PokieQuant Product and Architecture Roadmap
 
-Status: post-audit roadmap; phases after Phase 0 are not implemented
+Status: Phase 0 shell and a bounded Phase 1 synthetic-kernel vertical slice are implemented
 
 ## 1. Roadmap principles
 
@@ -16,8 +16,8 @@ Status: post-audit roadmap; phases after Phase 0 are not implemented
 
 | Phase | Outcome | New trust boundary | Explicit non-goal |
 | --- | --- | --- | --- |
-| 0 | deterministic Agent Workspace Shell | API-backed fixture worker | no real backtest/data/model/execution |
-| 1 | small deterministic daily-bar backtester | financial calculation correctness | no arbitrary Python or network |
+| 0 | deterministic Agent Workspace Shell | API-backed fixture worker | no statistically meaningful data/model/trading execution |
+| 1 | small deterministic daily-bar backtester | financial calculation correctness | synthetic vertical slice implemented; no arbitrary Python, network, or real market evidence |
 | 2 | reviewed Spark execution runtime | sandboxed code execution | no unrestricted packages/network |
 | 3 | governed market-data adapters | external data/provider terms | no realtime trading signal claims |
 | 4 | simulated paper broker and risk engine | order-intent/risk/fill state | no live broker or real orders |
@@ -45,7 +45,7 @@ A real React/Tauri workbench runs the complete SPY research workflow from goal t
 - every action is backed by a legal API command;
 - cancel stops subsequent events and retry creates a new attempt;
 - `completed + no viable candidate` is demonstrated and tested;
-- no real market/model/backtest/trading capability is claimed;
+- no real market/model/trading or statistically meaningful research capability is claimed; computed results remain visibly synthetic;
 - docs, screenshots, README, tests, and implementation agree.
 
 ## 4. Phase 1 — Deterministic Backtester
@@ -236,6 +236,6 @@ Phases do not automatically authorize their successors. A missing repository/lic
 
 ## 11. Near-term next slice
 
-After Phase 0 is fully implemented and verified, the only recommended next slice is:
+With the synthetic daily-bar kernel vertical slice now implemented, the recommended next slice is:
 
-> Replace deterministic backtest fixtures with a small deterministic daily-bar backtesting engine while preserving all current contracts and UI states.
+> Add a governed immutable imported-dataset path and split-sample validation while preserving the synthetic dataset as an exact regression oracle.

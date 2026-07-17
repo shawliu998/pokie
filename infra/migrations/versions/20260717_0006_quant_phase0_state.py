@@ -25,6 +25,7 @@ def upgrade() -> None:
             Column("data_authenticity", String(24), nullable=False),
             Column("state_json", JSON(), nullable=False),
             Column("fixture_state", String(48), nullable=True),
+            Column("fixture_input_json", JSON(), nullable=False),
             Column("fixture_row_version", Integer(), nullable=False),
             Column("worker_lease_token", String(96), nullable=True),
             Column("worker_lease_expires_at", DateTime(timezone=True), nullable=True),

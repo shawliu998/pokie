@@ -101,6 +101,7 @@ class QuantFixtureCommandRequest(ContractModel):
         "ask",
         "generate_plan",
         "approve_plan",
+        "run_fixture",
         "request_plan_changes",
         "cancel_run",
         "retry_run",
