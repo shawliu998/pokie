@@ -45,7 +45,9 @@ Imports remain inspectable at any size, while autonomous runs require at least 2
 
 ## Reuse note
 
-Lumi and other external agent runtimes are conceptual reference points only. Code provenance is
-limited to modules actually present in this repository. Shared components were extracted from the
-existing `model_research.py` and Quant agent provider implementations rather than imported from
-outside sources.
+Lumi's pinned `tools.py`, `models.py`, and `machine.py` were reviewed for their narrow registry,
+router, and step-coordination interfaces. PokieQuant independently generalized those patterns with
+Pydantic validation and its existing Store/lease lifecycle; it did not import Lumi phases, state,
+SQLite EventStore, learning guardrails, or artifacts. The OpenAI-compatible transport was extracted
+from the existing in-repository `model_research.py` implementation rather than copied from an
+external runtime.

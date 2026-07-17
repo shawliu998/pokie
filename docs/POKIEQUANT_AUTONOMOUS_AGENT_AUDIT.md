@@ -2,6 +2,16 @@
 
 ## Baseline
 
+The Phase 1A branch `codex/reuse-first-autonomous-agent` was created from
+`990011bd944f4e8f3fbcc13fa77c925b83c516c2`. On 2026-07-17, the requested upstream `main`
+references were verified with `git ls-remote`:
+
+| Repository | Verified `main` SHA | Use in this implementation |
+| --- | --- | --- |
+| `shawliu998/lumi` | `cd1ebcb17c53268725495e874b3f5980514781cc` | `tools.py`, `models.py`, and `machine.py` were read at this revision; their narrow registry/router interfaces and step coordination were generalized without importing Lumi state, phases, store, or source verbatim |
+| `shawliu998/Glint` | `161c6075a9e73dbb344f15d58ef41b7c9834380e` | Provenance reference; the shared transport was extracted from the existing Pokie/Glint-derived local module |
+| `shawliu998/spark-agent` | `f21158df7631e23f5be4481ea20e63c11e8389b1` | Boundary review only; no integration or source import |
+
 The Phase 0 Quant path is a durable deterministic fixture, not an autonomous loop. A run is
 created by `POST /v1/quant/runs`; `QuantStore.create_run()` immediately publishes a fixed plan.
 Plan approval changes the run to `running_experiments`. The `quant-fixture` worker then claims the
@@ -44,8 +54,15 @@ budgets and provider identity. The fixture runner remains available for screensh
 
 ## Reuse and provenance
 
-The generic `packages/agent_runtime` and `services.worker.app.providers.openai_compatible`
-extraction reuse code that already existed in this repository (`model_research.py` and
-`services.worker.app.quant_agent.provider`). Lumi and any external agent frameworks are treated as
-conceptual inspiration only; no unverified external code was copied. Provenance claims are limited
-to files and modules that were actually inspected and refactored here.
+At the pinned Lumi revision, `runtime/hermes_runtime/tools.py`, `models.py`, and `machine.py` were
+inspected. PokieQuant generalized only the small closed-registry, model-routing, and one-step
+coordination ideas. It replaced Lumi's handwritten schema subset with Pydantic contracts and did
+not import `AgentState`, `Phase`, `PHASE_TO_TOOL`, guardrails, SQLite `EventStore`, learning
+artifacts, or the multi-phase loop. No Lumi source was copied verbatim; its repository exposes no
+root license file at the pinned revision, so the ledger intentionally limits reuse to independently
+implemented interface patterns.
+
+The shared `services.worker.app.providers.openai_compatible` transport was extracted from code
+already present in this repository (`model_research.py`). Model Research and Quant now share this
+transport while retaining separate prompts and response contracts. Provenance claims are limited
+to the fixed revisions and files actually inspected.
