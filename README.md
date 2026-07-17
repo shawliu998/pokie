@@ -33,6 +33,8 @@ Implemented:
 - strict CSV OHLCV normalization, immutable content-addressed dataset versions, workspace-scoped
   import/list APIs, a 252-daily-bar minimum for autonomous execution, and Run-level dataset
   ID/digest pinning retained across retries.
+- a Mac Data workspace that imports daily OHLCV CSV files, lists immutable versions, exposes
+  provenance and eligibility, and pins the selected dataset into a new Auto Research run.
 
 Still intentionally not implemented:
 

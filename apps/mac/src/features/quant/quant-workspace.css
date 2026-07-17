@@ -211,6 +211,27 @@
 .quant-data-card>header { display:flex; justify-content:space-between; gap:10px; }
 .quant-data-card h2 { margin:0; font-size:16px; }
 .quant-data-card>.button { margin-top:14px; }
+.quant-data-page { display:grid; gap:16px; }
+.quant-data-import, .quant-dataset-list { width:min(820px, 100%); border:1px solid var(--border); border-radius:8px; padding:16px; background:var(--surface); }
+.quant-data-import h2, .quant-dataset-list h2 { margin:0; font-size:16px; }
+.quant-data-import p { margin:4px 0 0; color:var(--muted); }
+.quant-data-import-fields { display:grid; grid-template-columns:minmax(180px, 1.3fr) minmax(150px, 1fr) 90px auto; gap:8px; align-items:end; margin-top:14px; }
+.quant-data-import-fields label { display:grid; gap:3px; color:var(--faint); font-size:9px; }
+.quant-data-import-fields input { width:100%; min-height:31px; padding:5px 6px; font-size:10px; }
+.quant-data-import small { display:block; margin-top:7px; color:var(--faint); font-size:9px; }
+.quant-dataset-list>header { display:flex; justify-content:space-between; align-items:start; gap:12px; margin-bottom:10px; }
+.quant-dataset-list>header>span { color:var(--faint); font-size:10px; }
+.quant-dataset-card { padding:12px 0; border-top:1px solid var(--border); }
+.quant-dataset-card.is-selected { margin:0 -8px; padding:12px 8px; border:1px solid color-mix(in srgb, var(--accent) 45%, var(--border)); border-radius:6px; background:color-mix(in srgb, var(--accent) 7%, var(--surface)); }
+.quant-dataset-card>header { display:flex; justify-content:space-between; gap:10px; }
+.quant-dataset-card h3 { margin:0; font-size:13px; }
+.quant-dataset-card dl { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin:10px 0 0; }
+.quant-dataset-card dt { color:var(--faint); font-size:9px; text-transform:uppercase; }
+.quant-dataset-card dd { margin:3px 0 0; font-size:10px; }
+.quant-dataset-card footer { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:12px; }
+.quant-dataset-card footer code { color:var(--faint); font-size:9px; }
+.quant-dataset-card footer>div { display:flex; align-items:center; gap:6px; }
+.quant-dataset-selected { color:var(--accent); font-size:10px; font-weight:600; }
 .quant-policy-grid { display:grid; grid-template-columns:repeat(3, minmax(180px, 1fr)); gap:10px; max-width:900px; }
 .quant-policy-grid article { min-height:120px; padding:14px; border:1px solid var(--border); border-radius:7px; background:var(--surface); }
 .quant-policy-grid span, .quant-policy-grid small, .quant-policy-grid strong { display:block; }

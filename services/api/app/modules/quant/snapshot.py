@@ -29,7 +29,7 @@ from services.api.app.modules.quant.kernel_check import (
 )
 
 FIXTURE_ENV = "POKIEQUANT_E2E_RUN_STATE"
-DEFAULT_FIXTURE = "quant-completed"
+DEFAULT_FIXTURE = "quant-ready"
 FIXTURE_STATES = frozenset(
     {
         "quant-ready",
@@ -887,5 +887,9 @@ def quant_agent_workspace_snapshot(*, workspace_id: str) -> dict[str, Any] | Non
         if report_artifact is not None
         else None
     )
-    snapshot["composerLegalCommands"] = []
+    snapshot["composerLegalCommands"] = (
+        ["start_auto_research"]
+        if state in {"completed", "failed", "cancelled"}
+        else []
+    )
     return snapshot
