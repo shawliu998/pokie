@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import os
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import Enum
-import os
 from threading import RLock
 from typing import Any
 from uuid import NAMESPACE_URL, UUID, uuid5
@@ -12,17 +12,27 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from packages.contracts.enums import DataAuthenticity
+from packages.contracts.quant import QuantAgentDecision, QuantAgentPlan, QuantToolObservation
 from packages.contracts.quant.enums import (
     QuantArtifactKind,
     QuantArtifactReviewStatus,
+    QuantCandidateVerdict,
     QuantExperimentVerdict,
+    QuantFixtureScenario,
     QuantProjectStatus,
     QuantRunMode,
     QuantRunState,
-    QuantCandidateVerdict,
-    QuantFixtureScenario,
 )
-from packages.contracts.quant.runtime import build_quant_script
+from packages.contracts.quant.fixture_data import SPY_DAILY_FIXTURE
+from packages.domain.canonical import canonical_digest
+from packages.domain.quant_backtest import (
+    BacktestMetrics,
+    DailyBar,
+    ExecutionConfig,
+    StrategySpec,
+    backtest_buy_and_hold,
+    run_backtest,
+)
 from services.api.app.core.errors import invalid_state, not_found, version_conflict
 from services.api.app.db.models import QuantRepositoryState
 from services.api.app.db.session import get_session_factory, set_rls_context
@@ -33,7 +43,9 @@ def _utcnow() -> datetime:
 
 
 def _uuid(label: str, *parts: object) -> UUID:
-    return uuid5(NAMESPACE_URL, "pokiequant.quant:" + ":".join(str(part) for part in (label, *parts)))
+    return uuid5(
+        NAMESPACE_URL, "pokiequant.quant:" + ":".join(str(part) for part in (label, *parts))
+    )
 
 
 def _text(*parts: object) -> str:
@@ -90,6 +102,20 @@ class QuantRunRecord:
     failure_reason: str | None = None
     cancelled_reason: str | None = None
     retry_child_run_id: str | None = None
+    agent_iteration: int = 0
+    agent_status: str = "idle"
+    max_agent_iterations: int = 12
+    max_experiments: int = 3
+    max_repairs: int = 2
+    used_experiments: int = 0
+    used_repairs: int = 0
+    last_action: str | None = None
+    last_observation: str | None = None
+    final_conclusion: str | None = None
+    provider: str = "mock"
+    model: str | None = None
+    consecutive_provider_failures: int = 0
+    plan_steps: list[dict[str, Any]] = field(default_factory=list)
     row_version: int = 1
     created_at: datetime = field(default_factory=_utcnow)
     updated_at: datetime = field(default_factory=_utcnow)
@@ -131,6 +157,7 @@ class QuantArtifactRecord:
     title: str
     digest: str
     review_status: QuantArtifactReviewStatus = QuantArtifactReviewStatus.UNREVIEWED
+    content: dict[str, Any] = field(default_factory=dict)
     created_at: datetime = field(default_factory=_utcnow)
     data_authenticity: DataAuthenticity = DataAuthenticity.GENERATED
 
@@ -145,6 +172,14 @@ class QuantExperimentRecord:
     hypothesis: str
     verdict: QuantExperimentVerdict
     summary: str
+    template: str = "fixture"
+    parameters: dict[str, Any] = field(default_factory=dict)
+    state: str = "completed"
+    metrics: dict[str, Any] = field(default_factory=dict)
+    repair_count: int = 0
+    candidate_key: str | None = None
+    parent_experiment_id: str | None = None
+    latest_observation: str | None = None
     created_at: datetime = field(default_factory=_utcnow)
     data_authenticity: DataAuthenticity = DataAuthenticity.GENERATED
 
@@ -269,11 +304,30 @@ class QuantStore:
     def _workspace_state(self, workspace_id: str) -> dict[str, Any]:
         return _json_value(
             {
-                "projects": [asdict(row) for row in self._projects.values() if row.workspace_id == workspace_id],
-                "runs": [asdict(row) for row in self._runs.values() if row.workspace_id == workspace_id],
-                "events": [asdict(row) for rows in self._events.values() for row in rows if row.workspace_id == workspace_id],
-                "artifacts": [asdict(row) for row in self._artifacts.values() if row.workspace_id == workspace_id],
-                "experiments": [asdict(row) for row in self._experiments.values() if row.workspace_id == workspace_id],
+                "projects": [
+                    asdict(row)
+                    for row in self._projects.values()
+                    if row.workspace_id == workspace_id
+                ],
+                "runs": [
+                    asdict(row) for row in self._runs.values() if row.workspace_id == workspace_id
+                ],
+                "events": [
+                    asdict(row)
+                    for rows in self._events.values()
+                    for row in rows
+                    if row.workspace_id == workspace_id
+                ],
+                "artifacts": [
+                    asdict(row)
+                    for row in self._artifacts.values()
+                    if row.workspace_id == workspace_id
+                ],
+                "experiments": [
+                    asdict(row)
+                    for row in self._experiments.values()
+                    if row.workspace_id == workspace_id
+                ],
             }
         )
 
@@ -445,6 +499,714 @@ class QuantStore:
                 and row.worker_lease_expires_at > _utcnow()
             )
 
+    # Incremental autonomous Agent execution. The existing workspace lease is
+    # deliberately reused: there is one fenced writer regardless of worker kind.
+    def claim_agent_run(
+        self,
+        *,
+        workspace_id: str,
+        worker_id: str,
+        lease_for: timedelta = timedelta(seconds=120),
+    ) -> QuantFixtureLease | None:
+        return self.claim_fixture_run(
+            workspace_id=workspace_id,
+            worker_id=worker_id,
+            lease_for=lease_for,
+        )
+
+    def record_agent_decision(self, lease: QuantFixtureLease, decision: QuantAgentDecision) -> bool:
+        with self._lock:
+            self._ensure_workspace_loaded(lease.workspace_id)
+            run = self._runs.get(lease.run_id)
+            if not self._agent_claim_is_writable(run, lease):
+                return False
+            assert run is not None
+            run.agent_status = "executing_tool"
+            run.last_action = decision.action.value
+            self._append_event(
+                run,
+                "agent.action_selected",
+                {
+                    "action": decision.action.value,
+                    "arguments": _json_value(decision.arguments),
+                    "decision_summary": decision.decision_summary,
+                    "expected_result": decision.expected_result,
+                    "iteration": run.agent_iteration + 1,
+                    "safe_summary": decision.decision_summary,
+                },
+            )
+            self._append_event(
+                run,
+                "tool.started",
+                {
+                    "action": decision.action.value,
+                    "arguments": _json_value(decision.arguments),
+                    "safe_summary": f"Tool {decision.action.value} started.",
+                },
+            )
+            run.row_version += 1
+            run.updated_at = _utcnow()
+            self._persist_workspace(lease.workspace_id)
+            return True
+
+    def complete_agent_step(
+        self, lease: QuantFixtureLease, observation: QuantToolObservation
+    ) -> bool:
+        with self._lock:
+            self._ensure_workspace_loaded(lease.workspace_id)
+            run = self._runs.get(lease.run_id)
+            if run is None or run.workspace_id != lease.workspace_id:
+                return False
+            if not self._fixture_lease_is_current(lease):
+                return False
+            event_type = "tool.completed" if observation.success else "tool.failed"
+            self._append_event(
+                run,
+                event_type,
+                {
+                    "action": observation.action.value,
+                    "success": observation.success,
+                    "candidate_id": observation.candidate_id,
+                    "artifact_ids": observation.artifact_ids,
+                    "metrics_summary": observation.data.get("metrics"),
+                    "error_code": observation.error_code,
+                    "retryable": observation.retryable,
+                    "safe_summary": observation.safe_summary,
+                },
+            )
+            run.agent_iteration += 1
+            run.last_observation = observation.safe_summary
+            run.consecutive_provider_failures = 0
+            if observation.terminal:
+                run.agent_status = "completed"
+            elif run.state not in {
+                QuantRunState.COMPLETED,
+                QuantRunState.FAILED,
+                QuantRunState.CANCELLED,
+            }:
+                run.state = QuantRunState.RUNNING_EXPERIMENTS
+                run.agent_status = "waiting_next_step"
+            run.row_version += 1
+            run.updated_at = _utcnow()
+            self._persist_workspace(lease.workspace_id)
+        self.release_agent_claim(lease)
+        return True
+
+    def record_agent_provider_failure(
+        self,
+        lease: QuantFixtureLease,
+        safe_summary: str,
+        *,
+        allow_mock_fallback: bool,
+    ) -> int:
+        with self._lock:
+            self._ensure_workspace_loaded(lease.workspace_id)
+            run = self._runs.get(lease.run_id)
+            if not self._agent_claim_is_writable(run, lease):
+                return 0
+            assert run is not None
+            run.agent_iteration += 1
+            run.consecutive_provider_failures += 1
+            run.agent_status = "waiting_next_step"
+            run.last_observation = safe_summary
+            self._append_event(
+                run,
+                "agent.decision_failed",
+                {
+                    "iteration": run.agent_iteration,
+                    "reason_code": "provider_decision_failed",
+                    "safe_summary": safe_summary,
+                },
+            )
+            if run.consecutive_provider_failures >= 2:
+                if allow_mock_fallback:
+                    run.provider = "mock"
+                    run.model = None
+                    self._append_event(
+                        run,
+                        "agent.provider_fallback",
+                        {
+                            "safe_summary": (
+                                "The Agent switched to the deterministic Mock provider."
+                            )
+                        },
+                    )
+                else:
+                    run.state = QuantRunState.FAILED
+                    run.agent_status = "failed"
+                    run.failure_reason = "The configured model provider remained unavailable."
+                    self._append_event(
+                        run,
+                        "run.failed",
+                        {
+                            "state": QuantRunState.FAILED,
+                            "reason_code": "agent_provider_unavailable",
+                            "safe_summary": run.failure_reason,
+                        },
+                    )
+            run.row_version += 1
+            run.updated_at = _utcnow()
+            failures = run.consecutive_provider_failures
+            self._persist_workspace(lease.workspace_id)
+        self.release_agent_claim(lease)
+        return failures
+
+    def mark_provider_fallback(self, lease: QuantFixtureLease) -> bool:
+        with self._lock:
+            self._ensure_workspace_loaded(lease.workspace_id)
+            run = self._runs.get(lease.run_id)
+            if not self._agent_claim_is_writable(run, lease):
+                return False
+            assert run is not None
+            run.provider = "mock"
+            run.model = None
+            self._append_event(
+                run,
+                "agent.provider_fallback",
+                {"safe_summary": "The Agent switched to the deterministic Mock provider."},
+            )
+            run.row_version += 1
+            self._persist_workspace(lease.workspace_id)
+            return True
+
+    def release_agent_claim(self, lease: QuantFixtureLease) -> None:
+        with self._session_factory() as db:
+            set_rls_context(db, lease.workspace_id, lease.token)
+            row = db.scalar(
+                select(QuantRepositoryState)
+                .where(QuantRepositoryState.workspace_id == lease.workspace_id)
+                .with_for_update()
+            )
+            if row is not None and row.worker_lease_token == lease.token:
+                row.worker_lease_token = None
+                row.worker_lease_expires_at = None
+                row.row_version += 1
+                db.commit()
+                self._storage_versions[lease.workspace_id] = row.row_version
+
+    def _agent_claim_is_writable(
+        self, run: QuantRunRecord | None, lease: QuantFixtureLease
+    ) -> bool:
+        return bool(
+            run is not None
+            and run.state is QuantRunState.RUNNING_EXPERIMENTS
+            and run.agent_status != "cancelled"
+            and self._fixture_lease_is_current(lease)
+        )
+
+    def create_agent_candidate(
+        self,
+        lease: QuantFixtureLease,
+        *,
+        name: str,
+        template: str,
+        hypothesis: str,
+        parameters: dict[str, int | float],
+    ) -> tuple[QuantExperimentRecord | None, list[str], str | None]:
+        with self._lock:
+            self._ensure_workspace_loaded(lease.workspace_id)
+            run = self._runs.get(lease.run_id)
+            if not self._agent_claim_is_writable(run, lease):
+                return None, [], "STALE_CLAIM"
+            assert run is not None
+            if run.used_experiments >= run.max_experiments:
+                return None, [], "EXPERIMENT_BUDGET_EXHAUSTED"
+            normalized = _json_value(parameters)
+            duplicate = next(
+                (
+                    item
+                    for item in self._experiments.values()
+                    if item.run_id == run.id
+                    and item.template == template
+                    and item.parameters == normalized
+                ),
+                None,
+            )
+            if duplicate is not None:
+                return None, [], "DUPLICATE_CANDIDATE"
+            candidate_id = str(
+                _uuid("agent-candidate", run.id, template, canonical_digest(normalized))
+            )
+            candidate = QuantExperimentRecord(
+                id=candidate_id,
+                workspace_id=run.workspace_id,
+                run_id=run.id,
+                ordinal=1 + sum(item.run_id == run.id for item in self._experiments.values()),
+                name=name,
+                hypothesis=hypothesis,
+                verdict=QuantExperimentVerdict.NOT_VIABLE,
+                summary="Candidate created and ready for local backtesting.",
+                template=template,
+                parameters=normalized,
+                state="created",
+                candidate_key=candidate_id,
+            )
+            self._experiments[candidate.id] = candidate
+            artifact = self._new_agent_artifact(
+                run,
+                QuantArtifactKind.STRATEGY_SPEC,
+                f"Strategy specification: {name}",
+                {"template": template, "parameters": normalized, "hypothesis": hypothesis},
+                key=candidate.id,
+            )
+            run.used_experiments += 1
+            run.state = QuantRunState.GENERATING_CANDIDATES
+            self._append_event(
+                run,
+                "candidate.generated",
+                {
+                    "candidate_id": candidate.id,
+                    "experiment_id": candidate.id,
+                    "experiment_name": candidate.name,
+                    "safe_summary": f"Candidate {candidate.name} was created.",
+                },
+            )
+            self._append_artifact_event(run, artifact)
+            run.row_version += 1
+            run.updated_at = _utcnow()
+            self._persist_workspace(run.workspace_id)
+            return candidate, [artifact.id], None
+
+    def run_agent_backtest(
+        self, lease: QuantFixtureLease, *, candidate_id: str
+    ) -> tuple[QuantExperimentRecord | None, list[str], str | None]:
+        with self._lock:
+            self._ensure_workspace_loaded(lease.workspace_id)
+            run = self._runs.get(lease.run_id)
+            if not self._agent_claim_is_writable(run, lease):
+                return None, [], "STALE_CLAIM"
+            assert run is not None
+            candidate = self._experiments.get(candidate_id)
+            if candidate is None or candidate.run_id != run.id:
+                return None, [], "UNKNOWN_CANDIDATE"
+            if candidate.state == "completed":
+                return None, [], "CANDIDATE_ALREADY_BACKTESTED"
+            run.state = QuantRunState.RUNNING_EXPERIMENTS
+            candidate.state = "running"
+            self._append_event(
+                run,
+                "backtest.started",
+                {
+                    "candidate_id": candidate.id,
+                    "experiment_id": candidate.id,
+                    "safe_summary": f"Local backtest started for {candidate.name}.",
+                },
+            )
+            try:
+                result = run_backtest(
+                    self._agent_bars(),
+                    self._strategy_spec(candidate.template, candidate.parameters),
+                    ExecutionConfig(fee_rate=0.001, slippage_rate=0.0005),
+                )
+            except ValueError:
+                candidate.state = "failed"
+                candidate.latest_observation = "The local kernel rejected the candidate parameters."
+                self._append_event(
+                    run,
+                    "backtest.failed",
+                    {
+                        "candidate_id": candidate.id,
+                        "experiment_id": candidate.id,
+                        "reason_code": "invalid_strategy_parameters",
+                        "safe_summary": candidate.latest_observation,
+                    },
+                )
+                self._persist_workspace(run.workspace_id)
+                return candidate, [], "INVALID_STRATEGY_PARAMETERS"
+            metrics = self._metrics_projection(result.metrics)
+            benchmark = backtest_buy_and_hold(
+                self._agent_bars(), ExecutionConfig(fee_rate=0.001, slippage_rate=0.0005)
+            )
+            candidate.metrics = metrics
+            candidate.state = "completed"
+            candidate.verdict = (
+                QuantExperimentVerdict.VIABLE
+                if result.metrics.max_drawdown > benchmark.metrics.max_drawdown
+                else QuantExperimentVerdict.NOT_VIABLE
+            )
+            candidate.summary = (
+                f"Kernel result: {metrics['trade_count']} trades, "
+                f"maximum drawdown {metrics['maximum_drawdown_pct']}%."
+            )
+            candidate.latest_observation = candidate.summary
+            artifacts = [
+                self._new_agent_artifact(
+                    run,
+                    QuantArtifactKind.BACKTEST_RESULT,
+                    f"Backtest metrics: {candidate.name}",
+                    {"candidate_id": candidate.id, "metrics": metrics},
+                    key=f"{candidate.id}:metrics",
+                ),
+                self._new_agent_artifact(
+                    run,
+                    QuantArtifactKind.EQUITY_CURVE,
+                    f"Equity curve: {candidate.name}",
+                    {
+                        "candidate_id": candidate.id,
+                        "points": [
+                            {"date": point.date.isoformat(), "equity": round(point.equity, 4)}
+                            for point in result.equity_curve[
+                                :: max(1, len(result.equity_curve) // 100)
+                            ]
+                        ],
+                    },
+                    key=f"{candidate.id}:equity",
+                ),
+                self._new_agent_artifact(
+                    run,
+                    QuantArtifactKind.TRADE_LOG,
+                    f"Trade log: {candidate.name}",
+                    {
+                        "candidate_id": candidate.id,
+                        "trades": [
+                            {
+                                "entry_date": trade.entry_date.isoformat(),
+                                "exit_date": trade.exit_date.isoformat(),
+                                "return_pct": round(trade.return_pct * 100, 4),
+                            }
+                            for trade in result.trades
+                        ],
+                    },
+                    key=f"{candidate.id}:trades",
+                ),
+            ]
+            self._append_event(
+                run,
+                "backtest.completed",
+                {
+                    "candidate_id": candidate.id,
+                    "experiment_id": candidate.id,
+                    "safe_summary": candidate.summary,
+                },
+            )
+            for artifact in artifacts:
+                self._append_artifact_event(run, artifact)
+            run.row_version += 1
+            run.updated_at = _utcnow()
+            self._persist_workspace(run.workspace_id)
+            return candidate, [artifact.id for artifact in artifacts], None
+
+    def revise_agent_candidate(
+        self,
+        lease: QuantFixtureLease,
+        *,
+        candidate_id: str,
+        reason: str,
+        parameter_patch: dict[str, int | float],
+    ) -> tuple[QuantExperimentRecord | None, list[str], str | None]:
+        with self._lock:
+            self._ensure_workspace_loaded(lease.workspace_id)
+            run = self._runs.get(lease.run_id)
+            if not self._agent_claim_is_writable(run, lease):
+                return None, [], "STALE_CLAIM"
+            assert run is not None
+            original = self._experiments.get(candidate_id)
+            if original is None or original.run_id != run.id:
+                return None, [], "UNKNOWN_CANDIDATE"
+            if run.used_repairs >= run.max_repairs:
+                return None, [], "REPAIR_BUDGET_EXHAUSTED"
+            parameters = {**original.parameters, **_json_value(parameter_patch)}
+            try:
+                self._strategy_spec(original.template, parameters)
+            except (KeyError, TypeError, ValueError):
+                return None, [], "INVALID_STRATEGY_PARAMETERS"
+            duplicate = next(
+                (
+                    item
+                    for item in self._experiments.values()
+                    if item.run_id == run.id
+                    and item.template == original.template
+                    and item.parameters == parameters
+                ),
+                None,
+            )
+            if duplicate is not None:
+                return None, [], "DUPLICATE_CANDIDATE"
+            revised_id = str(
+                _uuid(
+                    "agent-revision",
+                    original.id,
+                    canonical_digest(parameters),
+                    run.used_repairs + 1,
+                )
+            )
+            revised = QuantExperimentRecord(
+                id=revised_id,
+                workspace_id=run.workspace_id,
+                run_id=run.id,
+                ordinal=1 + sum(item.run_id == run.id for item in self._experiments.values()),
+                name=f"{original.name} revision {original.repair_count + 1}",
+                hypothesis=original.hypothesis,
+                verdict=QuantExperimentVerdict.NOT_VIABLE,
+                summary=f"Revised because: {reason}",
+                template=original.template,
+                parameters=parameters,
+                state="created",
+                repair_count=original.repair_count + 1,
+                candidate_key=original.candidate_key or original.id,
+                parent_experiment_id=original.id,
+            )
+            original.state = "revised"
+            self._experiments[revised.id] = revised
+            artifact = self._new_agent_artifact(
+                run,
+                QuantArtifactKind.STRATEGY_SPEC,
+                f"Revised strategy specification: {revised.name}",
+                {"template": revised.template, "parameters": parameters, "reason": reason},
+                key=revised.id,
+            )
+            run.used_repairs += 1
+            run.state = QuantRunState.REPAIRING
+            self._append_event(
+                run,
+                "repair.started",
+                {
+                    "candidate_id": original.id,
+                    "safe_summary": f"Revision started for {original.name}.",
+                },
+            )
+            self._append_event(
+                run,
+                "candidate.revised",
+                {
+                    "candidate_id": revised.id,
+                    "experiment_id": revised.id,
+                    "repair_count": revised.repair_count,
+                    "safe_summary": f"Candidate revised as {revised.name}.",
+                },
+            )
+            self._append_event(
+                run,
+                "repair.completed",
+                {
+                    "candidate_id": revised.id,
+                    "repair_count": revised.repair_count,
+                    "safe_summary": "Candidate revision completed.",
+                },
+            )
+            self._append_artifact_event(run, artifact)
+            run.row_version += 1
+            self._persist_workspace(run.workspace_id)
+            return revised, [artifact.id], None
+
+    def compare_agent_candidates(
+        self, lease: QuantFixtureLease
+    ) -> tuple[dict[str, Any] | None, list[str], str | None]:
+        with self._lock:
+            self._ensure_workspace_loaded(lease.workspace_id)
+            run = self._runs.get(lease.run_id)
+            if not self._agent_claim_is_writable(run, lease):
+                return None, [], "STALE_CLAIM"
+            assert run is not None
+            completed = [
+                item
+                for item in self._experiments.values()
+                if item.run_id == run.id and item.state == "completed"
+            ]
+            if not completed:
+                return None, [], "NO_COMPLETED_CANDIDATES"
+            benchmark_result = backtest_buy_and_hold(
+                self._agent_bars(), ExecutionConfig(fee_rate=0.001, slippage_rate=0.0005)
+            )
+            benchmark = self._metrics_projection(benchmark_result.metrics)
+            rows = [
+                {
+                    "candidate_id": item.id,
+                    "name": item.name,
+                    **item.metrics,
+                    "drawdown_improvement_pct": round(
+                        item.metrics["maximum_drawdown_pct"] - benchmark["maximum_drawdown_pct"],
+                        4,
+                    ),
+                    "return_difference": round(
+                        item.metrics["total_return_pct"] - benchmark["total_return_pct"], 4
+                    ),
+                    "drawdown_difference": round(
+                        item.metrics["maximum_drawdown_pct"] - benchmark["maximum_drawdown_pct"], 4
+                    ),
+                    "sharpe_difference": round(
+                        item.metrics["sharpe_ratio"] - benchmark["sharpe_ratio"], 4
+                    ),
+                    "trade_count_difference": item.metrics["trade_count"]
+                    - benchmark["trade_count"],
+                }
+                for item in completed
+            ]
+            comparison = {"benchmark": benchmark, "candidates": rows}
+            artifact = self._new_agent_artifact(
+                run,
+                QuantArtifactKind.VALIDATION_REPORT,
+                "Candidate comparison",
+                comparison,
+                key=f"comparison:{run.agent_iteration}",
+            )
+            self._append_event(
+                run,
+                "comparison.generated",
+                {
+                    "artifact_id": artifact.id,
+                    "safe_summary": (
+                        f"{len(completed)} completed candidates were compared with buy and hold."
+                    ),
+                },
+            )
+            self._append_artifact_event(run, artifact)
+            self._persist_workspace(run.workspace_id)
+            return comparison, [artifact.id], None
+
+    def finish_agent_research(
+        self,
+        lease: QuantFixtureLease,
+        *,
+        selected_candidate_id: str | None,
+        conclusion: str,
+        next_step: str,
+    ) -> tuple[dict[str, Any] | None, list[str], str | None]:
+        with self._lock:
+            self._ensure_workspace_loaded(lease.workspace_id)
+            run = self._runs.get(lease.run_id)
+            if not self._agent_claim_is_writable(run, lease):
+                return None, [], "STALE_CLAIM"
+            assert run is not None
+            completed = [
+                item
+                for item in self._experiments.values()
+                if item.run_id == run.id and item.state == "completed"
+            ]
+            if not completed and run.agent_iteration < run.max_agent_iterations - 1:
+                return None, [], "NO_COMPLETED_CANDIDATES"
+            selected = self._experiments.get(selected_candidate_id or "")
+            if selected_candidate_id and (
+                selected is None or selected.run_id != run.id or selected.state != "completed"
+            ):
+                return None, [], "INVALID_SELECTED_CANDIDATE"
+            report = {
+                "research_goal": run.question,
+                "plan_summary": run.plan_summary,
+                "dataset": self.agent_dataset_summary(),
+                "benchmark": self.agent_benchmark_summary(),
+                "candidates_tested": [self.agent_candidate_summary(item) for item in completed],
+                "selected_candidate_id": selected_candidate_id,
+                "conclusion": conclusion,
+                "next_step": next_step,
+                "limitations": [
+                    "The pinned dataset is synthetic and is not real market data.",
+                    "Results are local backtests, not investment advice or trading instructions.",
+                    "No statistical significance or live execution was evaluated.",
+                ],
+                "run_metadata": {
+                    "run_id": run.id,
+                    "provider": run.provider,
+                    "model": run.model,
+                    "iterations": run.agent_iteration + 1,
+                },
+            }
+            artifact = self._new_agent_artifact(
+                run,
+                QuantArtifactKind.RESEARCH_REPORT,
+                "Autonomous Quant Research Report",
+                report,
+                key="agent-report",
+            )
+            run.final_conclusion = conclusion
+            run.state = QuantRunState.COMPLETED
+            run.agent_status = "completed"
+            self._append_event(
+                run,
+                "report.generated",
+                {
+                    "artifact_id": artifact.id,
+                    "safe_summary": "The autonomous research report was generated.",
+                },
+            )
+            self._append_artifact_event(run, artifact)
+            self._append_event(
+                run,
+                "run.completed",
+                {
+                    "state": QuantRunState.COMPLETED,
+                    "plan_revision": run.plan_revision,
+                    "attempt_number": run.attempt_number,
+                    "safe_summary": "The autonomous research run completed.",
+                },
+            )
+            run.row_version += 1
+            run.updated_at = _utcnow()
+            self._persist_workspace(run.workspace_id)
+            return report, [artifact.id], None
+
+    def _new_agent_artifact(
+        self,
+        run: QuantRunRecord,
+        kind: QuantArtifactKind,
+        title: str,
+        content: dict[str, Any],
+        *,
+        key: str,
+    ) -> QuantArtifactRecord:
+        artifact = QuantArtifactRecord(
+            id=str(_uuid("agent-artifact", run.id, kind.value, key)),
+            workspace_id=run.workspace_id,
+            run_id=run.id,
+            ordinal=1 + sum(item.run_id == run.id for item in self._artifacts.values()),
+            kind=kind,
+            title=title,
+            digest=canonical_digest(content),
+            content=_json_value(content),
+        )
+        self._artifacts[artifact.id] = artifact
+        return artifact
+
+    def _append_artifact_event(self, run: QuantRunRecord, artifact: QuantArtifactRecord) -> None:
+        self._append_event(
+            run,
+            "artifact.published",
+            {
+                "artifact_id": artifact.id,
+                "artifact_kind": artifact.kind,
+                "safe_summary": f"Artifact published: {artifact.title}.",
+            },
+        )
+
+    @staticmethod
+    def _agent_bars() -> tuple[DailyBar, ...]:
+        return tuple(
+            DailyBar(
+                date=bar.trading_date,
+                open=float(bar.open),
+                high=float(bar.high),
+                low=float(bar.low),
+                close=float(bar.close),
+                volume=float(bar.volume),
+            )
+            for bar in SPY_DAILY_FIXTURE.bars
+        )
+
+    @staticmethod
+    def _strategy_spec(template: str, parameters: dict[str, Any]) -> StrategySpec:
+        if template == "sma_crossover":
+            return StrategySpec.sma(int(parameters["fast_window"]), int(parameters["slow_window"]))
+        if template == "rsi_mean_reversion":
+            return StrategySpec.rsi(
+                int(parameters.get("period", 14)),
+                oversold=float(parameters["entry_threshold"]),
+                overbought=float(parameters["exit_threshold"]),
+            )
+        if template == "breakout":
+            return StrategySpec.breakout(int(parameters["lookback_window"]))
+        raise ValueError("Unknown strategy template.")
+
+    @staticmethod
+    def _metrics_projection(metrics: BacktestMetrics) -> dict[str, Any]:
+        return {
+            "total_return_pct": round(metrics.total_return * 100, 4),
+            "annualized_return_pct": round(metrics.annualized_return * 100, 4),
+            "maximum_drawdown_pct": round(metrics.max_drawdown * 100, 4),
+            "sharpe_ratio": round(metrics.sharpe_ratio, 4),
+            "trade_count": metrics.trade_count,
+            "win_rate_pct": round(metrics.win_rate * 100, 4),
+        }
+
     # Projects
     def create_project(self, *, workspace_id: str, name: str, objective: str) -> QuantProjectRecord:
         with self._lock:
@@ -464,7 +1226,9 @@ class QuantStore:
             self._ensure_workspace_loaded(workspace_id)
             return [
                 project
-                for project in sorted(self._projects.values(), key=lambda item: item.created_at, reverse=True)
+                for project in sorted(
+                    self._projects.values(), key=lambda item: item.created_at, reverse=True
+                )
                 if project.workspace_id == workspace_id
             ]
 
@@ -485,13 +1249,16 @@ class QuantStore:
         question: str,
         mode: QuantRunMode,
         expected_project_row_version: int,
+        agent_plan: QuantAgentPlan | None = None,
     ) -> QuantRunRecord:
         with self._lock:
             self._ensure_workspace_loaded(workspace_id)
             project = self.get_project(workspace_id=workspace_id, project_id=project_id)
             if project.row_version != expected_project_row_version:
                 raise version_conflict(project.id, project.row_version)
-            run_id = str(_uuid("run", workspace_id, project_id, question, mode.value, project.row_version))
+            run_id = str(
+                _uuid("run", workspace_id, project_id, question, mode.value, project.row_version)
+            )
             run = QuantRunRecord(
                 id=run_id,
                 workspace_id=workspace_id,
@@ -499,6 +1266,8 @@ class QuantStore:
                 question=question,
                 mode=mode,
                 trace_id=str(_uuid("trace", run_id, 1)),
+                provider=self._configured_agent_provider(),
+                model=self._configured_agent_model(),
             )
             self._runs[run.id] = run
             project.latest_run_id = run.id
@@ -513,7 +1282,9 @@ class QuantStore:
                     "safe_summary": "The run was queued.",
                 },
             )
-            self._publish_plan(run)
+            self._publish_plan(run, agent_plan)
+            if mode is QuantRunMode.AUTO:
+                self._start_run(run, "Auto Research accepted the generated bounded plan.")
             self._persist_workspace(workspace_id)
             return run
 
@@ -547,7 +1318,10 @@ class QuantStore:
         with self._lock:
             self._ensure_workspace_loaded(workspace_id)
             run = self.get_run(workspace_id=workspace_id, run_id=run_id)
-            if run.row_version != expected_row_version and run.state is not QuantRunState.RUNNING_EXPERIMENTS:
+            if (
+                run.row_version != expected_row_version
+                and run.state is not QuantRunState.RUNNING_EXPERIMENTS
+            ):
                 raise version_conflict(run.id, run.row_version)
             if run.plan_revision != plan_revision:
                 raise invalid_state("The plan revision is no longer current.")
@@ -559,29 +1333,7 @@ class QuantStore:
                 return run
             if run.state is not QuantRunState.WAITING_PLAN_APPROVAL:
                 raise invalid_state("Approve-plan requires a plan awaiting approval.")
-            run.state = QuantRunState.RUNNING_EXPERIMENTS
-            run.approval_reason = reason
-            run.row_version += 1
-            run.updated_at = _utcnow()
-            self._append_event(
-                run,
-                "plan.approved",
-                {
-                    "state": QuantRunState.RUNNING_EXPERIMENTS,
-                    "plan_revision": run.plan_revision,
-                    "safe_summary": "The pinned plan revision was approved.",
-                },
-            )
-            self._append_event(
-                run,
-                "run.started",
-                {
-                    "state": QuantRunState.RUNNING_EXPERIMENTS,
-                    "plan_revision": run.plan_revision,
-                    "attempt_number": run.attempt_number,
-                    "safe_summary": "The approved run started.",
-                },
-            )
+            self._start_run(run, reason)
             self._persist_workspace(workspace_id)
             return run
 
@@ -690,6 +1442,11 @@ class QuantStore:
                 attempt_number=run.attempt_number + 1,
                 retry_of_run_id=run.id,
                 trace_id=str(_uuid("trace", run.id, run.attempt_number + 1)),
+                provider=run.provider,
+                model=run.model,
+                max_agent_iterations=run.max_agent_iterations,
+                max_experiments=run.max_experiments,
+                max_repairs=run.max_repairs,
             )
             self._runs[child.id] = child
             run.retry_child_run_id = child.id
@@ -705,6 +1462,8 @@ class QuantStore:
                 },
             )
             self._publish_plan(child)
+            if child.mode is QuantRunMode.AUTO:
+                self._start_run(child, "Auto Research accepted the retry plan.")
             self._persist_workspace(workspace_id)
             return child
 
@@ -714,7 +1473,8 @@ class QuantStore:
             running = [
                 run
                 for run in sorted(self._runs.values(), key=lambda item: item.created_at)
-                if run.workspace_id == workspace_id and run.state is QuantRunState.RUNNING_EXPERIMENTS
+                if run.workspace_id == workspace_id
+                and run.state is QuantRunState.RUNNING_EXPERIMENTS
             ]
             if not running:
                 return False
@@ -723,9 +1483,17 @@ class QuantStore:
             self._persist_workspace(workspace_id)
             return True
 
-    def _publish_plan(self, run: QuantRunRecord) -> None:
-        summary = self._plan_summary(run)
+    def _publish_plan(self, run: QuantRunRecord, agent_plan: QuantAgentPlan | None = None) -> None:
+        summary = agent_plan.objective_summary if agent_plan else self._plan_summary(run)
         run.plan_summary = summary
+        run.plan_steps = (
+            [step.model_dump(mode="json") for step in agent_plan.steps]
+            if agent_plan
+            else self._agent_plan_steps(run.question)
+        )
+        if agent_plan is not None:
+            run.max_experiments = agent_plan.max_experiments
+            run.max_repairs = agent_plan.max_repairs
         plan_artifact = QuantArtifactRecord(
             id=str(_uuid("artifact", run.id, run.plan_revision, "plan")),
             workspace_id=run.workspace_id,
@@ -743,13 +1511,7 @@ class QuantStore:
             {
                 "state": QuantRunState.PLANNING,
                 "plan_revision": run.plan_revision,
-                "plan_steps": [
-                    "Pin the synthetic demo dataset snapshot",
-                    "Draft bounded strategy hypotheses",
-                    "Evaluate candidates against fixture bars",
-                    "Record validation findings and verdicts",
-                    "Publish the fixture research report",
-                ],
+                "plan_steps": [step["title"] for step in run.plan_steps],
                 "artifact_id": plan_artifact.id,
                 "safe_summary": "A plan revision was proposed for review.",
             },
@@ -767,7 +1529,83 @@ class QuantStore:
         run.row_version += 1
         run.updated_at = _utcnow()
 
+    def _start_run(self, run: QuantRunRecord, reason: str | None) -> None:
+        run.state = QuantRunState.RUNNING_EXPERIMENTS
+        run.agent_status = "waiting_next_step"
+        run.approval_reason = reason
+        run.row_version += 1
+        run.updated_at = _utcnow()
+        self._append_event(
+            run,
+            "plan.approved",
+            {
+                "state": QuantRunState.RUNNING_EXPERIMENTS,
+                "plan_revision": run.plan_revision,
+                "safe_summary": "The bounded Agent plan was accepted.",
+            },
+        )
+        self._append_event(
+            run,
+            "run.started",
+            {
+                "state": QuantRunState.RUNNING_EXPERIMENTS,
+                "plan_revision": run.plan_revision,
+                "attempt_number": run.attempt_number,
+                "safe_summary": "The autonomous research run started.",
+            },
+        )
+
+    @staticmethod
+    def _agent_plan_steps(question: str) -> list[dict[str, Any]]:
+        lowered = question.lower()
+        if any(
+            token in lowered for token in ("trade", "frequent", "opportunit", "频繁", "交易机会")
+        ):
+            families = "RSI mean reversion, fast SMA and short breakout"
+        elif any(token in lowered for token in ("mean reversion", "均值回归")):
+            families = "RSI mean reversion and a short SMA control"
+        elif any(token in lowered for token in ("drawdown", "回撤")):
+            families = "slow SMA and long breakout drawdown controls"
+        else:
+            families = "simple SMA, RSI and breakout templates"
+        return [
+            {"key": "inspect", "title": "Inspect the pinned research context", "owner": "agent"},
+            {"key": "templates", "title": f"Select from {families}", "owner": "agent"},
+            {
+                "key": "experiments",
+                "title": "Create and backtest up to three candidates",
+                "owner": "agent",
+            },
+            {
+                "key": "compare",
+                "title": "Compare completed candidates with buy and hold",
+                "owner": "agent",
+            },
+            {
+                "key": "report",
+                "title": "Finish with an evidence-backed conclusion",
+                "owner": "agent",
+            },
+        ]
+
+    @staticmethod
+    def _configured_agent_provider() -> str:
+        provider = os.environ.get("POKIEQUANT_AGENT_PROVIDER", "mock").strip().lower()
+        if provider == "deepseek" and os.environ.get("DEEPSEEK_API_KEY"):
+            return "deepseek"
+        return "mock"
+
+    @staticmethod
+    def _configured_agent_model() -> str | None:
+        if QuantStore._configured_agent_provider() != "deepseek":
+            return None
+        return os.environ.get("DEEPSEEK_MODEL", "deepseek-chat").strip() or "deepseek-chat"
+
     def _finish_run(self, run: QuantRunRecord, fixture_state: str) -> None:
+        # Import inside the fixture-only path so normal quant-agent worker code
+        # never depends on the Phase 0 fixture script generator.
+        from packages.contracts.quant.runtime import build_quant_script
+
         scenario = {
             "completed": QuantFixtureScenario.NORMAL,
             "completed_rejected_candidate": QuantFixtureScenario.NORMAL,
@@ -814,8 +1652,7 @@ class QuantStore:
                         if existing is not None
                         else 1
                         + sum(
-                            experiment.run_id == run.id
-                            for experiment in self._experiments.values()
+                            experiment.run_id == run.id for experiment in self._experiments.values()
                         )
                     ),
                     name=step.experiment.candidate_name,
@@ -916,7 +1753,9 @@ class QuantStore:
         ]
         return experiments, [report]
 
-    def _append_event(self, run: QuantRunRecord, event_type: str, payload: dict[str, Any]) -> QuantEventRecord:
+    def _append_event(
+        self, run: QuantRunRecord, event_type: str, payload: dict[str, Any]
+    ) -> QuantEventRecord:
         sequence = run.latest_sequence + 1
         event = QuantEventRecord(
             id=str(_uuid("event", run.id, sequence, event_type)),
@@ -933,7 +1772,139 @@ class QuantStore:
         return event
 
     def _plan_summary(self, run: QuantRunRecord) -> str:
-        return _text("Deterministic plan for", run.question, f"(revision {run.plan_revision})")
+        focus = self._agent_plan_steps(run.question)[1]["title"]
+        return _text(
+            "Bounded autonomous plan for",
+            run.question,
+            f"Focus: {focus}.",
+            f"Revision {run.plan_revision}.",
+        )
+
+    @staticmethod
+    def agent_dataset_summary() -> dict[str, Any]:
+        return {
+            "dataset_id": SPY_DAILY_FIXTURE.dataset_id,
+            "symbol": SPY_DAILY_FIXTURE.symbol,
+            "interval": SPY_DAILY_FIXTURE.interval.value,
+            "bars": len(SPY_DAILY_FIXTURE.bars),
+            "start": SPY_DAILY_FIXTURE.covered_start.isoformat(),
+            "end": SPY_DAILY_FIXTURE.covered_end.isoformat(),
+            "digest": SPY_DAILY_FIXTURE.digest,
+            "authenticity": SPY_DAILY_FIXTURE.provenance.value,
+        }
+
+    def agent_benchmark_summary(self) -> dict[str, Any]:
+        result = backtest_buy_and_hold(
+            self._agent_bars(), ExecutionConfig(fee_rate=0.001, slippage_rate=0.0005)
+        )
+        return self._metrics_projection(result.metrics)
+
+    @staticmethod
+    def agent_templates() -> list[dict[str, Any]]:
+        return [
+            {
+                "name": "sma_crossover",
+                "description": (
+                    "Long when the fast moving average is above the slow moving average."
+                ),
+                "parameters": {
+                    "fast_window": {"type": "integer", "minimum": 2, "maximum": 150},
+                    "slow_window": {"type": "integer", "minimum": 10, "maximum": 300},
+                },
+            },
+            {
+                "name": "rsi_mean_reversion",
+                "description": "Enter after oversold RSI and exit after recovery.",
+                "parameters": {
+                    "period": {"type": "integer", "minimum": 2, "maximum": 100},
+                    "entry_threshold": {"type": "number", "minimum": 10, "maximum": 45},
+                    "exit_threshold": {"type": "number", "minimum": 45, "maximum": 80},
+                },
+            },
+            {
+                "name": "breakout",
+                "description": "Enter when price breaks above a trailing range.",
+                "parameters": {
+                    "lookback_window": {"type": "integer", "minimum": 5, "maximum": 250}
+                },
+            },
+        ]
+
+    @staticmethod
+    def agent_candidate_summary(candidate: QuantExperimentRecord) -> dict[str, Any]:
+        return {
+            "candidate_id": candidate.id,
+            "name": candidate.name,
+            "template": candidate.template,
+            "hypothesis": candidate.hypothesis,
+            "parameters": candidate.parameters,
+            "state": candidate.state,
+            "repair_count": candidate.repair_count,
+            "verdict": candidate.verdict.value,
+            "metrics": candidate.metrics or None,
+            "latest_observation": candidate.latest_observation,
+            "parent_experiment_id": candidate.parent_experiment_id,
+        }
+
+    def agent_context_data(self, *, workspace_id: str, run_id: str) -> dict[str, Any]:
+        with self._lock:
+            self._ensure_workspace_loaded(workspace_id)
+            run = self.get_run(workspace_id=workspace_id, run_id=run_id)
+            candidates = sorted(
+                (
+                    item
+                    for item in self._experiments.values()
+                    if item.run_id == run.id and item.template != "fixture"
+                ),
+                key=lambda item: item.ordinal,
+            )
+            events = self._events.get(run.id, [])[-15:]
+            latest_observation_by_action: dict[str, dict[str, Any]] = {}
+            for event in self._events.get(run.id, []):
+                action = event.payload.get("action")
+                if event.event_type in {"tool.completed", "tool.failed"} and isinstance(
+                    action, str
+                ):
+                    latest_observation_by_action[action] = {
+                        "action": action,
+                        "success": event.payload.get("success"),
+                        "safe_summary": event.payload.get("safe_summary"),
+                        "error_code": event.payload.get("error_code"),
+                    }
+            observations = list(latest_observation_by_action.values())
+            return {
+                "run_id": run.id,
+                "project_id": run.project_id,
+                "research_goal": run.question,
+                "mode": run.mode.value,
+                "run_state": run.state.value,
+                "dataset_summary": self.agent_dataset_summary(),
+                "benchmark_summary": self.agent_benchmark_summary(),
+                "available_templates": self.agent_templates(),
+                "candidates": [self.agent_candidate_summary(item) for item in candidates],
+                "budget": {
+                    "max_iterations": run.max_agent_iterations,
+                    "used_iterations": run.agent_iteration,
+                    "remaining_iterations": max(0, run.max_agent_iterations - run.agent_iteration),
+                    "max_experiments": run.max_experiments,
+                    "used_experiments": run.used_experiments,
+                    "remaining_experiments": max(0, run.max_experiments - run.used_experiments),
+                    "max_repairs": run.max_repairs,
+                    "used_repairs": run.used_repairs,
+                    "remaining_repairs": max(0, run.max_repairs - run.used_repairs),
+                },
+                "recent_events": [
+                    {
+                        "sequence": event.sequence,
+                        "event_type": event.event_type,
+                        "safe_summary": event.payload.get("safe_summary"),
+                    }
+                    for event in events
+                ],
+                "recent_observations": observations,
+                "plan_summary": run.plan_summary,
+                "final_conclusion": run.final_conclusion,
+            }
 
     # Serializers
     def to_project_response(self, project: QuantProjectRecord) -> dict[str, Any]:
@@ -966,6 +1937,18 @@ class QuantStore:
             "latest_sequence": run.latest_sequence,
             "retry_of_run_id": run.retry_of_run_id,
             "failure_reason": run.failure_reason,
+            "agent_iteration": run.agent_iteration,
+            "agent_status": run.agent_status,
+            "max_agent_iterations": run.max_agent_iterations,
+            "max_experiments": run.max_experiments,
+            "max_repairs": run.max_repairs,
+            "used_experiments": run.used_experiments,
+            "used_repairs": run.used_repairs,
+            "last_action": run.last_action,
+            "last_observation": run.last_observation,
+            "final_conclusion": run.final_conclusion,
+            "provider": run.provider,
+            "model": run.model,
             "data_authenticity": run.data_authenticity,
         }
 
@@ -993,11 +1976,20 @@ class QuantStore:
             "hypothesis": experiment.hypothesis,
             "verdict": experiment.verdict,
             "summary": experiment.summary,
+            "template": experiment.template,
+            "parameters": experiment.parameters,
+            "state": experiment.state,
+            "metrics": experiment.metrics,
+            "repair_count": experiment.repair_count,
+            "candidate_key": experiment.candidate_key,
+            "parent_experiment_id": experiment.parent_experiment_id,
             "created_at": experiment.created_at,
             "data_authenticity": experiment.data_authenticity,
         }
 
-    def events_for_run(self, *, workspace_id: str, run_id: str, after_sequence: int = 0) -> list[dict[str, Any]]:
+    def events_for_run(
+        self, *, workspace_id: str, run_id: str, after_sequence: int = 0
+    ) -> list[dict[str, Any]]:
         with self._lock:
             self._ensure_workspace_loaded(workspace_id)
             run = self.get_run(workspace_id=workspace_id, run_id=run_id)

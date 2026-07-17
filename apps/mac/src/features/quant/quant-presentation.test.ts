@@ -56,7 +56,7 @@ describe('presentQuantWorkspace', () => {
     };
     snapshot.candidates = [];
     const presentation = presentQuantWorkspace(snapshot);
-    expect(presentation.statusLabel).toBe('Ready to run');
+    expect(presentation.statusLabel).toBe('Selecting next action');
     expect(presentation.actions).toEqual([
       { kind: 'run_fixture', label: 'Run Synthetic Agent', tone: 'primary' },
       { kind: 'cancel_run', label: 'Cancel Run', tone: 'default' },

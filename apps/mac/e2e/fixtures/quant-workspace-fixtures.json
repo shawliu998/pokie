@@ -277,7 +277,7 @@
       "maxRuntimeMinutes": 5,
       "paperTrading": false
     },
-    "modelLabel": "Not connected",
+    "modelLabel": "Mock Agent",
     "plan": [
       {
         "artifactCount": 1,
@@ -392,6 +392,7 @@
     ],
     "report": null,
     "run": {
+      "agentIteration": 0,
       "attemptNumber": 1,
       "completedAt": "2026-07-17T02:24:00Z",
       "currentStepId": "experiments",
@@ -400,7 +401,10 @@
       "legalCommands": [
         "retry_run"
       ],
+      "maxAgentIterations": 12,
       "mode": "auto_research",
+      "model": null,
+      "provider": "Mock Agent",
       "rowVersion": 8,
       "startedAt": "2026-07-17T02:18:00Z",
       "state": "cancelled",
@@ -408,7 +412,7 @@
       "usedExperiments": 0,
       "usedRepairAttempts": 0
     },
-    "runtimeLabel": "Deterministic fixture",
+    "runtimeLabel": "Incremental local Agent",
     "scope": {
       "assumptions": [
         "1,564 generated synthetic weekday bars; no exchange calendar",
@@ -911,7 +915,7 @@
       "maxRuntimeMinutes": 5,
       "paperTrading": false
     },
-    "modelLabel": "Not connected",
+    "modelLabel": "Mock Agent",
     "plan": [
       {
         "artifactCount": 1,
@@ -1040,13 +1044,17 @@
       "validatorVersion": "synthetic-validator-v1"
     },
     "run": {
+      "agentIteration": 10,
       "attemptNumber": 1,
       "completedAt": "2026-07-17T02:24:00Z",
       "currentStepId": "decision",
       "id": "55555555-5555-4555-8555-555555555502",
       "latestSequence": 8,
       "legalCommands": [],
+      "maxAgentIterations": 12,
       "mode": "auto_research",
+      "model": null,
+      "provider": "Mock Agent",
       "rowVersion": 8,
       "startedAt": "2026-07-17T02:18:00Z",
       "state": "completed",
@@ -1054,7 +1062,7 @@
       "usedExperiments": 3,
       "usedRepairAttempts": 1
     },
-    "runtimeLabel": "Deterministic fixture",
+    "runtimeLabel": "Incremental local Agent",
     "scope": {
       "assumptions": [
         "1,564 generated synthetic weekday bars; no exchange calendar",
@@ -1380,7 +1388,7 @@
       "maxRuntimeMinutes": 5,
       "paperTrading": false
     },
-    "modelLabel": "Not connected",
+    "modelLabel": "Mock Agent",
     "plan": [
       {
         "artifactCount": 1,
@@ -1495,6 +1503,7 @@
     ],
     "report": null,
     "run": {
+      "agentIteration": 0,
       "attemptNumber": 1,
       "completedAt": "2026-07-17T02:24:00Z",
       "currentStepId": "experiments",
@@ -1503,7 +1512,10 @@
       "legalCommands": [
         "retry_run"
       ],
+      "maxAgentIterations": 12,
       "mode": "auto_research",
+      "model": null,
+      "provider": "Mock Agent",
       "rowVersion": 8,
       "startedAt": "2026-07-17T02:18:00Z",
       "state": "failed",
@@ -1511,7 +1523,7 @@
       "usedExperiments": 0,
       "usedRepairAttempts": 0
     },
-    "runtimeLabel": "Deterministic fixture",
+    "runtimeLabel": "Incremental local Agent",
     "scope": {
       "assumptions": [
         "1,564 generated synthetic weekday bars; no exchange calendar",
@@ -2017,7 +2029,7 @@
       "maxRuntimeMinutes": 5,
       "paperTrading": false
     },
-    "modelLabel": "Not connected",
+    "modelLabel": "Mock Agent",
     "plan": [
       {
         "artifactCount": 1,
@@ -2146,13 +2158,17 @@
       "validatorVersion": "synthetic-validator-v1"
     },
     "run": {
+      "agentIteration": 10,
       "attemptNumber": 1,
       "completedAt": "2026-07-17T02:24:00Z",
       "currentStepId": "decision",
       "id": "55555555-5555-4555-8555-555555555502",
       "latestSequence": 8,
       "legalCommands": [],
+      "maxAgentIterations": 12,
       "mode": "auto_research",
+      "model": null,
+      "provider": "Mock Agent",
       "rowVersion": 8,
       "startedAt": "2026-07-17T02:18:00Z",
       "state": "completed",
@@ -2160,7 +2176,7 @@
       "usedExperiments": 3,
       "usedRepairAttempts": 1
     },
-    "runtimeLabel": "Deterministic fixture",
+    "runtimeLabel": "Incremental local Agent",
     "scope": {
       "assumptions": [
         "1,564 generated synthetic weekday bars; no exchange calendar",
@@ -2462,7 +2478,7 @@
       "maxRuntimeMinutes": 5,
       "paperTrading": false
     },
-    "modelLabel": "Not connected",
+    "modelLabel": "Mock Agent",
     "plan": [
       {
         "artifactCount": 0,
@@ -2577,6 +2593,7 @@
     ],
     "report": null,
     "run": {
+      "agentIteration": 0,
       "attemptNumber": 1,
       "completedAt": null,
       "currentStepId": "scope",
@@ -2587,7 +2604,10 @@
         "request_plan_changes",
         "cancel_run"
       ],
+      "maxAgentIterations": 12,
       "mode": "auto_research",
+      "model": null,
+      "provider": "Mock Agent",
       "rowVersion": 8,
       "startedAt": "2026-07-17T02:18:00Z",
       "state": "waiting_plan_approval",
@@ -2595,7 +2615,7 @@
       "usedExperiments": 0,
       "usedRepairAttempts": 0
     },
-    "runtimeLabel": "Deterministic fixture",
+    "runtimeLabel": "Incremental local Agent",
     "scope": {
       "assumptions": [
         "1,564 generated synthetic weekday bars; no exchange calendar",
@@ -2829,7 +2849,8 @@
     "candidates": [],
     "composerLegalCommands": [
       "ask",
-      "generate_plan"
+      "generate_plan",
+      "start_auto_research"
     ],
     "dataset": {
       "authenticity": "synthetic_fixture",
@@ -2881,7 +2902,7 @@
       "maxRuntimeMinutes": 5,
       "paperTrading": false
     },
-    "modelLabel": "Not connected",
+    "modelLabel": "Mock Agent",
     "plan": [
       {
         "artifactCount": 0,
@@ -2996,6 +3017,7 @@
     ],
     "report": null,
     "run": {
+      "agentIteration": 0,
       "attemptNumber": 1,
       "completedAt": null,
       "currentStepId": "scope",
@@ -3004,7 +3026,10 @@
       "legalCommands": [
         "generate_plan"
       ],
+      "maxAgentIterations": 12,
       "mode": "auto_research",
+      "model": null,
+      "provider": "Mock Agent",
       "rowVersion": 8,
       "startedAt": "2026-07-17T02:18:00Z",
       "state": "draft",
@@ -3012,7 +3037,7 @@
       "usedExperiments": 0,
       "usedRepairAttempts": 0
     },
-    "runtimeLabel": "Deterministic fixture",
+    "runtimeLabel": "Incremental local Agent",
     "scope": {
       "assumptions": [
         "1,564 generated synthetic weekday bars; no exchange calendar",
@@ -3319,7 +3344,7 @@
       "maxRuntimeMinutes": 5,
       "paperTrading": false
     },
-    "modelLabel": "Not connected",
+    "modelLabel": "Mock Agent",
     "plan": [
       {
         "artifactCount": 1,
@@ -3434,6 +3459,7 @@
     ],
     "report": null,
     "run": {
+      "agentIteration": 5,
       "attemptNumber": 1,
       "completedAt": null,
       "currentStepId": "repair",
@@ -3442,7 +3468,10 @@
       "legalCommands": [
         "cancel_run"
       ],
+      "maxAgentIterations": 12,
       "mode": "auto_research",
+      "model": null,
+      "provider": "Mock Agent",
       "rowVersion": 8,
       "startedAt": "2026-07-17T02:18:00Z",
       "state": "repairing",
@@ -3450,7 +3479,7 @@
       "usedExperiments": 1,
       "usedRepairAttempts": 1
     },
-    "runtimeLabel": "Deterministic fixture",
+    "runtimeLabel": "Incremental local Agent",
     "scope": {
       "assumptions": [
         "1,564 generated synthetic weekday bars; no exchange calendar",
@@ -3741,7 +3770,7 @@
       "maxRuntimeMinutes": 5,
       "paperTrading": false
     },
-    "modelLabel": "Not connected",
+    "modelLabel": "Mock Agent",
     "plan": [
       {
         "artifactCount": 1,
@@ -3856,6 +3885,7 @@
     ],
     "report": null,
     "run": {
+      "agentIteration": 5,
       "attemptNumber": 1,
       "completedAt": null,
       "currentStepId": "experiments",
@@ -3865,7 +3895,10 @@
         "run_fixture",
         "cancel_run"
       ],
+      "maxAgentIterations": 12,
       "mode": "auto_research",
+      "model": null,
+      "provider": "Mock Agent",
       "rowVersion": 8,
       "startedAt": "2026-07-17T02:18:00Z",
       "state": "running_experiments",
@@ -3873,7 +3906,7 @@
       "usedExperiments": 1,
       "usedRepairAttempts": 0
     },
-    "runtimeLabel": "Deterministic fixture",
+    "runtimeLabel": "Incremental local Agent",
     "scope": {
       "assumptions": [
         "1,564 generated synthetic weekday bars; no exchange calendar",
@@ -4349,7 +4382,7 @@
       "maxRuntimeMinutes": 5,
       "paperTrading": false
     },
-    "modelLabel": "Not connected",
+    "modelLabel": "Mock Agent",
     "plan": [
       {
         "artifactCount": 1,
@@ -4464,6 +4497,7 @@
     ],
     "report": null,
     "run": {
+      "agentIteration": 5,
       "attemptNumber": 1,
       "completedAt": null,
       "currentStepId": "validation",
@@ -4472,7 +4506,10 @@
       "legalCommands": [
         "cancel_run"
       ],
+      "maxAgentIterations": 12,
       "mode": "auto_research",
+      "model": null,
+      "provider": "Mock Agent",
       "rowVersion": 8,
       "startedAt": "2026-07-17T02:18:00Z",
       "state": "validating",
@@ -4480,7 +4517,7 @@
       "usedExperiments": 3,
       "usedRepairAttempts": 1
     },
-    "runtimeLabel": "Deterministic fixture",
+    "runtimeLabel": "Incremental local Agent",
     "scope": {
       "assumptions": [
         "1,564 generated synthetic weekday bars; no exchange calendar",
@@ -4975,7 +5012,7 @@
       "maxRuntimeMinutes": 5,
       "paperTrading": false
     },
-    "modelLabel": "Not connected",
+    "modelLabel": "Mock Agent",
     "plan": [
       {
         "artifactCount": 1,
@@ -5104,6 +5141,7 @@
       "validatorVersion": "synthetic-validator-v1"
     },
     "run": {
+      "agentIteration": 5,
       "attemptNumber": 1,
       "completedAt": null,
       "currentStepId": "decision",
@@ -5112,7 +5150,10 @@
       "legalCommands": [
         "complete_review"
       ],
+      "maxAgentIterations": 12,
       "mode": "auto_research",
+      "model": null,
+      "provider": "Mock Agent",
       "rowVersion": 8,
       "startedAt": "2026-07-17T02:18:00Z",
       "state": "waiting_for_review",
@@ -5120,7 +5161,7 @@
       "usedExperiments": 3,
       "usedRepairAttempts": 1
     },
-    "runtimeLabel": "Deterministic fixture",
+    "runtimeLabel": "Incremental local Agent",
     "scope": {
       "assumptions": [
         "1,564 generated synthetic weekday bars; no exchange calendar",

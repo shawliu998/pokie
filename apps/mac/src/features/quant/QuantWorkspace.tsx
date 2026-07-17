@@ -25,7 +25,7 @@ function QuantToolbar({ snapshot, onDestination, onInspect }: { snapshot: QuantW
   return <header className="quant-toolbar">
     <div className="quant-toolbar-context"><strong>{snapshot.scope.symbol}</strong><span>{snapshot.scope.market}</span><span>{snapshot.scope.interval}</span><Badge tone="warning">{quantAuthenticityLabel(snapshot.authenticity)}</Badge></div>
     <div className="quant-toolbar-modes" role="group" aria-label="Research mode"><button onClick={() => onDestination('new_research')}>Ask</button><button onClick={() => onDestination('new_research')}>Plan</button><button aria-pressed="true" onClick={() => onDestination('projects')}>Auto Research</button></div>
-    <div className="quant-toolbar-actions"><span>{snapshot.limits.maxExperiments} experiments · {snapshot.limits.maxRepairAttempts} repairs · {snapshot.limits.maxRuntimeMinutes} min</span><Button onClick={onInspect}>Inspector</Button></div>
+    <div className="quant-toolbar-actions"><span>Iteration {snapshot.run.agentIteration}/{snapshot.run.maxAgentIterations} · experiments {snapshot.run.usedExperiments}/{snapshot.limits.maxExperiments} · repairs {snapshot.run.usedRepairAttempts}/{snapshot.limits.maxRepairAttempts}</span><Button onClick={onInspect}>Inspector</Button></div>
   </header>;
 }
 
@@ -122,6 +122,11 @@ export function QuantWorkspace({ api }: { api: QuantApi }) {
     }
   };
   useEffect(() => { void refresh(); }, [api]);
+  useEffect(() => {
+    if (!snapshot || ['completed', 'failed', 'cancelled'].includes(snapshot.run.state)) return;
+    const timer = window.setInterval(() => { void refresh(); }, 1_000);
+    return () => window.clearInterval(timer);
+  }, [api, snapshot?.run.state]);
   if (!snapshot) {
     return <main className="quant-shell"><div className="loading-shell" aria-live="polite">{error ? <><p role="alert">{error}</p><Button onClick={() => void refresh()}>Retry API snapshot</Button></> : <p>Loading server-owned PokieQuant snapshot…</p>}</div></main>;
   }

@@ -480,7 +480,7 @@
     "maxRuntimeMinutes": 5,
     "paperTrading": false
   },
-  "modelLabel": "Not connected",
+  "modelLabel": "Mock Agent",
   "plan": [
     {
       "artifactCount": 1,
@@ -609,13 +609,17 @@
     "validatorVersion": "synthetic-validator-v1"
   },
   "run": {
+    "agentIteration": 10,
     "attemptNumber": 1,
     "completedAt": "2026-07-17T02:24:00Z",
     "currentStepId": "decision",
     "id": "55555555-5555-4555-8555-555555555502",
     "latestSequence": 8,
     "legalCommands": [],
+    "maxAgentIterations": 12,
     "mode": "auto_research",
+    "model": null,
+    "provider": "Mock Agent",
     "rowVersion": 8,
     "startedAt": "2026-07-17T02:18:00Z",
     "state": "completed",
@@ -623,7 +627,7 @@
     "usedExperiments": 3,
     "usedRepairAttempts": 1
   },
-  "runtimeLabel": "Deterministic fixture",
+  "runtimeLabel": "Incremental local Agent",
   "scope": {
     "assumptions": [
       "1,564 generated synthetic weekday bars; no exchange calendar",

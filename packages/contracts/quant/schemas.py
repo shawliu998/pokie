@@ -52,10 +52,22 @@ class QuantRunResponse(MutableResource):
     latest_sequence: int = Field(ge=0)
     trace_id: NonEmptyString
     failure_reason: NonEmptyString | None = None
+    agent_iteration: int = Field(default=0, ge=0)
+    agent_status: NonEmptyString = "idle"
+    max_agent_iterations: int = Field(default=12, ge=1)
+    max_experiments: int = Field(default=3, ge=0)
+    max_repairs: int = Field(default=2, ge=0)
+    used_experiments: int = Field(default=0, ge=0)
+    used_repairs: int = Field(default=0, ge=0)
+    last_action: NonEmptyString | None = None
+    last_observation: NonEmptyString | None = None
+    final_conclusion: NonEmptyString | None = None
+    provider: NonEmptyString = "mock"
+    model: NonEmptyString | None = None
     data_authenticity: DataAuthenticity
 
     @model_validator(mode="after")
-    def validate_state_fields(self) -> "QuantRunResponse":
+    def validate_state_fields(self) -> QuantRunResponse:
         if self.state == QuantRunState.FAILED:
             if self.failure_reason is None:
                 raise ValueError("a failed Quant run requires failure_reason")
@@ -100,6 +112,7 @@ class QuantFixtureCommandRequest(ContractModel):
     command: Literal[
         "ask",
         "generate_plan",
+        "start_auto_research",
         "approve_plan",
         "run_fixture",
         "request_plan_changes",
@@ -129,6 +142,13 @@ class QuantExperimentResponse(ImmutableResource):
     hypothesis: NonEmptyString
     verdict: QuantExperimentVerdict
     summary: NonEmptyString
+    template: NonEmptyString = "fixture"
+    parameters: dict[str, object] = Field(default_factory=dict)
+    state: NonEmptyString = "completed"
+    metrics: dict[str, object] = Field(default_factory=dict)
+    repair_count: int = Field(default=0, ge=0)
+    candidate_key: NonEmptyString | None = None
+    parent_experiment_id: NonEmptyString | None = None
     created_at: datetime
     data_authenticity: DataAuthenticity
 

@@ -46,7 +46,7 @@ export function createApiQuantApi(api: GlintApi): QuantApi {
       return quantRequest<QuantWorkspaceSnapshot>('/quant/workspace-snapshot');
     },
     async sendCommand(request) {
-      const supported: ReadonlySet<QuantCommand> = new Set(['ask', 'generate_plan', 'approve_plan', 'run_fixture', 'request_plan_changes', 'cancel_run', 'retry_run', 'complete_review']);
+      const supported: ReadonlySet<QuantCommand> = new Set(['ask', 'generate_plan', 'start_auto_research', 'approve_plan', 'run_fixture', 'request_plan_changes', 'cancel_run', 'retry_run', 'complete_review']);
       if (!supported.has(request.command)) return { status: 'rejected', message: 'The server snapshot did not expose a supported lifecycle command.' };
       await quantRequest('/quant/workspace-snapshot/commands', {
         method: 'POST',

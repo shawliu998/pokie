@@ -76,6 +76,10 @@ export interface QuantResearchRun {
   completedAt: string | null;
   usedExperiments: number;
   usedRepairAttempts: number;
+  agentIteration: number;
+  maxAgentIterations: number;
+  provider: string;
+  model: string | null;
   legalCommands: QuantCommand[];
   traceRef: string;
 }
@@ -98,6 +102,10 @@ export interface QuantRunEvent {
   actor: QuantOwner;
   safeSummary: string;
   artifactId?: string;
+  action?: string;
+  expectedResult?: string;
+  candidateId?: string;
+  artifactIds?: string[];
 }
 
 export type QuantArtifactType =

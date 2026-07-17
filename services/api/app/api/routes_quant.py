@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-from typing import Annotated, Any, Iterator
+import os
+from collections.abc import Iterator
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Query
 from fastapi.responses import StreamingResponse
 
 from packages.contracts.quant import (
+    QuantAgentPlan,
     QuantArtifactResponse,
     QuantExperimentResponse,
     QuantFixtureCommandRequest,
@@ -16,17 +19,26 @@ from packages.contracts.quant import (
     QuantProjectResponse,
     QuantRunCancelRequest,
     QuantRunCreateRequest,
-    QuantRunEvent,
     QuantRunResponse,
     QuantRunRetryRequest,
     QuantStreamResetEvent,
     decode_quant_event,
     encode_quant_sse,
 )
+from packages.contracts.quant.enums import QuantRunMode
 from services.api.app.core.auth import WorkspaceContext, require_owner
 from services.api.app.core.errors import invalid_state
+from services.api.app.modules.quant.snapshot import (
+    apply_fixture_command,
+    quant_agent_workspace_snapshot,
+    quant_workspace_fixture,
+)
 from services.api.app.modules.quant.store import get_quant_store
-from services.api.app.modules.quant.snapshot import apply_fixture_command, quant_workspace_fixture
+from services.worker.app.quant_agent.provider import (
+    MockQuantAgentProvider,
+    QuantAgentProviderError,
+    load_quant_agent_provider,
+)
 
 router = APIRouter(prefix="/v1/quant")
 Ctx = Annotated[WorkspaceContext, Depends(require_owner)]
@@ -36,17 +48,108 @@ def _store():
     return get_quant_store()
 
 
+def _generate_agent_plan(research_goal: str) -> QuantAgentPlan:
+    provider = load_quant_agent_provider()
+    try:
+        return provider.plan(research_goal)
+    except QuantAgentProviderError:
+        allow_fallback = os.environ.get(
+            "POKIEQUANT_AGENT_ALLOW_MOCK_FALLBACK", "true"
+        ).lower() not in {"0", "false", "no"}
+        if not allow_fallback:
+            raise invalid_state(
+                "The configured Agent provider could not generate a plan."
+            ) from None
+        return MockQuantAgentProvider().plan(research_goal)
+
+
 @router.get("/workspace-snapshot")
 def get_workspace_snapshot(context: Ctx) -> dict[str, Any]:
     # Dependency resolution is intentional: the fixture is still scoped behind
     # the authenticated workspace API even though its content is deterministic.
-    return quant_workspace_fixture(workspace_id=context.workspace_id)
+    return quant_agent_workspace_snapshot(
+        workspace_id=context.workspace_id
+    ) or quant_workspace_fixture(workspace_id=context.workspace_id)
 
 
 @router.post("/workspace-snapshot/commands")
-def command_workspace_snapshot(
-    body: QuantFixtureCommandRequest, context: Ctx
-) -> dict[str, Any]:
+def command_workspace_snapshot(body: QuantFixtureCommandRequest, context: Ctx) -> dict[str, Any]:
+    if body.command == "start_auto_research":
+        goal = body.payload.get("goal")
+        if not isinstance(goal, str) or not goal.strip() or len(goal.strip()) > 2_000:
+            raise invalid_state("Auto Research requires a goal from 1 to 2,000 characters.")
+        store = _store()
+        projects = store.list_projects(workspace_id=context.workspace_id)
+        project = (
+            projects[0]
+            if projects
+            else store.create_project(
+                workspace_id=context.workspace_id,
+                name="Autonomous SPY Research",
+                objective=goal.strip(),
+            )
+        )
+        store.create_run(
+            workspace_id=context.workspace_id,
+            project_id=project.id,
+            question=goal.strip(),
+            mode=QuantRunMode.AUTO,
+            expected_project_row_version=project.row_version,
+            agent_plan=_generate_agent_plan(goal.strip()),
+        )
+        snapshot = quant_agent_workspace_snapshot(workspace_id=context.workspace_id)
+        if snapshot is None:  # pragma: no cover - creation above is authoritative
+            raise invalid_state("The autonomous run could not be projected.")
+        return snapshot
+    dynamic_snapshot = quant_agent_workspace_snapshot(workspace_id=context.workspace_id)
+    if dynamic_snapshot is not None and body.command in {
+        "approve_plan",
+        "request_plan_changes",
+        "cancel_run",
+        "retry_run",
+    }:
+        store = _store()
+        run = store.get_run(
+            workspace_id=context.workspace_id,
+            run_id=dynamic_snapshot["run"]["id"],
+        )
+        if body.command == "approve_plan":
+            store.approve_plan(
+                workspace_id=context.workspace_id,
+                run_id=run.id,
+                expected_row_version=body.expected_row_version,
+                plan_revision=run.plan_revision,
+                reason="Approved from the Mac workspace.",
+            )
+        elif body.command == "request_plan_changes":
+            change_request = body.payload.get("change_request", "Revise the bounded plan.")
+            if not isinstance(change_request, str):
+                raise invalid_state("Plan change request must be text.")
+            store.request_plan_changes(
+                workspace_id=context.workspace_id,
+                run_id=run.id,
+                expected_row_version=body.expected_row_version,
+                plan_revision=run.plan_revision,
+                change_request=change_request,
+            )
+        elif body.command == "cancel_run":
+            store.cancel_run(
+                workspace_id=context.workspace_id,
+                run_id=run.id,
+                expected_row_version=body.expected_row_version,
+                reason="Stopped from the Mac workspace.",
+            )
+        else:
+            store.retry_run(
+                workspace_id=context.workspace_id,
+                run_id=run.id,
+                expected_row_version=body.expected_row_version,
+                reason="Retried from the Mac workspace.",
+            )
+        refreshed = quant_agent_workspace_snapshot(workspace_id=context.workspace_id)
+        if refreshed is None:  # pragma: no cover
+            raise invalid_state("The autonomous run projection is unavailable.")
+        return refreshed
     try:
         return apply_fixture_command(
             workspace_id=context.workspace_id,
@@ -75,7 +178,9 @@ def create_project(body: QuantProjectCreateRequest, context: Ctx) -> dict[str, A
 def list_projects(context: Ctx) -> list[dict[str, Any]]:
     store = _store()
     return [
-        QuantProjectResponse.model_validate(store.to_project_response(project)).model_dump(mode="json")
+        QuantProjectResponse.model_validate(store.to_project_response(project)).model_dump(
+            mode="json"
+        )
         for project in store.list_projects(workspace_id=context.workspace_id)
     ]
 
@@ -98,6 +203,7 @@ def create_run(body: QuantRunCreateRequest, context: Ctx) -> dict[str, Any]:
         question=body.question,
         mode=body.mode,
         expected_project_row_version=body.expected_project_row_version,
+        agent_plan=_generate_agent_plan(body.question),
     )
     return QuantRunResponse.model_validate(store.to_run_response(run)).model_dump(mode="json")
 
@@ -109,7 +215,9 @@ def list_runs(
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> list[dict[str, Any]]:
     store = _store()
-    runs = store.list_runs(workspace_id=context.workspace_id, project_id=str(project_id) if project_id else None)
+    runs = store.list_runs(
+        workspace_id=context.workspace_id, project_id=str(project_id) if project_id else None
+    )
     return [
         QuantRunResponse.model_validate(store.to_run_response(run)).model_dump(mode="json")
         for run in runs[:limit]
@@ -124,9 +232,7 @@ def get_run(run_id: UUID, context: Ctx) -> dict[str, Any]:
 
 
 @router.post("/runs/{run_id}/approve-plan", response_model=QuantRunResponse)
-def approve_plan(
-    run_id: UUID, body: QuantPlanApproveRequest, context: Ctx
-) -> dict[str, Any]:
+def approve_plan(run_id: UUID, body: QuantPlanApproveRequest, context: Ctx) -> dict[str, Any]:
     store = _store()
     run = store.approve_plan(
         workspace_id=context.workspace_id,
@@ -200,7 +306,9 @@ def stream_run_events(
                 snapshot_url=f"/v1/quant/runs/{run.id}",
                 latest_sequence=run.latest_sequence,
             )
-            return StreamingResponse(iter([encode_quant_sse(reset)]), media_type="text/event-stream")
+            return StreamingResponse(
+                iter([encode_quant_sse(reset)]), media_type="text/event-stream"
+            )
 
     def generate() -> Iterator[str]:
         for event in store.events_for_run(
@@ -254,6 +362,6 @@ def get_experiment(experiment_id: UUID, context: Ctx) -> dict[str, Any]:
     experiment = store.get_experiment(
         workspace_id=context.workspace_id, experiment_id=str(experiment_id)
     )
-    return QuantExperimentResponse.model_validate(store.to_experiment_response(experiment)).model_dump(
-        mode="json"
-    )
+    return QuantExperimentResponse.model_validate(
+        store.to_experiment_response(experiment)
+    ).model_dump(mode="json")

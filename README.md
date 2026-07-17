@@ -2,7 +2,10 @@
 
 PokieQuant is a governed desktop workspace for bounded, auditable quantitative-research workflows.
 
-Phase 0 is a deterministic shell and contract integration. Every displayed bar, metric, trade, candidate verdict, event, and report is a **Synthetic Demo Fixture**. A pure local daily-bar kernel runs three fixed strategies and a benchmark over 1,564 deterministic synthetic weekday bars. Candidate metrics, closed trades, validation verdicts, artifact digests, and report copy are derived from that pure kernel. Phase 0 does not retrieve market data, call a model, execute arbitrary Python or shell commands, connect to a broker, place orders, or provide investment advice.
+Phase 1A adds an incremental autonomous research loop over the Phase 0 shell. Every market bar is
+still a **Synthetic Demo Fixture**, but normal Agent runs now select dynamic strategy parameters and
+compute their metrics with the pure local daily-bar kernel. The model boundary can choose only one
+of seven registered tools; it cannot execute Python, shell, network, broker, or order actions.
 
 ## Phase 0 status
 
@@ -22,13 +25,18 @@ Implemented:
 - immutable daily-bar contracts with canonical digest validation plus a pure long/cash SMA, RSI, breakout, and Buy-and-Hold kernel using close-signal/next-open execution and explicit costs;
 - a truthful API/UI engine evidence card and computed candidate/report projection over 1,564 digest-pinned synthetic weekday bars;
 - tests that keep candidate rejection separate from run failure and assert that the fixture runtime imports no network, process, or arbitrary-execution facilities.
+- strict one-action Agent contracts, goal-aware Mock behavior, an OpenAI-compatible DeepSeek
+  provider, dynamic candidates, and one fenced tool action per worker poll;
+- persisted Agent iterations, experiment/repair budgets, decisions, observations, local-kernel
+  metrics, comparisons and reports that recover after process restart.
 
 Still intentionally not implemented:
 
 - real or provider-sourced OHLCV/news data;
 - real or statistically useful market evidence, production backtest orchestration, broad parameter search, or optimization (the implemented dataset and results are deterministic synthetic demonstrations);
 - Spark/Jupyter/sandbox or uploaded-code execution;
-- model/provider calls, web search, or external network access;
+- providers other than the optional DeepSeek-compatible decision endpoint; the decision provider
+  never receives market-network or arbitrary execution tools;
 - paper or live trading, broker credentials, order routing, or portfolio execution;
 - PokieTicker or Spark code migration (both remain blocked on repository, immutable commit, license, and security review);
 - a normalized production Quant research schema, multi-worker throughput/SLO validation, and long-running lease cadence. Phase 0 intentionally persists its synthetic aggregate in one workspace-scoped JSON document; it is durable but is not presented as the future market/backtest schema.
@@ -89,6 +97,26 @@ pnpm --filter @glint/mac dev
 
 The `VITE_GLINT_*` environment names and `@glint/*` package identifiers are retained compatibility names; they are not product-domain aliases.
 
+Run the API and the default no-key autonomous Agent:
+
+```bash
+uvicorn services.api.app.main:app --host 127.0.0.1 --port 8000
+
+POKIEQUANT_AGENT_PROVIDER=mock \
+GLINT_WORKSPACE_ID=<workspace-uuid> \
+python -m services.worker.app.main poll --kind quant-agent --interval-seconds 0.5
+```
+
+Use DeepSeek for one-action decisions (tool execution remains local and deterministic):
+
+```bash
+POKIEQUANT_AGENT_PROVIDER=deepseek \
+DEEPSEEK_API_KEY=<key> \
+DEEPSEEK_MODEL=deepseek-chat \
+GLINT_WORKSPACE_ID=<workspace-uuid> \
+python -m services.worker.app.main poll --kind quant-agent --interval-seconds 1
+```
+
 ## Verification
 
 Run the additive Phase 0 gate:
@@ -132,13 +160,16 @@ Inherited gates remain available and are not weakened:
 
 ```text
 authenticated workspace session
-  -> FastAPI /v1/quant snapshot and commands
-  -> durable workspace-scoped fixture repository
-  -> fenced deterministic fixture worker/runtime
+  -> FastAPI /v1/quant projects, runs, plans and commands
+  -> durable workspace-scoped Quant repository
+  -> fenced incremental quant-agent worker (one decision/tool per poll)
+  -> fixed tool registry and pure local daily-bar kernel
   -> typed Quant transport and pure presentation projection
   -> React/Tauri workspace
 ```
 
-The API owns lifecycle and legal commands. The worker owns only the approved deterministic fixture script. The Mac client owns selection, layout, disclosure, and other presentation preferences.
+The API owns lifecycle and legal commands. The worker owns fenced fixture execution and the
+incremental seven-tool Agent loop. The Mac client owns selection, layout, disclosure, and other
+presentation preferences.
 
 See `docs/POKIEQUANT_PRODUCT_SPEC.md`, `docs/POKIEQUANT_STATE_MATRIX.md`, and `docs/POKIEQUANT_REFERENCE_AUDIT.md` for the product, state, provenance, and license contracts.

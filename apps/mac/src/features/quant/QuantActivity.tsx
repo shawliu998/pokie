@@ -24,11 +24,11 @@ export function QuantActivityFeed({ snapshot, presentation, onInspect }: {
     <article className={`quant-current-action tone-${presentation.statusTone}`}>
       <header><div><p className="quant-eyebrow">Current state</p><h3>{presentation.currentActionTitle}</h3></div><Status tone={presentation.statusTone}>{presentation.statusLabel}</Status></header>
       <p>{presentation.currentActionPurpose}</p>
-      <dl><div><dt>Experiments</dt><dd>{snapshot.run.usedExperiments} recorded · max {snapshot.limits.maxExperiments}</dd></div><div><dt>Repairs</dt><dd>{snapshot.run.usedRepairAttempts} recorded · max {snapshot.limits.maxRepairAttempts}</dd></div><div><dt>Runtime limit</dt><dd>{snapshot.limits.maxRuntimeMinutes} minutes configured</dd></div></dl>
+      <dl><div><dt>Iteration</dt><dd>{snapshot.run.agentIteration} / {snapshot.run.maxAgentIterations}</dd></div><div><dt>Experiments</dt><dd>{snapshot.run.usedExperiments} / {snapshot.limits.maxExperiments}</dd></div><div><dt>Repairs</dt><dd>{snapshot.run.usedRepairAttempts} / {snapshot.limits.maxRepairAttempts}</dd></div></dl>
     </article>
     <div className="quant-panel-heading"><div><p className="quant-eyebrow">Activity</p><h3>Durable run events</h3></div><span>{presentation.activity.length} shown</span></div>
     <ol className="quant-activity-list">
-      {presentation.activity.map((event) => <li key={event.id}><span className="quant-activity-dot" aria-hidden="true" /><div><div className="quant-event-title"><strong>{event.title}</strong><time dateTime={event.timestamp}>{displayTime(event.timestamp)}</time></div><p>{event.summary}</p><footer><Badge tone="neutral">{event.actorLabel}</Badge>{event.artifactId && <span>Artifact retained</span>}<button onClick={() => onInspect(event)} aria-label={`Inspect ${event.title}`}>Inspect</button></footer></div></li>)}
+      {presentation.activity.map((event) => <li key={event.id} className={`quant-activity-${event.kind}`}><span className="quant-activity-dot" aria-hidden="true" /><div><div className="quant-event-title"><strong>{event.title}</strong><time dateTime={event.timestamp}>{displayTime(event.timestamp)}</time></div>{event.action && <dl><div><dt>Action</dt><dd><code>{event.action}</code></dd></div>{event.expectedResult && <div><dt>Expected result</dt><dd>{event.expectedResult}</dd></div>}</dl>}<p>{event.summary}</p><footer><Badge tone="neutral">{event.actorLabel}</Badge>{event.artifactId && <span>Artifact retained</span>}<button onClick={() => onInspect(event)} aria-label={`Inspect ${event.title}`}>Inspect</button></footer></div></li>)}
     </ol>
   </section>;
 }

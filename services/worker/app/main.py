@@ -24,6 +24,7 @@ from services.worker.app.pipelines.model_research import (
     DeepSeekResearchRunner,
     ModelProviderError,
 )
+from services.worker.app.pipelines.quant_agent import run_quant_agent_once
 from services.worker.app.pipelines.quant_fixture import run_quant_fixture_once
 from services.worker.app.pipelines.research import DeterministicResearchRunner
 from services.worker.app.schedules.scheduler import RepositoryCollectionScheduler
@@ -47,6 +48,7 @@ def main(argv: list[str] | None = None) -> int:
                 "source-validation",
                 "collection-schedule",
                 "quant-fixture",
+                "quant-agent",
             ),
             default="all",
         )
@@ -122,8 +124,20 @@ def run_once(
         _run_collection_once, domain, connector_factory, worker_id, lease_for
     ):
         return True
-    return kind in {"all", "quant-fixture"} and _guarded_once(
+    if kind in {"all", "quant-agent"} and _guarded_once(
+        _run_quant_agent_once, worker_id, lease_for
+    ):
+        return True
+    return kind in {"quant-fixture"} and _guarded_once(
         _run_quant_fixture_once, worker_id, lease_for
+    )
+
+
+def _run_quant_agent_once(worker_id: str, lease_for: timedelta) -> bool:
+    return run_quant_agent_once(
+        workspace_id=os.environ.get("GLINT_WORKSPACE_ID"),
+        worker_id=worker_id,
+        lease_for=lease_for,
     )
 
 

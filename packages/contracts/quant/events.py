@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC
 from types import MappingProxyType
 from typing import Any, Literal
 from uuid import UUID
@@ -16,7 +16,6 @@ from .enums import (
     QuantArtifactKind,
     QuantCandidateVerdict,
     QuantExperimentVerdict,
-    QuantPlanDecision,
     QuantRunEventType,
     QuantRunState,
     QuantStreamControlEventType,
@@ -79,6 +78,16 @@ class QuantRunEventPayload(ContractModel):
     target_id: UUID | None = None
     reason_code: NonEmptyString | None = None
     safe_summary: NonEmptyString | None = Field(default=None, max_length=500)
+    action: NonEmptyString | None = None
+    arguments: dict[str, object] | None = None
+    decision_summary: NonEmptyString | None = Field(default=None, max_length=500)
+    expected_result: NonEmptyString | None = Field(default=None, max_length=300)
+    iteration: int | None = Field(default=None, ge=1)
+    success: bool | None = None
+    artifact_ids: list[UUID] | None = None
+    metrics_summary: dict[str, object] | None = None
+    error_code: NonEmptyString | None = None
+    retryable: bool | None = None
 
 
 _PLAN_EVENT_TYPES = {
@@ -107,19 +116,25 @@ class QuantRunEvent(ContractModel):
         serialization_alias="payload",
     )
     trace_id: NonEmptyString
-    occurred_at: AwareDatetime = Field(validation_alias="timestamp", serialization_alias="timestamp")
+    occurred_at: AwareDatetime = Field(
+        validation_alias="timestamp", serialization_alias="timestamp"
+    )
 
     @model_validator(mode="after")
-    def validate_event_payload(self) -> "QuantRunEvent":
+    def validate_event_payload(self) -> QuantRunEvent:
         payload = self.payload_json
         if self.type in _PLAN_EVENT_TYPES and payload.plan_revision is None:
             raise ValueError(f"{self.type.value} requires plan_revision")
         if self.type == QuantRunEventType.PLAN_PROPOSED and payload.artifact_id is None:
             raise ValueError("plan.proposed requires artifact_id")
-        if self.type in {
-            QuantRunEventType.EXPERIMENT_PROPOSED,
-            QuantRunEventType.EXPERIMENT_VERDICT_RECORDED,
-        } and payload.experiment_id is None:
+        if (
+            self.type
+            in {
+                QuantRunEventType.EXPERIMENT_PROPOSED,
+                QuantRunEventType.EXPERIMENT_VERDICT_RECORDED,
+            }
+            and payload.experiment_id is None
+        ):
             raise ValueError(f"{self.type.value} requires experiment_id")
         if self.type == QuantRunEventType.EXPERIMENT_VERDICT_RECORDED and payload.verdict is None:
             raise ValueError("experiment.verdict_recorded requires verdict")
@@ -179,7 +194,7 @@ class QuantStreamResetEvent(ContractModel):
     data_authenticity: DataAuthenticity = DataAuthenticity.GENERATED
 
     @model_validator(mode="after")
-    def validate_snapshot_url(self) -> "QuantStreamResetEvent":
+    def validate_snapshot_url(self) -> QuantStreamResetEvent:
         if not self.snapshot_url.startswith("/v1/quant/runs/") or "?" in self.snapshot_url:
             raise ValueError("snapshot_url must be an unsigned Quant run API route")
         return self

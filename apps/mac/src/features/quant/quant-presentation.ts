@@ -17,6 +17,9 @@ export interface QuantActivityPresentation {
   timestamp: string;
   actorLabel: string;
   artifactId?: string;
+  kind: 'event' | 'agent_decision' | 'tool_call';
+  action?: string;
+  expectedResult?: string;
   advanced: { eventType: string; sequence: number; safeSummary: string };
 }
 
@@ -53,10 +56,10 @@ const stateCopy: Record<QuantRunState, [string, QuantTone, string, string]> = {
   waiting_plan_approval: ['Waiting for plan approval', 'warning', 'Plan approval is required', 'Review the frozen scope and limits before execution.'],
   queued: ['Queued', 'info', 'Waiting for deterministic execution', 'Execution can begin only after the required approval record exists.'],
   loading_data: ['Loading data', 'info', 'Loading the approved dataset', 'The pinned fixture snapshot is being verified.'],
-  generating_candidates: ['Generating candidates', 'info', 'Generating bounded candidates', 'Candidate count cannot exceed the approved experiment limit.'],
-  running_experiments: ['Ready to run', 'info', 'Approved synthetic Agent is ready', 'Start the bounded deterministic run; all outputs remain synthetic and API-owned.'],
+  generating_candidates: ['Creating candidate', 'info', 'Creating a bounded candidate', 'The selected template and parameters are being persisted.'],
+  running_experiments: ['Selecting next action', 'info', 'Selecting the next Agent action', 'Each worker poll executes at most one registered local tool.'],
   repairing: ['Repairing', 'warning', 'Repairing a candidate-scoped failure', 'A recoverable candidate issue does not mean the run failed.'],
-  validating: ['Validating', 'info', 'Validating robustness', 'The validator is assigning candidate verdicts independently from run health.'],
+  validating: ['Comparing candidates', 'info', 'Comparing completed candidates', 'Actual local-kernel results are being compared with buy and hold.'],
   generating_report: ['Generating report', 'info', 'Generating the Research Report', 'Persisted results and limitations are being assembled.'],
   waiting_for_review: ['Waiting for review', 'warning', 'Research results need review', 'Review findings and the report draft before completing the process.'],
   completed: ['Completed', 'positive', 'Research process completed', 'Candidate B is retained for paper-evaluation review; Candidate A was rejected without failing the run.'],
@@ -86,6 +89,13 @@ const eventCopy: Record<string, string> = {
   'run.completed': 'Research process completed',
   'run.cancelled': 'Run cancelled; retained work remains',
   'run.failed': 'Run stopped safely',
+  'agent.action_selected': 'Agent decision',
+  'agent.decision_failed': 'Agent decision failed safely',
+  'agent.provider_fallback': 'Agent provider fallback',
+  'tool.started': 'Tool call started',
+  'tool.completed': 'Tool call completed',
+  'tool.failed': 'Tool call failed safely',
+  'comparison.generated': 'Candidate comparison generated',
 };
 
 const actorCopy: Record<QuantRunEvent['actor'], string> = {
@@ -112,6 +122,11 @@ const commandLabels: Partial<Record<QuantCommand, string>> = {
 
 function presentActivity(event: QuantRunEvent): QuantActivityPresentation {
   const knownTitle = eventCopy[event.type];
+  const kind = event.type === 'agent.action_selected'
+    ? 'agent_decision'
+    : event.type.startsWith('tool.')
+      ? 'tool_call'
+      : 'event';
   return {
     id: event.id,
     title: knownTitle ?? 'Run activity recorded',
@@ -119,6 +134,9 @@ function presentActivity(event: QuantRunEvent): QuantActivityPresentation {
     timestamp: event.timestamp,
     actorLabel: actorCopy[event.actor],
     artifactId: event.artifactId,
+    kind,
+    action: event.action,
+    expectedResult: event.expectedResult,
     advanced: { eventType: event.type, sequence: event.sequence, safeSummary: event.safeSummary },
   };
 }

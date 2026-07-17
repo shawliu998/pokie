@@ -1,5 +1,18 @@
 """Quant surface contracts."""
 
+# ruff: noqa: F401 - this module intentionally re-exports the public contract surface.
+
+from .agent import (
+    CreateCandidateArguments,
+    FinishResearchArguments,
+    QuantAgentAction,
+    QuantAgentDecision,
+    QuantAgentPlan,
+    QuantAgentPlanStep,
+    ReviseCandidateArguments,
+    RunBacktestArguments,
+)
+from .context import QuantAgentBudget, QuantAgentCandidateContext, QuantAgentContext
 from .data import (
     QUANT_DAILY_BAR_SCHEMA_VERSION,
     QuantDailyBar,
@@ -46,5 +59,6 @@ from .schemas import (
     QuantRunResponse,
     QuantRunRetryRequest,
 )
+from .tools import QUANT_AGENT_TOOL_REGISTRY, QuantToolObservation
 
 __all__ = [name for name in globals() if not name.startswith("_")]
