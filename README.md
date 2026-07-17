@@ -1,140 +1,115 @@
-# Glint
+# PokieQuant
 
-Evidence-backed product intelligence for small teams.
+PokieQuant is a governed desktop workspace for bounded, auditable quantitative-research workflows.
 
-**Monitor → Detect → Investigate → Decide**
+Phase 0 is a deterministic shell and contract integration. Every displayed bar, metric, trade, candidate verdict, event, and report is a **Synthetic Demo Fixture**. Phase 0 does not retrieve market data, call a model, run a real backtest, execute arbitrary Python or shell commands, connect to a broker, place orders, or provide investment advice.
 
-Glint watches approved product-research sources, turns versioned changes into
-explainable Signals, and keeps the evidence, counter-evidence, human reviews,
-and final recommendation connected through a Decision Brief.
+## Phase 0 status
 
-> The screenshots below are 1440×960 captures of the real React workbench
-> backed by the local API, worker, Postgres, and object store. They use the
-> clearly labelled **Imported Demo Fixture**; they are not live-network proof.
+The current working tree is an integration candidate, not a production release.
 
-## What Glint does
+Implemented:
 
-- Monitors imported CSV data and the implemented GitHub/RSS connector boundary.
-- Explains why a Signal fired with source freshness, trigger rules, counts, and
-  limitations instead of presenting an opaque score.
-- Guides a reviewer from immutable source evidence through Claims and synthesis
-  to a version-bound Decision Brief and PRD Research Input export.
+- independent Quant contracts, enums, safe event payloads, SSE encoding, and OpenAPI registration;
+- authenticated, workspace-scoped `/v1/quant` project/run, approval, cancellation, retry, event, artifact, and experiment routes;
+- a server-owned deterministic workspace fixture with ten named E2E states;
+- a canonical deterministic runtime script covering Candidate B's recoverable candidate-scoped failure and repair, no-viable-candidate, failed-safe, and cancellation paths;
+- PostgreSQL/SQLAlchemy-backed, workspace-scoped Phase 0 aggregate and fixture snapshot state, including refresh/restart recovery and optimistic concurrency;
+- a registered `quant-fixture` worker path with lease, heartbeat, fencing, stale-claim rejection, and cancellation fence invalidation;
+- Mac navigation, Plan/Activity/Market/Strategy Report/Inspector surfaces, visible authenticity labels, and read-only policy status;
+- Mac lifecycle commands routed through the authenticated API snapshot adapter; React does not assign run state;
+- tests that keep candidate rejection separate from run failure and assert that the fixture runtime imports no network, process, or arbitrary-execution facilities.
 
-## Product walkthrough
+Still intentionally not implemented:
 
-The pilot workflow is implemented in the Mac workbench: Inbox → Signal detail →
-Investigation evidence and Claim review → Decision Brief → Markdown export. The
-five real-app captures use one reviewed runtime and window size; the
-[90-second demo script](./docs/DEMO_SCRIPT.md) documents the matching narrative.
+- real or provider-sourced OHLCV/news data;
+- a quantitative backtesting or optimization engine;
+- Spark/Jupyter/sandbox or uploaded-code execution;
+- model/provider calls, web search, or external network access;
+- paper or live trading, broker credentials, order routing, or portfolio execution;
+- PokieTicker or Spark code migration (both remain blocked on repository, immutable commit, license, and security review);
+- a normalized production Quant research schema, multi-worker throughput/SLO validation, and long-running lease cadence. Phase 0 intentionally persists its synthetic aggregate in one workspace-scoped JSON document; it is durable but is not presented as the future market/backtest schema.
 
-![Glint Signal Inbox](./docs/assets/glint-inbox.png)
+The retained Glint modules remain in the repository as inherited infrastructure, but the main Mac path is PokieQuant and does not map Signals, Investigations, Evidence, Claims, Synthesis, or Decision Briefs into financial objects.
 
-![Glint Signal detail with explainable detection](./docs/assets/glint-signal-detail.png)
+## Fixture states
 
-![Glint Investigation business timeline](./docs/assets/glint-investigation.png)
-
-![Glint Decision Brief](./docs/assets/glint-decision-brief.png)
-
-![Glint source monitoring](./docs/assets/glint-monitoring.png)
-
-## Core workflow
+`POKIEQUANT_E2E_RUN_STATE` is server-side development/E2E configuration only. It is not exposed as a production UI control.
 
 ```text
-GitHub / RSS / CSV
-→ Signal
-→ Investigation
-→ Evidence and Claims
-→ Decision Brief
-→ PRD Research Input
+quant-ready
+quant-plan-approval
+quant-running
+quant-repairing
+quant-validating
+quant-waiting-review
+quant-completed
+quant-no-viable-candidate
+quant-failed-safe
+quant-cancelled
 ```
 
-## What is real today
+The canonical negative result is a healthy completed process with a retained Research Report:
 
-| Surface | Evidence today | Authenticity boundary | Model use | Status |
-| --- | --- | --- | --- | --- |
-| CSV import and review-to-export path | Deterministic local acceptance against the real API, worker, Postgres/RLS, and Mac client | **Imported** test data | **No LLM** | **Passed** |
-| GitHub and RSS connectors | Contract, security, pagination, dedupe, and deterministic fixture tests | **Deterministic synthetic fixtures**, not live | **No LLM** | **Passed** |
-| Captured public payloads | None committed | **Captured Fixture: not available** | **No LLM** | **Not Applicable** |
-| Networked GitHub/RSS smoke | Opt-in read-only runner implemented; no recorded final result | **Live verification** | **No LLM** | **Pending** |
-| Mac portfolio screenshots | Real local API/worker/Postgres render at 1440×960 | **Imported Demo Fixture**, visibly labelled | Not applicable | **Passed** |
-| Phase 3 Evidence/Claim proposals | Bounded graph, DeepSeek adapter, mocked-provider tests, synthetic replay gate, and a redacted live-adapter smoke | **Generated proposals** over exact pinned ContentVersions | **Opt-in; disabled by default** | **Provisionally Passed** |
+```text
+Run state: completed
+Conclusion: No candidate passed validation
+```
 
-“Collected” in the domain model describes connector lineage; it does not by
-itself prove that a particular demo or test contacted a live service. Live data
-must be accompanied by the separately recorded live-smoke evidence.
+A rejected candidate or a recoverable candidate experiment failure does not make the run `failed`.
 
-Glint P2.5 is a pilot candidate, not a production or GA release. Its accepted
-research path remains deterministic. The first Phase 3 slice can generate
-model-assisted Evidence and ClaimVersion proposals, but it is disabled by
-default and still requires the existing human review gates. Its adapter has a
-recorded synthetic live smoke; that is not held-out quality or owner-workflow
-acceptance evidence. See the
-[model research runtime](./docs/MODEL_RESEARCH.md) and
-[provisional quality record](./docs/PHASE3_QUALITY_ACCEPTANCE.md).
+## Reviewed workbench captures
 
-Phase 3 acceptance layers use one closed status vocabulary: `Passed`,
-`Provisionally Passed`, `Pending`, `Failed`, or `Not Applicable`.
+Playwright captures the real 1440×960 React workbench against the loopback fixture API. The checked evidence set covers Ready, Plan Approval, Running, Repairing, Completed, and No Viable Candidate.
 
-| Verification layer | Status |
-| --- | --- |
-| Deterministic reviewed replay gate | **Provisionally Passed** |
-| Live provider adapter smoke | **Passed** |
-| Live held-out quality evaluation | **Pending** |
-| Live Mac owner workflow | **Pending** |
-| External PM pilot | **Pending** |
-| Phase 3 acceptance | **Pending** |
+![PokieQuant completed synthetic fixture](./docs/assets/pokiequant/quant-completed.png)
 
-## Run locally
+![PokieQuant completed with no viable candidate](./docs/assets/pokiequant/quant-no-viable-candidate.png)
 
-Prerequisites are macOS, Python 3.12, `uv` 0.11.28, Node.js, pnpm 10.28.0, and
-Rust. Docker is additionally required for the full deterministic gate.
+## Local setup
+
+Prerequisites: Python 3.12, Node.js, pnpm 10.28.0, and the dependencies already locked by this repository.
 
 ```bash
-git clone https://github.com/shawliu998/Glint.git
-cd Glint
-cp .env.example .env
 uv sync --locked --extra test
 pnpm install --frozen-lockfile
 ```
 
-For the shortest UI walkthrough, start the explicitly synthetic API fixture:
+The Mac client requires the inherited secure session configuration and an API process:
 
 ```bash
-pnpm --filter @glint/mac exec node e2e/api-fixture.mjs
+VITE_GLINT_API_URL=http://127.0.0.1:8000 \
+VITE_GLINT_WORKSPACE_ID=<workspace-uuid> \
+VITE_GLINT_ACCESS_TOKEN=<development-token> \
+pnpm --filter @glint/mac dev
 ```
 
-In a second terminal, start the client with the fixture identity:
-
-```bash
-VITE_GLINT_DATA_MODE=api \
-VITE_GLINT_API_URL=http://127.0.0.1:4174 \
-VITE_GLINT_WORKSPACE_ID=00000000-0000-4000-8000-000000000001 \
-VITE_GLINT_PRINCIPAL_ID=00000000-0000-4000-8000-000000000002 \
-VITE_GLINT_ACCESS_TOKEN=fixture-access-token \
-pnpm --filter @glint/mac dev --host 127.0.0.1 --port 5173
-```
-
-This walkthrough is a deterministic fixture, not a live connector or production
-environment. The full API/worker/Postgres path is created, seeded, exercised,
-and torn down by the verification scripts below.
-
-## Build the Mac app
-
-The native gate uses the repository's exact unsigned debug build command:
-
-```bash
-pnpm --filter @glint/mac exec tauri build --debug --bundles app --no-sign -- --locked
-```
-
-Output: `apps/mac/src-tauri/target/debug/bundle/macos/Glint.app`.
-
-The bundle is **unsigned for distribution and not notarized**. The local build
-may carry an ad-hoc/linker signature generated by the toolchain; that is not an
-Apple Developer ID signature and is not a distribution claim.
+The `VITE_GLINT_*` environment names and `@glint/*` package identifiers are retained compatibility names; they are not product-domain aliases.
 
 ## Verification
 
-Deterministic repository gates:
+Run the additive Phase 0 gate:
+
+```bash
+./scripts/verify_pokiequant_shell.sh
+```
+
+The gate checks Quant contracts, API, runtime fixtures, OpenAPI drift, Mac lint/typecheck/unit/build, license/provenance boundaries, fixture labels, disabled capability claims, and removal of active Glint product-intelligence copy from the main path. It does not enable live connector or model smoke tests.
+
+To reproduce the six reviewed screenshots:
+
+```bash
+mkdir -p docs/assets/pokiequant
+for state in quant-ready quant-plan-approval quant-running quant-repairing quant-completed quant-no-viable-candidate; do
+  GLINT_E2E_API_MODE=fixture \
+  POKIEQUANT_E2E_RUN_STATE="$state" \
+  POKIEQUANT_CAPTURE_SCREENSHOTS=1 \
+  pnpm --dir apps/mac exec playwright test e2e/quant-workspace.spec.ts \
+    -g 'captures a real workbench screenshot'
+done
+```
+
+Inherited gates remain available and are not weakened:
 
 ```bash
 ./scripts/verify_phase1.sh
@@ -143,55 +118,17 @@ Deterministic repository gates:
 ./scripts/verify_tauri_runtime.sh
 ```
 
-The Phase 3 quality command is also an independent CI job. It runs without a
-provider credential and uploads four bounded JSON artifacts containing metrics,
-failure counts, prompt identifiers and evaluation metadata—not prompts, source
-bodies, provider responses or secrets.
+## Architecture boundary
 
-The networked smoke is intentionally separate and runs only with explicit user
-authorization and configured credentials:
-
-```bash
-GLINT_ENABLE_LIVE_SMOKE=1 ./scripts/verify_live_connectors.sh
+```text
+authenticated workspace session
+  -> FastAPI /v1/quant snapshot and commands
+  -> durable workspace-scoped fixture repository
+  -> fenced deterministic fixture worker/runtime
+  -> typed Quant transport and pure presentation projection
+  -> React/Tauri workspace
 ```
 
-The final implementation candidate (`be6998d`) passed all four required remote
-jobs in [GitHub Actions run
-29474562575](https://github.com/shawliu998/Glint/actions/runs/29474562575):
-Phase 1, Phase 2, security audit, and macOS native. See [P2.5
-acceptance](./docs/P2_5_ACCEPTANCE.md) for the remaining live/pilot evidence gaps
-and [live-smoke instructions](./docs/LIVE_CONNECTOR_SMOKE.md) for credential and
-redaction rules.
+The API owns lifecycle and legal commands. The worker owns only the approved deterministic fixture script. The Mac client owns selection, layout, disclosure, and other presentation preferences.
 
-## Architecture
-
-```mermaid
-flowchart LR
-  Sources["GitHub / RSS / imported CSV"] --> Pipeline["Versioned collection and deterministic detection"]
-  Pipeline --> API["FastAPI domain services"]
-  API <--> Store["Postgres / object storage / Redis"]
-  Mac["Tauri + React Mac workbench"] <--> API
-  API --> Worker["Independent worker"]
-  Worker --> Pipeline
-```
-
-The Mac app is a contract client. Domain services own lifecycle transitions and
-audits; connectors cannot write Signals, Claims, or decisions directly. Read the
-[architecture](./docs/ARCHITECTURE.md), [security model](./docs/SECURITY_MODEL.md),
-and [API contracts](./docs/API_CONTRACTS.md) for the technical detail.
-
-## Current limitations
-
-- The `.app` is not Developer ID signed or notarized.
-- Live GitHub and RSS smoke has not been recorded for the final P2.5 candidate.
-- No external pilot has run; there are no external user results to report.
-- A recorded demo video has not been produced.
-- Source support is limited to imported CSV plus GitHub/RSS boundaries.
-- Production SLOs, operations, disaster recovery, and GA readiness are not
-  established.
-- Phase 3 model-assisted synthesis after reviewed claims, live held-out quality
-  evidence, Langfuse deployment, and full collaboration/RBAC UI remain out of
-  scope for the current accepted slice.
-
-The proposed 3–5 person study is documented in the [pilot
-plan](./docs/PILOT_PLAN.md). No participant outcomes are claimed.
+See `docs/POKIEQUANT_PRODUCT_SPEC.md`, `docs/POKIEQUANT_STATE_MATRIX.md`, and `docs/POKIEQUANT_REFERENCE_AUDIT.md` for the product, state, provenance, and license contracts.

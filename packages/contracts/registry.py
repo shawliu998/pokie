@@ -7,6 +7,7 @@ from __future__ import annotations
 from pydantic import BaseModel
 
 from .events import RunEvent, StreamResetEvent
+from .quant import *  # noqa: F403 - quant surface is part of the public contract registry
 from .schemas import *  # noqa: F403 - registry intentionally covers the public schema surface
 
 

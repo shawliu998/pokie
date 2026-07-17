@@ -32,6 +32,7 @@ REVISION_CHAIN = (
     ("20260715_0003", "20260715_0002"),
     ("20260715_0004", "20260715_0003"),
     ("20260715_0005", "20260715_0004"),
+    ("20260717_0006", "20260715_0005"),
 )
 
 
@@ -167,6 +168,21 @@ def _assert_critical_head_shape(engine: Engine) -> None:
     sqlite_where = active_index.get("dialect_options", {}).get("sqlite_where")
     assert "stateinqueued,claimed" in _normalized_sql(sqlite_where)
 
+    if "quant_repository_states" in inspector.get_table_names():
+        quant_columns = {
+            row["name"] for row in inspector.get_columns("quant_repository_states")
+        }
+        assert {
+            "workspace_id",
+            "state_json",
+            "fixture_state",
+            "fixture_row_version",
+            "worker_lease_token",
+            "worker_lease_expires_at",
+            "worker_heartbeat_at",
+            "worker_fencing_version",
+        }.issubset(quant_columns)
+
 
 def test_revision_files_are_static_and_chain_is_linear() -> None:
     scripts = sorted(VERSIONS_DIR.glob("*.py"))
@@ -191,7 +207,7 @@ def test_revision_files_are_static_and_chain_is_linear() -> None:
                 assert node.value.id != "Base", path.name
 
     script = ScriptDirectory.from_config(_config())
-    assert script.get_heads() == ["20260715_0005"]
+    assert script.get_heads() == ["20260717_0006"]
     observed = tuple(
         (revision.revision, revision.down_revision)
         for revision in reversed(list(script.walk_revisions()))
@@ -235,7 +251,7 @@ def test_baseline_lists_are_literal_and_cover_every_frozen_table() -> None:
         ("20260715_0002", "20260715_0002"),
         ("20260715_0003", "20260715_0003"),
         ("20260715_0004", "20260715_0004"),
-        ("head", "20260715_0005"),
+        ("head", "20260717_0006"),
     ),
 )
 def test_empty_sqlite_database_upgrades_to_every_revision(
@@ -245,7 +261,10 @@ def test_empty_sqlite_database_upgrades_to_every_revision(
     try:
         assert _current_revision(engine) == expected_revision
         actual_tables = set(inspect(engine).get_table_names()) - {"alembic_version"}
-        assert actual_tables == set(_baseline_constants()["SCHEMA_TABLES"])
+        expected_tables = set(_baseline_constants()["SCHEMA_TABLES"])
+        if target == "head":
+            expected_tables.add("quant_repository_states")
+        assert actual_tables == expected_tables
         _assert_critical_head_shape(engine)
     finally:
         engine.dispose()
@@ -395,7 +414,7 @@ def test_synthetic_legacy_0001_runs_additive_migrations_and_backfills(tmp_path: 
 
     engine = create_engine(url)
     try:
-        assert _current_revision(engine) == "20260715_0005"
+        assert _current_revision(engine) == "20260717_0006"
         _assert_critical_head_shape(engine)
         synthetic_columns = {
             table: {row["name"]: row for row in inspect(engine).get_columns(table)}

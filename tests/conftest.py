@@ -21,6 +21,7 @@ from services.api.app.core.object_store import get_object_store  # noqa: E402
 from services.api.app.db.models import Base  # noqa: E402
 from services.api.app.db.session import get_engine, reset_database_caches  # noqa: E402
 from services.api.app.main import app  # noqa: E402
+from services.api.app.modules.quant.store import reset_quant_store  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -29,7 +30,9 @@ def clean_runtime() -> None:
     Base.metadata.create_all(get_engine())
     shutil.rmtree(_TEST_OBJECT_ROOT, ignore_errors=True)
     get_object_store.cache_clear()
+    reset_quant_store()
     yield
+    reset_quant_store()
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -38,6 +41,7 @@ def cleanup_runtime_paths() -> None:
     get_engine().dispose()
     reset_database_caches()
     get_object_store.cache_clear()
+    reset_quant_store()
     _TEST_DB_PATH.unlink(missing_ok=True)
     shutil.rmtree(_TEST_OBJECT_ROOT, ignore_errors=True)
 

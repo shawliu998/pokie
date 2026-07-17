@@ -82,6 +82,32 @@ class Project(Identified, Timestamped, Versioned, Authentic, Base):
     created_by: Mapped[str] = mapped_column(String(36))
 
 
+class QuantRepositoryState(Timestamped, Versioned, Authentic, Base):
+    """Durable Phase 0 Quant aggregate and fixture-worker lease.
+
+    Phase 0 deliberately keeps the synthetic aggregate in one JSON document so
+    the contract can evolve without pretending that production market or
+    execution tables exist. PostgreSQL remains authoritative and the row is
+    workspace-scoped, versioned, and fenced for the deterministic worker.
+    """
+
+    __tablename__ = "quant_repository_states"
+    workspace_id: Mapped[str] = mapped_column(
+        ForeignKey("workspaces.id"), primary_key=True
+    )
+    state_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    fixture_state: Mapped[str | None] = mapped_column(String(48), nullable=True)
+    fixture_row_version: Mapped[int] = mapped_column(Integer, default=8)
+    worker_lease_token: Mapped[str | None] = mapped_column(String(96), nullable=True)
+    worker_lease_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    worker_heartbeat_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    worker_fencing_version: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class Watchlist(Identified, Timestamped, Versioned, Authentic, Base):
     __tablename__ = "watchlists"
     workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id"), index=True)

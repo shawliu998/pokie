@@ -1,0 +1,4053 @@
+{
+  "quant-cancelled": {
+    "artifacts": [
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-dataset-a120",
+        "id": "fixture-dataset",
+        "origin": "Server fixture repository",
+        "relatedLabel": "SPY · 1D",
+        "status": "ready",
+        "summary": "Bounded synthetic OHLCV demonstration values.",
+        "title": "SPY Daily Synthetic Snapshot",
+        "type": "dataset_snapshot"
+      },
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-validation-5b20",
+        "id": "fixture-validation",
+        "origin": "Deterministic validator fixture",
+        "relatedLabel": "3 candidates",
+        "status": "ready",
+        "summary": "Candidate-scoped fixture verdicts.",
+        "title": "Synthetic Robustness Validation",
+        "type": "validation_report"
+      },
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-report-4e91",
+        "id": "fixture-report",
+        "origin": "Server fixture projection",
+        "relatedLabel": "Attempt 1",
+        "status": "ready",
+        "summary": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
+        "title": "SPY Synthetic Research Report",
+        "type": "research_report"
+      }
+    ],
+    "authenticity": "synthetic_fixture",
+    "bars": [
+      {
+        "close": 103,
+        "date": "2018-01-02",
+        "high": 104,
+        "low": 98,
+        "open": 100,
+        "volume": 1000
+      },
+      {
+        "close": 108,
+        "date": "2019-01-02",
+        "high": 110,
+        "low": 101,
+        "marker": "entry",
+        "open": 103,
+        "volume": 1200
+      },
+      {
+        "close": 101,
+        "date": "2020-01-02",
+        "high": 112,
+        "low": 99,
+        "marker": "policy",
+        "open": 108,
+        "volume": 1400
+      },
+      {
+        "close": 116,
+        "date": "2021-01-04",
+        "high": 118,
+        "low": 100,
+        "marker": "exit",
+        "open": 101,
+        "volume": 1300
+      }
+    ],
+    "benchmark": {
+      "annualizedReturn": 10.8,
+      "maxDrawdown": -33.7,
+      "sharpe": 0.72,
+      "trades": 1
+    },
+    "candidates": [
+      {
+        "id": "candidate-a",
+        "metrics": {
+          "annualizedReturn": 9.6,
+          "maxDrawdown": -24.8,
+          "sharpe": 0.83,
+          "trades": 38
+        },
+        "name": "Candidate A · SMA 20/100",
+        "parameters": "fast=20 · slow=100",
+        "robustness": [
+          "Fails adjacent-window sensitivity check",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: sma_cross\nfast_window: 20\nslow_window: 100\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "rejected",
+        "verdictReason": "Parameter sensitivity"
+      },
+      {
+        "id": "candidate-b",
+        "metrics": {
+          "annualizedReturn": 8.9,
+          "maxDrawdown": -18.7,
+          "sharpe": 0.88,
+          "trades": 18
+        },
+        "name": "Candidate B · SMA 50/200",
+        "parameters": "fast=50 · slow=200",
+        "robustness": [
+          "One candidate-scoped repair retained",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: sma_cross\nfast_window: 50\nslow_window: 200\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "promising",
+        "verdictReason": "Candidate for paper evaluation"
+      },
+      {
+        "id": "candidate-c",
+        "metrics": {
+          "annualizedReturn": 9.3,
+          "maxDrawdown": -21.4,
+          "sharpe": 0.86,
+          "trades": 12
+        },
+        "name": "Candidate C · 200-day trend filter",
+        "parameters": "window=200",
+        "robustness": [
+          "Insufficient independent periods",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: trend_filter\nwindow: 200\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "inconclusive",
+        "verdictReason": "Too few independent trade periods"
+      }
+    ],
+    "composerLegalCommands": [],
+    "dataset": {
+      "authenticity": "synthetic_fixture",
+      "barCount": 4,
+      "dateRange": {
+        "end": "2023-12-29",
+        "start": "2018-01-02"
+      },
+      "digest": "sha256:fixture-dataset-a120",
+      "id": "fixture-spy-daily-v1",
+      "interval": "1D",
+      "name": "SPY Daily Synthetic Fixture 2018–2023",
+      "parserVersion": "fixture-parser-v1",
+      "schemaVersion": "market-bars-fixture-v1",
+      "symbol": "SPY"
+    },
+    "events": [
+      {
+        "actor": "system",
+        "id": "fixture-event-1",
+        "safeSummary": "Research attempt created from a synthetic fixture.",
+        "sequence": 1,
+        "timestamp": "2026-07-17T02:19:00Z",
+        "type": "run.created"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-2",
+        "safeSummary": "Pinned synthetic SPY fixture snapshot loaded.",
+        "sequence": 2,
+        "timestamp": "2026-07-17T02:20:00Z",
+        "type": "data.load.completed"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-3",
+        "safeSummary": "Candidate B fixture experiment stopped safely; the run did not fail.",
+        "sequence": 3,
+        "timestamp": "2026-07-17T02:21:00Z",
+        "type": "backtest.failed"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-4",
+        "safeSummary": "Candidate B fixture repair completed within the approved limit.",
+        "sequence": 4,
+        "timestamp": "2026-07-17T02:22:00Z",
+        "type": "repair.completed"
+      },
+      {
+        "actor": "validator",
+        "id": "fixture-event-5",
+        "safeSummary": "Candidate A rejected; candidate verdict is independent of run health.",
+        "sequence": 5,
+        "timestamp": "2026-07-17T02:23:00Z",
+        "type": "candidate.rejected"
+      },
+      {
+        "actor": "validator",
+        "id": "fixture-event-6",
+        "safeSummary": "Synthetic robustness validation completed.",
+        "sequence": 6,
+        "timestamp": "2026-07-17T02:24:00Z",
+        "type": "validation.completed"
+      },
+      {
+        "actor": "agent",
+        "id": "fixture-event-7",
+        "safeSummary": "Research Report generated from persisted synthetic fixture records.",
+        "sequence": 7,
+        "timestamp": "2026-07-17T02:25:00Z",
+        "type": "report.generated"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-8",
+        "safeSummary": "The fixture run was cancelled.",
+        "sequence": 8,
+        "timestamp": "2026-07-17T02:26:00Z",
+        "type": "run.cancelled"
+      }
+    ],
+    "limits": {
+      "arbitraryPython": false,
+      "internetAccess": false,
+      "maxExperiments": 3,
+      "maxRepairAttempts": 2,
+      "maxRuntimeMinutes": 5,
+      "paperTrading": false
+    },
+    "modelLabel": "Not connected",
+    "plan": [
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: define research scope.",
+        "humanGate": true,
+        "id": "scope",
+        "owner": "user",
+        "status": "completed",
+        "title": "Define research scope"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: load market dataset.",
+        "humanGate": false,
+        "id": "dataset",
+        "owner": "system",
+        "status": "completed",
+        "title": "Load market dataset"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: build benchmark.",
+        "humanGate": false,
+        "id": "benchmark",
+        "owner": "system",
+        "status": "completed",
+        "title": "Build benchmark"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: generate candidates.",
+        "humanGate": false,
+        "id": "candidates",
+        "owner": "agent",
+        "status": "completed",
+        "title": "Generate candidates"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: run experiments.",
+        "humanGate": false,
+        "id": "experiments",
+        "owner": "agent",
+        "status": "skipped",
+        "title": "Run experiments"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: repair recoverable failures.",
+        "humanGate": false,
+        "id": "repair",
+        "owner": "agent",
+        "status": "skipped",
+        "title": "Repair recoverable failures"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: validate robustness.",
+        "humanGate": false,
+        "id": "validation",
+        "owner": "validator",
+        "status": "skipped",
+        "title": "Validate robustness"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: compare candidates.",
+        "humanGate": false,
+        "id": "comparison",
+        "owner": "agent",
+        "status": "skipped",
+        "title": "Compare candidates"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: generate report.",
+        "humanGate": false,
+        "id": "report",
+        "owner": "agent",
+        "status": "skipped",
+        "title": "Generate report"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: human decision.",
+        "humanGate": true,
+        "id": "decision",
+        "owner": "user",
+        "status": "skipped",
+        "title": "Human decision"
+      }
+    ],
+    "project": {
+      "goal": "Evaluate bounded SPY trend hypotheses with synthetic evidence.",
+      "id": "55555555-5555-4555-8555-555555555501",
+      "needsAction": false,
+      "statusLabel": "The fixture run was cancelled.",
+      "symbol": "SPY",
+      "title": "SPY · Trend Research",
+      "updatedAt": "2026-07-17T02:24:00Z"
+    },
+    "recentProjects": [
+      {
+        "goal": "Evaluate bounded SPY trend hypotheses with synthetic evidence.",
+        "id": "55555555-5555-4555-8555-555555555501",
+        "needsAction": false,
+        "statusLabel": "The fixture run was cancelled.",
+        "symbol": "SPY",
+        "title": "SPY · Trend Research",
+        "updatedAt": "2026-07-17T02:24:00Z"
+      }
+    ],
+    "report": {
+      "conclusion": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
+      "disclaimer": "Demonstration results are synthetic and are not investment advice, a recommendation, or evidence of future performance.",
+      "generationMethod": "Server-owned deterministic fixture projection",
+      "humanReviewStatus": "Fixture review record",
+      "id": "fixture-report",
+      "limitations": [
+        "All values are synthetic demonstration fixtures.",
+        "No real backtest or market-data retrieval occurred.",
+        "This is not investment advice."
+      ],
+      "proposedNextStep": "Review limitations; no broker or paper-trading action is available.",
+      "title": "SPY Synthetic Research Report",
+      "validatorVersion": "validator-fixture-v1"
+    },
+    "run": {
+      "attemptNumber": 1,
+      "completedAt": "2026-07-17T02:24:00Z",
+      "currentStepId": "experiments",
+      "id": "55555555-5555-4555-8555-555555555502",
+      "latestSequence": 8,
+      "legalCommands": [
+        "retry_run"
+      ],
+      "mode": "auto_research",
+      "rowVersion": 8,
+      "startedAt": "2026-07-17T02:18:00Z",
+      "state": "cancelled",
+      "traceRef": "fixture-trace-spy-01",
+      "usedExperiments": 3,
+      "usedRepairAttempts": 1
+    },
+    "runtimeLabel": "Deterministic fixture",
+    "scope": {
+      "assumptions": [
+        "Synthetic demonstration values",
+        "No network retrieval",
+        "No executable strategy code"
+      ],
+      "benchmark": "SPY Buy and Hold",
+      "dateRange": {
+        "end": "2023-12-29",
+        "start": "2018-01-02"
+      },
+      "interval": "1D",
+      "market": "US Equity",
+      "symbol": "SPY",
+      "version": 1
+    },
+    "trades": [
+      {
+        "candidateId": "candidate-b",
+        "entryDate": "2019-01-02",
+        "exitDate": "2021-01-04",
+        "holdingDays": 733,
+        "id": "fixture-trade-1",
+        "reason": "Synthetic fixture crossover record",
+        "returnPct": 7.4
+      }
+    ],
+    "version": "Phase 0 · server-fixture-v1",
+    "workspaceName": "PokieQuant Research"
+  },
+  "quant-completed": {
+    "artifacts": [
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-dataset-a120",
+        "id": "fixture-dataset",
+        "origin": "Server fixture repository",
+        "relatedLabel": "SPY · 1D",
+        "status": "ready",
+        "summary": "Bounded synthetic OHLCV demonstration values.",
+        "title": "SPY Daily Synthetic Snapshot",
+        "type": "dataset_snapshot"
+      },
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-validation-5b20",
+        "id": "fixture-validation",
+        "origin": "Deterministic validator fixture",
+        "relatedLabel": "3 candidates",
+        "status": "ready",
+        "summary": "Candidate-scoped fixture verdicts.",
+        "title": "Synthetic Robustness Validation",
+        "type": "validation_report"
+      },
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-report-4e91",
+        "id": "fixture-report",
+        "origin": "Server fixture projection",
+        "relatedLabel": "Attempt 1",
+        "status": "reviewed",
+        "summary": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
+        "title": "SPY Synthetic Research Report",
+        "type": "research_report"
+      }
+    ],
+    "authenticity": "synthetic_fixture",
+    "bars": [
+      {
+        "close": 103,
+        "date": "2018-01-02",
+        "high": 104,
+        "low": 98,
+        "open": 100,
+        "volume": 1000
+      },
+      {
+        "close": 108,
+        "date": "2019-01-02",
+        "high": 110,
+        "low": 101,
+        "marker": "entry",
+        "open": 103,
+        "volume": 1200
+      },
+      {
+        "close": 101,
+        "date": "2020-01-02",
+        "high": 112,
+        "low": 99,
+        "marker": "policy",
+        "open": 108,
+        "volume": 1400
+      },
+      {
+        "close": 116,
+        "date": "2021-01-04",
+        "high": 118,
+        "low": 100,
+        "marker": "exit",
+        "open": 101,
+        "volume": 1300
+      }
+    ],
+    "benchmark": {
+      "annualizedReturn": 10.8,
+      "maxDrawdown": -33.7,
+      "sharpe": 0.72,
+      "trades": 1
+    },
+    "candidates": [
+      {
+        "id": "candidate-a",
+        "metrics": {
+          "annualizedReturn": 9.6,
+          "maxDrawdown": -24.8,
+          "sharpe": 0.83,
+          "trades": 38
+        },
+        "name": "Candidate A · SMA 20/100",
+        "parameters": "fast=20 · slow=100",
+        "robustness": [
+          "Fails adjacent-window sensitivity check",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: sma_cross\nfast_window: 20\nslow_window: 100\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "rejected",
+        "verdictReason": "Parameter sensitivity"
+      },
+      {
+        "id": "candidate-b",
+        "metrics": {
+          "annualizedReturn": 8.9,
+          "maxDrawdown": -18.7,
+          "sharpe": 0.88,
+          "trades": 18
+        },
+        "name": "Candidate B · SMA 50/200",
+        "parameters": "fast=50 · slow=200",
+        "robustness": [
+          "One candidate-scoped repair retained",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: sma_cross\nfast_window: 50\nslow_window: 200\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "promising",
+        "verdictReason": "Candidate for paper evaluation"
+      },
+      {
+        "id": "candidate-c",
+        "metrics": {
+          "annualizedReturn": 9.3,
+          "maxDrawdown": -21.4,
+          "sharpe": 0.86,
+          "trades": 12
+        },
+        "name": "Candidate C · 200-day trend filter",
+        "parameters": "window=200",
+        "robustness": [
+          "Insufficient independent periods",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: trend_filter\nwindow: 200\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "inconclusive",
+        "verdictReason": "Too few independent trade periods"
+      }
+    ],
+    "composerLegalCommands": [],
+    "dataset": {
+      "authenticity": "synthetic_fixture",
+      "barCount": 4,
+      "dateRange": {
+        "end": "2023-12-29",
+        "start": "2018-01-02"
+      },
+      "digest": "sha256:fixture-dataset-a120",
+      "id": "fixture-spy-daily-v1",
+      "interval": "1D",
+      "name": "SPY Daily Synthetic Fixture 2018–2023",
+      "parserVersion": "fixture-parser-v1",
+      "schemaVersion": "market-bars-fixture-v1",
+      "symbol": "SPY"
+    },
+    "events": [
+      {
+        "actor": "system",
+        "id": "fixture-event-1",
+        "safeSummary": "Research attempt created from a synthetic fixture.",
+        "sequence": 1,
+        "timestamp": "2026-07-17T02:19:00Z",
+        "type": "run.created"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-2",
+        "safeSummary": "Pinned synthetic SPY fixture snapshot loaded.",
+        "sequence": 2,
+        "timestamp": "2026-07-17T02:20:00Z",
+        "type": "data.load.completed"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-3",
+        "safeSummary": "Candidate B fixture experiment stopped safely; the run did not fail.",
+        "sequence": 3,
+        "timestamp": "2026-07-17T02:21:00Z",
+        "type": "backtest.failed"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-4",
+        "safeSummary": "Candidate B fixture repair completed within the approved limit.",
+        "sequence": 4,
+        "timestamp": "2026-07-17T02:22:00Z",
+        "type": "repair.completed"
+      },
+      {
+        "actor": "validator",
+        "id": "fixture-event-5",
+        "safeSummary": "Candidate A rejected; candidate verdict is independent of run health.",
+        "sequence": 5,
+        "timestamp": "2026-07-17T02:23:00Z",
+        "type": "candidate.rejected"
+      },
+      {
+        "actor": "validator",
+        "id": "fixture-event-6",
+        "safeSummary": "Synthetic robustness validation completed.",
+        "sequence": 6,
+        "timestamp": "2026-07-17T02:24:00Z",
+        "type": "validation.completed"
+      },
+      {
+        "actor": "agent",
+        "id": "fixture-event-7",
+        "safeSummary": "Research Report generated from persisted synthetic fixture records.",
+        "sequence": 7,
+        "timestamp": "2026-07-17T02:25:00Z",
+        "type": "report.generated"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-8",
+        "safeSummary": "Research process completed.",
+        "sequence": 8,
+        "timestamp": "2026-07-17T02:26:00Z",
+        "type": "run.completed"
+      }
+    ],
+    "limits": {
+      "arbitraryPython": false,
+      "internetAccess": false,
+      "maxExperiments": 3,
+      "maxRepairAttempts": 2,
+      "maxRuntimeMinutes": 5,
+      "paperTrading": false
+    },
+    "modelLabel": "Not connected",
+    "plan": [
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: define research scope.",
+        "humanGate": true,
+        "id": "scope",
+        "owner": "user",
+        "status": "completed",
+        "title": "Define research scope"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: load market dataset.",
+        "humanGate": false,
+        "id": "dataset",
+        "owner": "system",
+        "status": "completed",
+        "title": "Load market dataset"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: build benchmark.",
+        "humanGate": false,
+        "id": "benchmark",
+        "owner": "system",
+        "status": "completed",
+        "title": "Build benchmark"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: generate candidates.",
+        "humanGate": false,
+        "id": "candidates",
+        "owner": "agent",
+        "status": "completed",
+        "title": "Generate candidates"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: run experiments.",
+        "humanGate": false,
+        "id": "experiments",
+        "owner": "agent",
+        "status": "completed",
+        "title": "Run experiments"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: repair recoverable failures.",
+        "humanGate": false,
+        "id": "repair",
+        "owner": "agent",
+        "status": "completed",
+        "title": "Repair recoverable failures"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: validate robustness.",
+        "humanGate": false,
+        "id": "validation",
+        "owner": "validator",
+        "status": "completed",
+        "title": "Validate robustness"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: compare candidates.",
+        "humanGate": false,
+        "id": "comparison",
+        "owner": "agent",
+        "status": "completed",
+        "title": "Compare candidates"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: generate report.",
+        "humanGate": false,
+        "id": "report",
+        "owner": "agent",
+        "status": "completed",
+        "title": "Generate report"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: human decision.",
+        "humanGate": true,
+        "id": "decision",
+        "owner": "user",
+        "status": "completed",
+        "title": "Human decision"
+      }
+    ],
+    "project": {
+      "goal": "Evaluate bounded SPY trend hypotheses with synthetic evidence.",
+      "id": "55555555-5555-4555-8555-555555555501",
+      "needsAction": false,
+      "statusLabel": "Research process completed.",
+      "symbol": "SPY",
+      "title": "SPY · Trend Research",
+      "updatedAt": "2026-07-17T02:24:00Z"
+    },
+    "recentProjects": [
+      {
+        "goal": "Evaluate bounded SPY trend hypotheses with synthetic evidence.",
+        "id": "55555555-5555-4555-8555-555555555501",
+        "needsAction": false,
+        "statusLabel": "Research process completed.",
+        "symbol": "SPY",
+        "title": "SPY · Trend Research",
+        "updatedAt": "2026-07-17T02:24:00Z"
+      }
+    ],
+    "report": {
+      "conclusion": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
+      "disclaimer": "Demonstration results are synthetic and are not investment advice, a recommendation, or evidence of future performance.",
+      "generationMethod": "Server-owned deterministic fixture projection",
+      "humanReviewStatus": "Fixture review record",
+      "id": "fixture-report",
+      "limitations": [
+        "All values are synthetic demonstration fixtures.",
+        "No real backtest or market-data retrieval occurred.",
+        "This is not investment advice."
+      ],
+      "proposedNextStep": "Review limitations; no broker or paper-trading action is available.",
+      "title": "SPY Synthetic Research Report",
+      "validatorVersion": "validator-fixture-v1"
+    },
+    "run": {
+      "attemptNumber": 1,
+      "completedAt": "2026-07-17T02:24:00Z",
+      "currentStepId": "decision",
+      "id": "55555555-5555-4555-8555-555555555502",
+      "latestSequence": 8,
+      "legalCommands": [],
+      "mode": "auto_research",
+      "rowVersion": 8,
+      "startedAt": "2026-07-17T02:18:00Z",
+      "state": "completed",
+      "traceRef": "fixture-trace-spy-01",
+      "usedExperiments": 3,
+      "usedRepairAttempts": 1
+    },
+    "runtimeLabel": "Deterministic fixture",
+    "scope": {
+      "assumptions": [
+        "Synthetic demonstration values",
+        "No network retrieval",
+        "No executable strategy code"
+      ],
+      "benchmark": "SPY Buy and Hold",
+      "dateRange": {
+        "end": "2023-12-29",
+        "start": "2018-01-02"
+      },
+      "interval": "1D",
+      "market": "US Equity",
+      "symbol": "SPY",
+      "version": 1
+    },
+    "trades": [
+      {
+        "candidateId": "candidate-b",
+        "entryDate": "2019-01-02",
+        "exitDate": "2021-01-04",
+        "holdingDays": 733,
+        "id": "fixture-trade-1",
+        "reason": "Synthetic fixture crossover record",
+        "returnPct": 7.4
+      }
+    ],
+    "version": "Phase 0 · server-fixture-v1",
+    "workspaceName": "PokieQuant Research"
+  },
+  "quant-failed-safe": {
+    "artifacts": [
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-dataset-a120",
+        "id": "fixture-dataset",
+        "origin": "Server fixture repository",
+        "relatedLabel": "SPY · 1D",
+        "status": "ready",
+        "summary": "Bounded synthetic OHLCV demonstration values.",
+        "title": "SPY Daily Synthetic Snapshot",
+        "type": "dataset_snapshot"
+      },
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-validation-5b20",
+        "id": "fixture-validation",
+        "origin": "Deterministic validator fixture",
+        "relatedLabel": "3 candidates",
+        "status": "ready",
+        "summary": "Candidate-scoped fixture verdicts.",
+        "title": "Synthetic Robustness Validation",
+        "type": "validation_report"
+      },
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-report-4e91",
+        "id": "fixture-report",
+        "origin": "Server fixture projection",
+        "relatedLabel": "Attempt 1",
+        "status": "ready",
+        "summary": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
+        "title": "SPY Synthetic Research Report",
+        "type": "research_report"
+      }
+    ],
+    "authenticity": "synthetic_fixture",
+    "bars": [
+      {
+        "close": 103,
+        "date": "2018-01-02",
+        "high": 104,
+        "low": 98,
+        "open": 100,
+        "volume": 1000
+      },
+      {
+        "close": 108,
+        "date": "2019-01-02",
+        "high": 110,
+        "low": 101,
+        "marker": "entry",
+        "open": 103,
+        "volume": 1200
+      },
+      {
+        "close": 101,
+        "date": "2020-01-02",
+        "high": 112,
+        "low": 99,
+        "marker": "policy",
+        "open": 108,
+        "volume": 1400
+      },
+      {
+        "close": 116,
+        "date": "2021-01-04",
+        "high": 118,
+        "low": 100,
+        "marker": "exit",
+        "open": 101,
+        "volume": 1300
+      }
+    ],
+    "benchmark": {
+      "annualizedReturn": 10.8,
+      "maxDrawdown": -33.7,
+      "sharpe": 0.72,
+      "trades": 1
+    },
+    "candidates": [
+      {
+        "id": "candidate-a",
+        "metrics": {
+          "annualizedReturn": 9.6,
+          "maxDrawdown": -24.8,
+          "sharpe": 0.83,
+          "trades": 38
+        },
+        "name": "Candidate A · SMA 20/100",
+        "parameters": "fast=20 · slow=100",
+        "robustness": [
+          "Fails adjacent-window sensitivity check",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: sma_cross\nfast_window: 20\nslow_window: 100\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "rejected",
+        "verdictReason": "Parameter sensitivity"
+      },
+      {
+        "id": "candidate-b",
+        "metrics": {
+          "annualizedReturn": 8.9,
+          "maxDrawdown": -18.7,
+          "sharpe": 0.88,
+          "trades": 18
+        },
+        "name": "Candidate B · SMA 50/200",
+        "parameters": "fast=50 · slow=200",
+        "robustness": [
+          "One candidate-scoped repair retained",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: sma_cross\nfast_window: 50\nslow_window: 200\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "promising",
+        "verdictReason": "Candidate for paper evaluation"
+      },
+      {
+        "id": "candidate-c",
+        "metrics": {
+          "annualizedReturn": 9.3,
+          "maxDrawdown": -21.4,
+          "sharpe": 0.86,
+          "trades": 12
+        },
+        "name": "Candidate C · 200-day trend filter",
+        "parameters": "window=200",
+        "robustness": [
+          "Insufficient independent periods",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: trend_filter\nwindow: 200\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "inconclusive",
+        "verdictReason": "Too few independent trade periods"
+      }
+    ],
+    "composerLegalCommands": [],
+    "dataset": {
+      "authenticity": "synthetic_fixture",
+      "barCount": 4,
+      "dateRange": {
+        "end": "2023-12-29",
+        "start": "2018-01-02"
+      },
+      "digest": "sha256:fixture-dataset-a120",
+      "id": "fixture-spy-daily-v1",
+      "interval": "1D",
+      "name": "SPY Daily Synthetic Fixture 2018–2023",
+      "parserVersion": "fixture-parser-v1",
+      "schemaVersion": "market-bars-fixture-v1",
+      "symbol": "SPY"
+    },
+    "events": [
+      {
+        "actor": "system",
+        "id": "fixture-event-1",
+        "safeSummary": "Research attempt created from a synthetic fixture.",
+        "sequence": 1,
+        "timestamp": "2026-07-17T02:19:00Z",
+        "type": "run.created"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-2",
+        "safeSummary": "Pinned synthetic SPY fixture snapshot loaded.",
+        "sequence": 2,
+        "timestamp": "2026-07-17T02:20:00Z",
+        "type": "data.load.completed"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-3",
+        "safeSummary": "Candidate B fixture experiment stopped safely; the run did not fail.",
+        "sequence": 3,
+        "timestamp": "2026-07-17T02:21:00Z",
+        "type": "backtest.failed"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-4",
+        "safeSummary": "Candidate B fixture repair completed within the approved limit.",
+        "sequence": 4,
+        "timestamp": "2026-07-17T02:22:00Z",
+        "type": "repair.completed"
+      },
+      {
+        "actor": "validator",
+        "id": "fixture-event-5",
+        "safeSummary": "Candidate A rejected; candidate verdict is independent of run health.",
+        "sequence": 5,
+        "timestamp": "2026-07-17T02:23:00Z",
+        "type": "candidate.rejected"
+      },
+      {
+        "actor": "validator",
+        "id": "fixture-event-6",
+        "safeSummary": "Synthetic robustness validation completed.",
+        "sequence": 6,
+        "timestamp": "2026-07-17T02:24:00Z",
+        "type": "validation.completed"
+      },
+      {
+        "actor": "agent",
+        "id": "fixture-event-7",
+        "safeSummary": "Research Report generated from persisted synthetic fixture records.",
+        "sequence": 7,
+        "timestamp": "2026-07-17T02:25:00Z",
+        "type": "report.generated"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-8",
+        "safeSummary": "The fixture worker stopped safely.",
+        "sequence": 8,
+        "timestamp": "2026-07-17T02:26:00Z",
+        "type": "run.failed"
+      }
+    ],
+    "limits": {
+      "arbitraryPython": false,
+      "internetAccess": false,
+      "maxExperiments": 3,
+      "maxRepairAttempts": 2,
+      "maxRuntimeMinutes": 5,
+      "paperTrading": false
+    },
+    "modelLabel": "Not connected",
+    "plan": [
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: define research scope.",
+        "humanGate": true,
+        "id": "scope",
+        "owner": "user",
+        "status": "completed",
+        "title": "Define research scope"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: load market dataset.",
+        "humanGate": false,
+        "id": "dataset",
+        "owner": "system",
+        "status": "completed",
+        "title": "Load market dataset"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: build benchmark.",
+        "humanGate": false,
+        "id": "benchmark",
+        "owner": "system",
+        "status": "completed",
+        "title": "Build benchmark"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: generate candidates.",
+        "humanGate": false,
+        "id": "candidates",
+        "owner": "agent",
+        "status": "completed",
+        "title": "Generate candidates"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: run experiments.",
+        "humanGate": false,
+        "id": "experiments",
+        "owner": "agent",
+        "status": "failed",
+        "title": "Run experiments"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: repair recoverable failures.",
+        "humanGate": false,
+        "id": "repair",
+        "owner": "agent",
+        "status": "pending",
+        "title": "Repair recoverable failures"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: validate robustness.",
+        "humanGate": false,
+        "id": "validation",
+        "owner": "validator",
+        "status": "pending",
+        "title": "Validate robustness"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: compare candidates.",
+        "humanGate": false,
+        "id": "comparison",
+        "owner": "agent",
+        "status": "pending",
+        "title": "Compare candidates"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: generate report.",
+        "humanGate": false,
+        "id": "report",
+        "owner": "agent",
+        "status": "pending",
+        "title": "Generate report"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: human decision.",
+        "humanGate": true,
+        "id": "decision",
+        "owner": "user",
+        "status": "pending",
+        "title": "Human decision"
+      }
+    ],
+    "project": {
+      "goal": "Evaluate bounded SPY trend hypotheses with synthetic evidence.",
+      "id": "55555555-5555-4555-8555-555555555501",
+      "needsAction": false,
+      "statusLabel": "The fixture worker stopped safely.",
+      "symbol": "SPY",
+      "title": "SPY · Trend Research",
+      "updatedAt": "2026-07-17T02:24:00Z"
+    },
+    "recentProjects": [
+      {
+        "goal": "Evaluate bounded SPY trend hypotheses with synthetic evidence.",
+        "id": "55555555-5555-4555-8555-555555555501",
+        "needsAction": false,
+        "statusLabel": "The fixture worker stopped safely.",
+        "symbol": "SPY",
+        "title": "SPY · Trend Research",
+        "updatedAt": "2026-07-17T02:24:00Z"
+      }
+    ],
+    "report": {
+      "conclusion": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
+      "disclaimer": "Demonstration results are synthetic and are not investment advice, a recommendation, or evidence of future performance.",
+      "generationMethod": "Server-owned deterministic fixture projection",
+      "humanReviewStatus": "Fixture review record",
+      "id": "fixture-report",
+      "limitations": [
+        "All values are synthetic demonstration fixtures.",
+        "No real backtest or market-data retrieval occurred.",
+        "This is not investment advice."
+      ],
+      "proposedNextStep": "Review limitations; no broker or paper-trading action is available.",
+      "title": "SPY Synthetic Research Report",
+      "validatorVersion": "validator-fixture-v1"
+    },
+    "run": {
+      "attemptNumber": 1,
+      "completedAt": "2026-07-17T02:24:00Z",
+      "currentStepId": "experiments",
+      "id": "55555555-5555-4555-8555-555555555502",
+      "latestSequence": 8,
+      "legalCommands": [
+        "retry_run"
+      ],
+      "mode": "auto_research",
+      "rowVersion": 8,
+      "startedAt": "2026-07-17T02:18:00Z",
+      "state": "failed",
+      "traceRef": "fixture-trace-spy-01",
+      "usedExperiments": 3,
+      "usedRepairAttempts": 1
+    },
+    "runtimeLabel": "Deterministic fixture",
+    "scope": {
+      "assumptions": [
+        "Synthetic demonstration values",
+        "No network retrieval",
+        "No executable strategy code"
+      ],
+      "benchmark": "SPY Buy and Hold",
+      "dateRange": {
+        "end": "2023-12-29",
+        "start": "2018-01-02"
+      },
+      "interval": "1D",
+      "market": "US Equity",
+      "symbol": "SPY",
+      "version": 1
+    },
+    "trades": [
+      {
+        "candidateId": "candidate-b",
+        "entryDate": "2019-01-02",
+        "exitDate": "2021-01-04",
+        "holdingDays": 733,
+        "id": "fixture-trade-1",
+        "reason": "Synthetic fixture crossover record",
+        "returnPct": 7.4
+      }
+    ],
+    "version": "Phase 0 · server-fixture-v1",
+    "workspaceName": "PokieQuant Research"
+  },
+  "quant-no-viable-candidate": {
+    "artifacts": [
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-dataset-a120",
+        "id": "fixture-dataset",
+        "origin": "Server fixture repository",
+        "relatedLabel": "SPY · 1D",
+        "status": "ready",
+        "summary": "Bounded synthetic OHLCV demonstration values.",
+        "title": "SPY Daily Synthetic Snapshot",
+        "type": "dataset_snapshot"
+      },
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-validation-5b20",
+        "id": "fixture-validation",
+        "origin": "Deterministic validator fixture",
+        "relatedLabel": "3 candidates",
+        "status": "ready",
+        "summary": "Candidate-scoped fixture verdicts.",
+        "title": "Synthetic Robustness Validation",
+        "type": "validation_report"
+      },
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-report-4e91",
+        "id": "fixture-report",
+        "origin": "Server fixture projection",
+        "relatedLabel": "Attempt 1",
+        "status": "reviewed",
+        "summary": "No candidate passed validation; the research process still completed normally.",
+        "title": "SPY Synthetic Research Report",
+        "type": "research_report"
+      }
+    ],
+    "authenticity": "synthetic_fixture",
+    "bars": [
+      {
+        "close": 103,
+        "date": "2018-01-02",
+        "high": 104,
+        "low": 98,
+        "open": 100,
+        "volume": 1000
+      },
+      {
+        "close": 108,
+        "date": "2019-01-02",
+        "high": 110,
+        "low": 101,
+        "marker": "entry",
+        "open": 103,
+        "volume": 1200
+      },
+      {
+        "close": 101,
+        "date": "2020-01-02",
+        "high": 112,
+        "low": 99,
+        "marker": "policy",
+        "open": 108,
+        "volume": 1400
+      },
+      {
+        "close": 116,
+        "date": "2021-01-04",
+        "high": 118,
+        "low": 100,
+        "marker": "exit",
+        "open": 101,
+        "volume": 1300
+      }
+    ],
+    "benchmark": {
+      "annualizedReturn": 10.8,
+      "maxDrawdown": -33.7,
+      "sharpe": 0.72,
+      "trades": 1
+    },
+    "candidates": [
+      {
+        "id": "candidate-a",
+        "metrics": {
+          "annualizedReturn": 9.6,
+          "maxDrawdown": -24.8,
+          "sharpe": 0.83,
+          "trades": 38
+        },
+        "name": "Candidate A · SMA 20/100",
+        "parameters": "fast=20 · slow=100",
+        "robustness": [
+          "Fails adjacent-window sensitivity check",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: sma_cross\nfast_window: 20\nslow_window: 100\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "rejected",
+        "verdictReason": "Parameter sensitivity"
+      },
+      {
+        "id": "candidate-b",
+        "metrics": {
+          "annualizedReturn": 8.9,
+          "maxDrawdown": -18.7,
+          "sharpe": 0.88,
+          "trades": 18
+        },
+        "name": "Candidate B · SMA 50/200",
+        "parameters": "fast=50 · slow=200",
+        "robustness": [
+          "One candidate-scoped repair retained",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: sma_cross\nfast_window: 50\nslow_window: 200\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "rejected",
+        "verdictReason": "Failed configured validation"
+      },
+      {
+        "id": "candidate-c",
+        "metrics": {
+          "annualizedReturn": 9.3,
+          "maxDrawdown": -21.4,
+          "sharpe": 0.86,
+          "trades": 12
+        },
+        "name": "Candidate C · 200-day trend filter",
+        "parameters": "window=200",
+        "robustness": [
+          "Insufficient independent periods",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: trend_filter\nwindow: 200\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "rejected",
+        "verdictReason": "Failed configured validation"
+      }
+    ],
+    "composerLegalCommands": [],
+    "dataset": {
+      "authenticity": "synthetic_fixture",
+      "barCount": 4,
+      "dateRange": {
+        "end": "2023-12-29",
+        "start": "2018-01-02"
+      },
+      "digest": "sha256:fixture-dataset-a120",
+      "id": "fixture-spy-daily-v1",
+      "interval": "1D",
+      "name": "SPY Daily Synthetic Fixture 2018–2023",
+      "parserVersion": "fixture-parser-v1",
+      "schemaVersion": "market-bars-fixture-v1",
+      "symbol": "SPY"
+    },
+    "events": [
+      {
+        "actor": "system",
+        "id": "fixture-event-1",
+        "safeSummary": "Research attempt created from a synthetic fixture.",
+        "sequence": 1,
+        "timestamp": "2026-07-17T02:19:00Z",
+        "type": "run.created"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-2",
+        "safeSummary": "Pinned synthetic SPY fixture snapshot loaded.",
+        "sequence": 2,
+        "timestamp": "2026-07-17T02:20:00Z",
+        "type": "data.load.completed"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-3",
+        "safeSummary": "Candidate B fixture experiment stopped safely; the run did not fail.",
+        "sequence": 3,
+        "timestamp": "2026-07-17T02:21:00Z",
+        "type": "backtest.failed"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-4",
+        "safeSummary": "Candidate B fixture repair completed within the approved limit.",
+        "sequence": 4,
+        "timestamp": "2026-07-17T02:22:00Z",
+        "type": "repair.completed"
+      },
+      {
+        "actor": "validator",
+        "id": "fixture-event-5",
+        "safeSummary": "Candidate A rejected; candidate verdict is independent of run health.",
+        "sequence": 5,
+        "timestamp": "2026-07-17T02:23:00Z",
+        "type": "candidate.rejected"
+      },
+      {
+        "actor": "validator",
+        "id": "fixture-event-6",
+        "safeSummary": "Synthetic robustness validation completed.",
+        "sequence": 6,
+        "timestamp": "2026-07-17T02:24:00Z",
+        "type": "validation.completed"
+      },
+      {
+        "actor": "agent",
+        "id": "fixture-event-7",
+        "safeSummary": "Research Report generated from persisted synthetic fixture records.",
+        "sequence": 7,
+        "timestamp": "2026-07-17T02:25:00Z",
+        "type": "report.generated"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-8",
+        "safeSummary": "No candidate passed validation.",
+        "sequence": 8,
+        "timestamp": "2026-07-17T02:26:00Z",
+        "type": "run.completed"
+      }
+    ],
+    "limits": {
+      "arbitraryPython": false,
+      "internetAccess": false,
+      "maxExperiments": 3,
+      "maxRepairAttempts": 2,
+      "maxRuntimeMinutes": 5,
+      "paperTrading": false
+    },
+    "modelLabel": "Not connected",
+    "plan": [
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: define research scope.",
+        "humanGate": true,
+        "id": "scope",
+        "owner": "user",
+        "status": "completed",
+        "title": "Define research scope"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: load market dataset.",
+        "humanGate": false,
+        "id": "dataset",
+        "owner": "system",
+        "status": "completed",
+        "title": "Load market dataset"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: build benchmark.",
+        "humanGate": false,
+        "id": "benchmark",
+        "owner": "system",
+        "status": "completed",
+        "title": "Build benchmark"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: generate candidates.",
+        "humanGate": false,
+        "id": "candidates",
+        "owner": "agent",
+        "status": "completed",
+        "title": "Generate candidates"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: run experiments.",
+        "humanGate": false,
+        "id": "experiments",
+        "owner": "agent",
+        "status": "completed",
+        "title": "Run experiments"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: repair recoverable failures.",
+        "humanGate": false,
+        "id": "repair",
+        "owner": "agent",
+        "status": "completed",
+        "title": "Repair recoverable failures"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: validate robustness.",
+        "humanGate": false,
+        "id": "validation",
+        "owner": "validator",
+        "status": "completed",
+        "title": "Validate robustness"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: compare candidates.",
+        "humanGate": false,
+        "id": "comparison",
+        "owner": "agent",
+        "status": "completed",
+        "title": "Compare candidates"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: generate report.",
+        "humanGate": false,
+        "id": "report",
+        "owner": "agent",
+        "status": "completed",
+        "title": "Generate report"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: human decision.",
+        "humanGate": true,
+        "id": "decision",
+        "owner": "user",
+        "status": "completed",
+        "title": "Human decision"
+      }
+    ],
+    "project": {
+      "goal": "Evaluate bounded SPY trend hypotheses with synthetic evidence.",
+      "id": "55555555-5555-4555-8555-555555555501",
+      "needsAction": false,
+      "statusLabel": "No candidate passed validation.",
+      "symbol": "SPY",
+      "title": "SPY · Trend Research",
+      "updatedAt": "2026-07-17T02:24:00Z"
+    },
+    "recentProjects": [
+      {
+        "goal": "Evaluate bounded SPY trend hypotheses with synthetic evidence.",
+        "id": "55555555-5555-4555-8555-555555555501",
+        "needsAction": false,
+        "statusLabel": "No candidate passed validation.",
+        "symbol": "SPY",
+        "title": "SPY · Trend Research",
+        "updatedAt": "2026-07-17T02:24:00Z"
+      }
+    ],
+    "report": {
+      "conclusion": "No candidate passed validation; the research process still completed normally.",
+      "disclaimer": "Demonstration results are synthetic and are not investment advice, a recommendation, or evidence of future performance.",
+      "generationMethod": "Server-owned deterministic fixture projection",
+      "humanReviewStatus": "Fixture review record",
+      "id": "fixture-report",
+      "limitations": [
+        "All values are synthetic demonstration fixtures.",
+        "No real backtest or market-data retrieval occurred.",
+        "This is not investment advice."
+      ],
+      "proposedNextStep": "Review limitations; no broker or paper-trading action is available.",
+      "title": "SPY Synthetic Research Report",
+      "validatorVersion": "validator-fixture-v1"
+    },
+    "run": {
+      "attemptNumber": 1,
+      "completedAt": "2026-07-17T02:24:00Z",
+      "currentStepId": "decision",
+      "id": "55555555-5555-4555-8555-555555555502",
+      "latestSequence": 8,
+      "legalCommands": [],
+      "mode": "auto_research",
+      "rowVersion": 8,
+      "startedAt": "2026-07-17T02:18:00Z",
+      "state": "completed",
+      "traceRef": "fixture-trace-spy-01",
+      "usedExperiments": 3,
+      "usedRepairAttempts": 1
+    },
+    "runtimeLabel": "Deterministic fixture",
+    "scope": {
+      "assumptions": [
+        "Synthetic demonstration values",
+        "No network retrieval",
+        "No executable strategy code"
+      ],
+      "benchmark": "SPY Buy and Hold",
+      "dateRange": {
+        "end": "2023-12-29",
+        "start": "2018-01-02"
+      },
+      "interval": "1D",
+      "market": "US Equity",
+      "symbol": "SPY",
+      "version": 1
+    },
+    "trades": [
+      {
+        "candidateId": "candidate-b",
+        "entryDate": "2019-01-02",
+        "exitDate": "2021-01-04",
+        "holdingDays": 733,
+        "id": "fixture-trade-1",
+        "reason": "Synthetic fixture crossover record",
+        "returnPct": 7.4
+      }
+    ],
+    "version": "Phase 0 · server-fixture-v1",
+    "workspaceName": "PokieQuant Research"
+  },
+  "quant-plan-approval": {
+    "artifacts": [
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-dataset-a120",
+        "id": "fixture-dataset",
+        "origin": "Server fixture repository",
+        "relatedLabel": "SPY · 1D",
+        "status": "ready",
+        "summary": "Bounded synthetic OHLCV demonstration values.",
+        "title": "SPY Daily Synthetic Snapshot",
+        "type": "dataset_snapshot"
+      },
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-validation-5b20",
+        "id": "fixture-validation",
+        "origin": "Deterministic validator fixture",
+        "relatedLabel": "3 candidates",
+        "status": "ready",
+        "summary": "Candidate-scoped fixture verdicts.",
+        "title": "Synthetic Robustness Validation",
+        "type": "validation_report"
+      },
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-report-4e91",
+        "id": "fixture-report",
+        "origin": "Server fixture projection",
+        "relatedLabel": "Attempt 1",
+        "status": "ready",
+        "summary": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
+        "title": "SPY Synthetic Research Report",
+        "type": "research_report"
+      }
+    ],
+    "authenticity": "synthetic_fixture",
+    "bars": [
+      {
+        "close": 103,
+        "date": "2018-01-02",
+        "high": 104,
+        "low": 98,
+        "open": 100,
+        "volume": 1000
+      },
+      {
+        "close": 108,
+        "date": "2019-01-02",
+        "high": 110,
+        "low": 101,
+        "marker": "entry",
+        "open": 103,
+        "volume": 1200
+      },
+      {
+        "close": 101,
+        "date": "2020-01-02",
+        "high": 112,
+        "low": 99,
+        "marker": "policy",
+        "open": 108,
+        "volume": 1400
+      },
+      {
+        "close": 116,
+        "date": "2021-01-04",
+        "high": 118,
+        "low": 100,
+        "marker": "exit",
+        "open": 101,
+        "volume": 1300
+      }
+    ],
+    "benchmark": {
+      "annualizedReturn": 10.8,
+      "maxDrawdown": -33.7,
+      "sharpe": 0.72,
+      "trades": 1
+    },
+    "candidates": [
+      {
+        "id": "candidate-a",
+        "metrics": {
+          "annualizedReturn": 9.6,
+          "maxDrawdown": -24.8,
+          "sharpe": 0.83,
+          "trades": 38
+        },
+        "name": "Candidate A · SMA 20/100",
+        "parameters": "fast=20 · slow=100",
+        "robustness": [
+          "Fails adjacent-window sensitivity check",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: sma_cross\nfast_window: 20\nslow_window: 100\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "rejected",
+        "verdictReason": "Parameter sensitivity"
+      },
+      {
+        "id": "candidate-b",
+        "metrics": {
+          "annualizedReturn": 8.9,
+          "maxDrawdown": -18.7,
+          "sharpe": 0.88,
+          "trades": 18
+        },
+        "name": "Candidate B · SMA 50/200",
+        "parameters": "fast=50 · slow=200",
+        "robustness": [
+          "One candidate-scoped repair retained",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: sma_cross\nfast_window: 50\nslow_window: 200\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "promising",
+        "verdictReason": "Candidate for paper evaluation"
+      },
+      {
+        "id": "candidate-c",
+        "metrics": {
+          "annualizedReturn": 9.3,
+          "maxDrawdown": -21.4,
+          "sharpe": 0.86,
+          "trades": 12
+        },
+        "name": "Candidate C · 200-day trend filter",
+        "parameters": "window=200",
+        "robustness": [
+          "Insufficient independent periods",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: trend_filter\nwindow: 200\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "inconclusive",
+        "verdictReason": "Too few independent trade periods"
+      }
+    ],
+    "composerLegalCommands": [],
+    "dataset": {
+      "authenticity": "synthetic_fixture",
+      "barCount": 4,
+      "dateRange": {
+        "end": "2023-12-29",
+        "start": "2018-01-02"
+      },
+      "digest": "sha256:fixture-dataset-a120",
+      "id": "fixture-spy-daily-v1",
+      "interval": "1D",
+      "name": "SPY Daily Synthetic Fixture 2018–2023",
+      "parserVersion": "fixture-parser-v1",
+      "schemaVersion": "market-bars-fixture-v1",
+      "symbol": "SPY"
+    },
+    "events": [
+      {
+        "actor": "system",
+        "id": "fixture-event-1",
+        "safeSummary": "Research attempt created from a synthetic fixture.",
+        "sequence": 1,
+        "timestamp": "2026-07-17T02:19:00Z",
+        "type": "run.created"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-2",
+        "safeSummary": "Pinned synthetic SPY fixture snapshot loaded.",
+        "sequence": 2,
+        "timestamp": "2026-07-17T02:20:00Z",
+        "type": "data.load.completed"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-3",
+        "safeSummary": "Candidate B fixture experiment stopped safely; the run did not fail.",
+        "sequence": 3,
+        "timestamp": "2026-07-17T02:21:00Z",
+        "type": "backtest.failed"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-4",
+        "safeSummary": "Candidate B fixture repair completed within the approved limit.",
+        "sequence": 4,
+        "timestamp": "2026-07-17T02:22:00Z",
+        "type": "repair.completed"
+      },
+      {
+        "actor": "validator",
+        "id": "fixture-event-5",
+        "safeSummary": "Candidate A rejected; candidate verdict is independent of run health.",
+        "sequence": 5,
+        "timestamp": "2026-07-17T02:23:00Z",
+        "type": "candidate.rejected"
+      },
+      {
+        "actor": "validator",
+        "id": "fixture-event-6",
+        "safeSummary": "Synthetic robustness validation completed.",
+        "sequence": 6,
+        "timestamp": "2026-07-17T02:24:00Z",
+        "type": "validation.completed"
+      },
+      {
+        "actor": "agent",
+        "id": "fixture-event-7",
+        "safeSummary": "Research Report generated from persisted synthetic fixture records.",
+        "sequence": 7,
+        "timestamp": "2026-07-17T02:25:00Z",
+        "type": "report.generated"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-8",
+        "safeSummary": "The synthetic plan is waiting for approval.",
+        "sequence": 8,
+        "timestamp": "2026-07-17T02:26:00Z",
+        "type": "run.completed"
+      }
+    ],
+    "limits": {
+      "arbitraryPython": false,
+      "internetAccess": false,
+      "maxExperiments": 3,
+      "maxRepairAttempts": 2,
+      "maxRuntimeMinutes": 5,
+      "paperTrading": false
+    },
+    "modelLabel": "Not connected",
+    "plan": [
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: define research scope.",
+        "humanGate": true,
+        "id": "scope",
+        "owner": "user",
+        "status": "waiting",
+        "title": "Define research scope"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: load market dataset.",
+        "humanGate": false,
+        "id": "dataset",
+        "owner": "system",
+        "status": "pending",
+        "title": "Load market dataset"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: build benchmark.",
+        "humanGate": false,
+        "id": "benchmark",
+        "owner": "system",
+        "status": "pending",
+        "title": "Build benchmark"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: generate candidates.",
+        "humanGate": false,
+        "id": "candidates",
+        "owner": "agent",
+        "status": "pending",
+        "title": "Generate candidates"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: run experiments.",
+        "humanGate": false,
+        "id": "experiments",
+        "owner": "agent",
+        "status": "pending",
+        "title": "Run experiments"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: repair recoverable failures.",
+        "humanGate": false,
+        "id": "repair",
+        "owner": "agent",
+        "status": "pending",
+        "title": "Repair recoverable failures"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: validate robustness.",
+        "humanGate": false,
+        "id": "validation",
+        "owner": "validator",
+        "status": "pending",
+        "title": "Validate robustness"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: compare candidates.",
+        "humanGate": false,
+        "id": "comparison",
+        "owner": "agent",
+        "status": "pending",
+        "title": "Compare candidates"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: generate report.",
+        "humanGate": false,
+        "id": "report",
+        "owner": "agent",
+        "status": "pending",
+        "title": "Generate report"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: human decision.",
+        "humanGate": true,
+        "id": "decision",
+        "owner": "user",
+        "status": "pending",
+        "title": "Human decision"
+      }
+    ],
+    "project": {
+      "goal": "Evaluate bounded SPY trend hypotheses with synthetic evidence.",
+      "id": "55555555-5555-4555-8555-555555555501",
+      "needsAction": true,
+      "statusLabel": "The synthetic plan is waiting for approval.",
+      "symbol": "SPY",
+      "title": "SPY · Trend Research",
+      "updatedAt": "2026-07-17T02:24:00Z"
+    },
+    "recentProjects": [
+      {
+        "goal": "Evaluate bounded SPY trend hypotheses with synthetic evidence.",
+        "id": "55555555-5555-4555-8555-555555555501",
+        "needsAction": true,
+        "statusLabel": "The synthetic plan is waiting for approval.",
+        "symbol": "SPY",
+        "title": "SPY · Trend Research",
+        "updatedAt": "2026-07-17T02:24:00Z"
+      }
+    ],
+    "report": {
+      "conclusion": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
+      "disclaimer": "Demonstration results are synthetic and are not investment advice, a recommendation, or evidence of future performance.",
+      "generationMethod": "Server-owned deterministic fixture projection",
+      "humanReviewStatus": "Fixture review record",
+      "id": "fixture-report",
+      "limitations": [
+        "All values are synthetic demonstration fixtures.",
+        "No real backtest or market-data retrieval occurred.",
+        "This is not investment advice."
+      ],
+      "proposedNextStep": "Review limitations; no broker or paper-trading action is available.",
+      "title": "SPY Synthetic Research Report",
+      "validatorVersion": "validator-fixture-v1"
+    },
+    "run": {
+      "attemptNumber": 1,
+      "completedAt": null,
+      "currentStepId": "scope",
+      "id": "55555555-5555-4555-8555-555555555502",
+      "latestSequence": 8,
+      "legalCommands": [
+        "approve_plan",
+        "request_plan_changes",
+        "cancel_run"
+      ],
+      "mode": "auto_research",
+      "rowVersion": 8,
+      "startedAt": "2026-07-17T02:18:00Z",
+      "state": "waiting_plan_approval",
+      "traceRef": "fixture-trace-spy-01",
+      "usedExperiments": 3,
+      "usedRepairAttempts": 1
+    },
+    "runtimeLabel": "Deterministic fixture",
+    "scope": {
+      "assumptions": [
+        "Synthetic demonstration values",
+        "No network retrieval",
+        "No executable strategy code"
+      ],
+      "benchmark": "SPY Buy and Hold",
+      "dateRange": {
+        "end": "2023-12-29",
+        "start": "2018-01-02"
+      },
+      "interval": "1D",
+      "market": "US Equity",
+      "symbol": "SPY",
+      "version": 1
+    },
+    "trades": [
+      {
+        "candidateId": "candidate-b",
+        "entryDate": "2019-01-02",
+        "exitDate": "2021-01-04",
+        "holdingDays": 733,
+        "id": "fixture-trade-1",
+        "reason": "Synthetic fixture crossover record",
+        "returnPct": 7.4
+      }
+    ],
+    "version": "Phase 0 · server-fixture-v1",
+    "workspaceName": "PokieQuant Research"
+  },
+  "quant-ready": {
+    "artifacts": [
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-dataset-a120",
+        "id": "fixture-dataset",
+        "origin": "Server fixture repository",
+        "relatedLabel": "SPY · 1D",
+        "status": "ready",
+        "summary": "Bounded synthetic OHLCV demonstration values.",
+        "title": "SPY Daily Synthetic Snapshot",
+        "type": "dataset_snapshot"
+      },
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-validation-5b20",
+        "id": "fixture-validation",
+        "origin": "Deterministic validator fixture",
+        "relatedLabel": "3 candidates",
+        "status": "ready",
+        "summary": "Candidate-scoped fixture verdicts.",
+        "title": "Synthetic Robustness Validation",
+        "type": "validation_report"
+      },
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-report-4e91",
+        "id": "fixture-report",
+        "origin": "Server fixture projection",
+        "relatedLabel": "Attempt 1",
+        "status": "ready",
+        "summary": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
+        "title": "SPY Synthetic Research Report",
+        "type": "research_report"
+      }
+    ],
+    "authenticity": "synthetic_fixture",
+    "bars": [
+      {
+        "close": 103,
+        "date": "2018-01-02",
+        "high": 104,
+        "low": 98,
+        "open": 100,
+        "volume": 1000
+      },
+      {
+        "close": 108,
+        "date": "2019-01-02",
+        "high": 110,
+        "low": 101,
+        "marker": "entry",
+        "open": 103,
+        "volume": 1200
+      },
+      {
+        "close": 101,
+        "date": "2020-01-02",
+        "high": 112,
+        "low": 99,
+        "marker": "policy",
+        "open": 108,
+        "volume": 1400
+      },
+      {
+        "close": 116,
+        "date": "2021-01-04",
+        "high": 118,
+        "low": 100,
+        "marker": "exit",
+        "open": 101,
+        "volume": 1300
+      }
+    ],
+    "benchmark": {
+      "annualizedReturn": 10.8,
+      "maxDrawdown": -33.7,
+      "sharpe": 0.72,
+      "trades": 1
+    },
+    "candidates": [
+      {
+        "id": "candidate-a",
+        "metrics": {
+          "annualizedReturn": 9.6,
+          "maxDrawdown": -24.8,
+          "sharpe": 0.83,
+          "trades": 38
+        },
+        "name": "Candidate A · SMA 20/100",
+        "parameters": "fast=20 · slow=100",
+        "robustness": [
+          "Fails adjacent-window sensitivity check",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: sma_cross\nfast_window: 20\nslow_window: 100\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "rejected",
+        "verdictReason": "Parameter sensitivity"
+      },
+      {
+        "id": "candidate-b",
+        "metrics": {
+          "annualizedReturn": 8.9,
+          "maxDrawdown": -18.7,
+          "sharpe": 0.88,
+          "trades": 18
+        },
+        "name": "Candidate B · SMA 50/200",
+        "parameters": "fast=50 · slow=200",
+        "robustness": [
+          "One candidate-scoped repair retained",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: sma_cross\nfast_window: 50\nslow_window: 200\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "promising",
+        "verdictReason": "Candidate for paper evaluation"
+      },
+      {
+        "id": "candidate-c",
+        "metrics": {
+          "annualizedReturn": 9.3,
+          "maxDrawdown": -21.4,
+          "sharpe": 0.86,
+          "trades": 12
+        },
+        "name": "Candidate C · 200-day trend filter",
+        "parameters": "window=200",
+        "robustness": [
+          "Insufficient independent periods",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: trend_filter\nwindow: 200\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "inconclusive",
+        "verdictReason": "Too few independent trade periods"
+      }
+    ],
+    "composerLegalCommands": [
+      "ask",
+      "generate_plan"
+    ],
+    "dataset": {
+      "authenticity": "synthetic_fixture",
+      "barCount": 4,
+      "dateRange": {
+        "end": "2023-12-29",
+        "start": "2018-01-02"
+      },
+      "digest": "sha256:fixture-dataset-a120",
+      "id": "fixture-spy-daily-v1",
+      "interval": "1D",
+      "name": "SPY Daily Synthetic Fixture 2018–2023",
+      "parserVersion": "fixture-parser-v1",
+      "schemaVersion": "market-bars-fixture-v1",
+      "symbol": "SPY"
+    },
+    "events": [
+      {
+        "actor": "system",
+        "id": "fixture-event-1",
+        "safeSummary": "Research attempt created from a synthetic fixture.",
+        "sequence": 1,
+        "timestamp": "2026-07-17T02:19:00Z",
+        "type": "run.created"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-2",
+        "safeSummary": "Pinned synthetic SPY fixture snapshot loaded.",
+        "sequence": 2,
+        "timestamp": "2026-07-17T02:20:00Z",
+        "type": "data.load.completed"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-3",
+        "safeSummary": "Candidate B fixture experiment stopped safely; the run did not fail.",
+        "sequence": 3,
+        "timestamp": "2026-07-17T02:21:00Z",
+        "type": "backtest.failed"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-4",
+        "safeSummary": "Candidate B fixture repair completed within the approved limit.",
+        "sequence": 4,
+        "timestamp": "2026-07-17T02:22:00Z",
+        "type": "repair.completed"
+      },
+      {
+        "actor": "validator",
+        "id": "fixture-event-5",
+        "safeSummary": "Candidate A rejected; candidate verdict is independent of run health.",
+        "sequence": 5,
+        "timestamp": "2026-07-17T02:23:00Z",
+        "type": "candidate.rejected"
+      },
+      {
+        "actor": "validator",
+        "id": "fixture-event-6",
+        "safeSummary": "Synthetic robustness validation completed.",
+        "sequence": 6,
+        "timestamp": "2026-07-17T02:24:00Z",
+        "type": "validation.completed"
+      },
+      {
+        "actor": "agent",
+        "id": "fixture-event-7",
+        "safeSummary": "Research Report generated from persisted synthetic fixture records.",
+        "sequence": 7,
+        "timestamp": "2026-07-17T02:25:00Z",
+        "type": "report.generated"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-8",
+        "safeSummary": "Scope is ready for planning.",
+        "sequence": 8,
+        "timestamp": "2026-07-17T02:26:00Z",
+        "type": "run.completed"
+      }
+    ],
+    "limits": {
+      "arbitraryPython": false,
+      "internetAccess": false,
+      "maxExperiments": 3,
+      "maxRepairAttempts": 2,
+      "maxRuntimeMinutes": 5,
+      "paperTrading": false
+    },
+    "modelLabel": "Not connected",
+    "plan": [
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: define research scope.",
+        "humanGate": true,
+        "id": "scope",
+        "owner": "user",
+        "status": "active",
+        "title": "Define research scope"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: load market dataset.",
+        "humanGate": false,
+        "id": "dataset",
+        "owner": "system",
+        "status": "pending",
+        "title": "Load market dataset"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: build benchmark.",
+        "humanGate": false,
+        "id": "benchmark",
+        "owner": "system",
+        "status": "pending",
+        "title": "Build benchmark"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: generate candidates.",
+        "humanGate": false,
+        "id": "candidates",
+        "owner": "agent",
+        "status": "pending",
+        "title": "Generate candidates"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: run experiments.",
+        "humanGate": false,
+        "id": "experiments",
+        "owner": "agent",
+        "status": "pending",
+        "title": "Run experiments"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: repair recoverable failures.",
+        "humanGate": false,
+        "id": "repair",
+        "owner": "agent",
+        "status": "pending",
+        "title": "Repair recoverable failures"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: validate robustness.",
+        "humanGate": false,
+        "id": "validation",
+        "owner": "validator",
+        "status": "pending",
+        "title": "Validate robustness"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: compare candidates.",
+        "humanGate": false,
+        "id": "comparison",
+        "owner": "agent",
+        "status": "pending",
+        "title": "Compare candidates"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: generate report.",
+        "humanGate": false,
+        "id": "report",
+        "owner": "agent",
+        "status": "pending",
+        "title": "Generate report"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: human decision.",
+        "humanGate": true,
+        "id": "decision",
+        "owner": "user",
+        "status": "pending",
+        "title": "Human decision"
+      }
+    ],
+    "project": {
+      "goal": "Evaluate bounded SPY trend hypotheses with synthetic evidence.",
+      "id": "55555555-5555-4555-8555-555555555501",
+      "needsAction": false,
+      "statusLabel": "Scope is ready for planning.",
+      "symbol": "SPY",
+      "title": "SPY · Trend Research",
+      "updatedAt": "2026-07-17T02:24:00Z"
+    },
+    "recentProjects": [
+      {
+        "goal": "Evaluate bounded SPY trend hypotheses with synthetic evidence.",
+        "id": "55555555-5555-4555-8555-555555555501",
+        "needsAction": false,
+        "statusLabel": "Scope is ready for planning.",
+        "symbol": "SPY",
+        "title": "SPY · Trend Research",
+        "updatedAt": "2026-07-17T02:24:00Z"
+      }
+    ],
+    "report": {
+      "conclusion": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
+      "disclaimer": "Demonstration results are synthetic and are not investment advice, a recommendation, or evidence of future performance.",
+      "generationMethod": "Server-owned deterministic fixture projection",
+      "humanReviewStatus": "Fixture review record",
+      "id": "fixture-report",
+      "limitations": [
+        "All values are synthetic demonstration fixtures.",
+        "No real backtest or market-data retrieval occurred.",
+        "This is not investment advice."
+      ],
+      "proposedNextStep": "Review limitations; no broker or paper-trading action is available.",
+      "title": "SPY Synthetic Research Report",
+      "validatorVersion": "validator-fixture-v1"
+    },
+    "run": {
+      "attemptNumber": 1,
+      "completedAt": null,
+      "currentStepId": "scope",
+      "id": "55555555-5555-4555-8555-555555555502",
+      "latestSequence": 8,
+      "legalCommands": [
+        "generate_plan"
+      ],
+      "mode": "auto_research",
+      "rowVersion": 8,
+      "startedAt": "2026-07-17T02:18:00Z",
+      "state": "draft",
+      "traceRef": "fixture-trace-spy-01",
+      "usedExperiments": 3,
+      "usedRepairAttempts": 1
+    },
+    "runtimeLabel": "Deterministic fixture",
+    "scope": {
+      "assumptions": [
+        "Synthetic demonstration values",
+        "No network retrieval",
+        "No executable strategy code"
+      ],
+      "benchmark": "SPY Buy and Hold",
+      "dateRange": {
+        "end": "2023-12-29",
+        "start": "2018-01-02"
+      },
+      "interval": "1D",
+      "market": "US Equity",
+      "symbol": "SPY",
+      "version": 1
+    },
+    "trades": [
+      {
+        "candidateId": "candidate-b",
+        "entryDate": "2019-01-02",
+        "exitDate": "2021-01-04",
+        "holdingDays": 733,
+        "id": "fixture-trade-1",
+        "reason": "Synthetic fixture crossover record",
+        "returnPct": 7.4
+      }
+    ],
+    "version": "Phase 0 · server-fixture-v1",
+    "workspaceName": "PokieQuant Research"
+  },
+  "quant-repairing": {
+    "artifacts": [
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-dataset-a120",
+        "id": "fixture-dataset",
+        "origin": "Server fixture repository",
+        "relatedLabel": "SPY · 1D",
+        "status": "ready",
+        "summary": "Bounded synthetic OHLCV demonstration values.",
+        "title": "SPY Daily Synthetic Snapshot",
+        "type": "dataset_snapshot"
+      },
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-validation-5b20",
+        "id": "fixture-validation",
+        "origin": "Deterministic validator fixture",
+        "relatedLabel": "3 candidates",
+        "status": "ready",
+        "summary": "Candidate-scoped fixture verdicts.",
+        "title": "Synthetic Robustness Validation",
+        "type": "validation_report"
+      },
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-report-4e91",
+        "id": "fixture-report",
+        "origin": "Server fixture projection",
+        "relatedLabel": "Attempt 1",
+        "status": "ready",
+        "summary": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
+        "title": "SPY Synthetic Research Report",
+        "type": "research_report"
+      }
+    ],
+    "authenticity": "synthetic_fixture",
+    "bars": [
+      {
+        "close": 103,
+        "date": "2018-01-02",
+        "high": 104,
+        "low": 98,
+        "open": 100,
+        "volume": 1000
+      },
+      {
+        "close": 108,
+        "date": "2019-01-02",
+        "high": 110,
+        "low": 101,
+        "marker": "entry",
+        "open": 103,
+        "volume": 1200
+      },
+      {
+        "close": 101,
+        "date": "2020-01-02",
+        "high": 112,
+        "low": 99,
+        "marker": "policy",
+        "open": 108,
+        "volume": 1400
+      },
+      {
+        "close": 116,
+        "date": "2021-01-04",
+        "high": 118,
+        "low": 100,
+        "marker": "exit",
+        "open": 101,
+        "volume": 1300
+      }
+    ],
+    "benchmark": {
+      "annualizedReturn": 10.8,
+      "maxDrawdown": -33.7,
+      "sharpe": 0.72,
+      "trades": 1
+    },
+    "candidates": [
+      {
+        "id": "candidate-a",
+        "metrics": {
+          "annualizedReturn": 9.6,
+          "maxDrawdown": -24.8,
+          "sharpe": 0.83,
+          "trades": 38
+        },
+        "name": "Candidate A · SMA 20/100",
+        "parameters": "fast=20 · slow=100",
+        "robustness": [
+          "Fails adjacent-window sensitivity check",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: sma_cross\nfast_window: 20\nslow_window: 100\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "rejected",
+        "verdictReason": "Parameter sensitivity"
+      },
+      {
+        "id": "candidate-b",
+        "metrics": {
+          "annualizedReturn": 8.9,
+          "maxDrawdown": -18.7,
+          "sharpe": 0.88,
+          "trades": 18
+        },
+        "name": "Candidate B · SMA 50/200",
+        "parameters": "fast=50 · slow=200",
+        "robustness": [
+          "One candidate-scoped repair retained",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: sma_cross\nfast_window: 50\nslow_window: 200\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "promising",
+        "verdictReason": "Candidate for paper evaluation"
+      },
+      {
+        "id": "candidate-c",
+        "metrics": {
+          "annualizedReturn": 9.3,
+          "maxDrawdown": -21.4,
+          "sharpe": 0.86,
+          "trades": 12
+        },
+        "name": "Candidate C · 200-day trend filter",
+        "parameters": "window=200",
+        "robustness": [
+          "Insufficient independent periods",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: trend_filter\nwindow: 200\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "inconclusive",
+        "verdictReason": "Too few independent trade periods"
+      }
+    ],
+    "composerLegalCommands": [],
+    "dataset": {
+      "authenticity": "synthetic_fixture",
+      "barCount": 4,
+      "dateRange": {
+        "end": "2023-12-29",
+        "start": "2018-01-02"
+      },
+      "digest": "sha256:fixture-dataset-a120",
+      "id": "fixture-spy-daily-v1",
+      "interval": "1D",
+      "name": "SPY Daily Synthetic Fixture 2018–2023",
+      "parserVersion": "fixture-parser-v1",
+      "schemaVersion": "market-bars-fixture-v1",
+      "symbol": "SPY"
+    },
+    "events": [
+      {
+        "actor": "system",
+        "id": "fixture-event-1",
+        "safeSummary": "Research attempt created from a synthetic fixture.",
+        "sequence": 1,
+        "timestamp": "2026-07-17T02:19:00Z",
+        "type": "run.created"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-2",
+        "safeSummary": "Pinned synthetic SPY fixture snapshot loaded.",
+        "sequence": 2,
+        "timestamp": "2026-07-17T02:20:00Z",
+        "type": "data.load.completed"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-3",
+        "safeSummary": "Candidate B fixture experiment stopped safely; the run did not fail.",
+        "sequence": 3,
+        "timestamp": "2026-07-17T02:21:00Z",
+        "type": "backtest.failed"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-4",
+        "safeSummary": "Candidate B fixture repair completed within the approved limit.",
+        "sequence": 4,
+        "timestamp": "2026-07-17T02:22:00Z",
+        "type": "repair.completed"
+      },
+      {
+        "actor": "validator",
+        "id": "fixture-event-5",
+        "safeSummary": "Candidate A rejected; candidate verdict is independent of run health.",
+        "sequence": 5,
+        "timestamp": "2026-07-17T02:23:00Z",
+        "type": "candidate.rejected"
+      },
+      {
+        "actor": "validator",
+        "id": "fixture-event-6",
+        "safeSummary": "Synthetic robustness validation completed.",
+        "sequence": 6,
+        "timestamp": "2026-07-17T02:24:00Z",
+        "type": "validation.completed"
+      },
+      {
+        "actor": "agent",
+        "id": "fixture-event-7",
+        "safeSummary": "Research Report generated from persisted synthetic fixture records.",
+        "sequence": 7,
+        "timestamp": "2026-07-17T02:25:00Z",
+        "type": "report.generated"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-8",
+        "safeSummary": "Candidate B is in a bounded fixture repair.",
+        "sequence": 8,
+        "timestamp": "2026-07-17T02:26:00Z",
+        "type": "run.completed"
+      }
+    ],
+    "limits": {
+      "arbitraryPython": false,
+      "internetAccess": false,
+      "maxExperiments": 3,
+      "maxRepairAttempts": 2,
+      "maxRuntimeMinutes": 5,
+      "paperTrading": false
+    },
+    "modelLabel": "Not connected",
+    "plan": [
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: define research scope.",
+        "humanGate": true,
+        "id": "scope",
+        "owner": "user",
+        "status": "completed",
+        "title": "Define research scope"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: load market dataset.",
+        "humanGate": false,
+        "id": "dataset",
+        "owner": "system",
+        "status": "completed",
+        "title": "Load market dataset"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: build benchmark.",
+        "humanGate": false,
+        "id": "benchmark",
+        "owner": "system",
+        "status": "completed",
+        "title": "Build benchmark"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: generate candidates.",
+        "humanGate": false,
+        "id": "candidates",
+        "owner": "agent",
+        "status": "completed",
+        "title": "Generate candidates"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: run experiments.",
+        "humanGate": false,
+        "id": "experiments",
+        "owner": "agent",
+        "status": "completed",
+        "title": "Run experiments"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: repair recoverable failures.",
+        "humanGate": false,
+        "id": "repair",
+        "owner": "agent",
+        "status": "active",
+        "title": "Repair recoverable failures"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: validate robustness.",
+        "humanGate": false,
+        "id": "validation",
+        "owner": "validator",
+        "status": "pending",
+        "title": "Validate robustness"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: compare candidates.",
+        "humanGate": false,
+        "id": "comparison",
+        "owner": "agent",
+        "status": "pending",
+        "title": "Compare candidates"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: generate report.",
+        "humanGate": false,
+        "id": "report",
+        "owner": "agent",
+        "status": "pending",
+        "title": "Generate report"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: human decision.",
+        "humanGate": true,
+        "id": "decision",
+        "owner": "user",
+        "status": "pending",
+        "title": "Human decision"
+      }
+    ],
+    "project": {
+      "goal": "Evaluate bounded SPY trend hypotheses with synthetic evidence.",
+      "id": "55555555-5555-4555-8555-555555555501",
+      "needsAction": false,
+      "statusLabel": "Candidate B is in a bounded fixture repair.",
+      "symbol": "SPY",
+      "title": "SPY · Trend Research",
+      "updatedAt": "2026-07-17T02:24:00Z"
+    },
+    "recentProjects": [
+      {
+        "goal": "Evaluate bounded SPY trend hypotheses with synthetic evidence.",
+        "id": "55555555-5555-4555-8555-555555555501",
+        "needsAction": false,
+        "statusLabel": "Candidate B is in a bounded fixture repair.",
+        "symbol": "SPY",
+        "title": "SPY · Trend Research",
+        "updatedAt": "2026-07-17T02:24:00Z"
+      }
+    ],
+    "report": {
+      "conclusion": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
+      "disclaimer": "Demonstration results are synthetic and are not investment advice, a recommendation, or evidence of future performance.",
+      "generationMethod": "Server-owned deterministic fixture projection",
+      "humanReviewStatus": "Fixture review record",
+      "id": "fixture-report",
+      "limitations": [
+        "All values are synthetic demonstration fixtures.",
+        "No real backtest or market-data retrieval occurred.",
+        "This is not investment advice."
+      ],
+      "proposedNextStep": "Review limitations; no broker or paper-trading action is available.",
+      "title": "SPY Synthetic Research Report",
+      "validatorVersion": "validator-fixture-v1"
+    },
+    "run": {
+      "attemptNumber": 1,
+      "completedAt": null,
+      "currentStepId": "repair",
+      "id": "55555555-5555-4555-8555-555555555502",
+      "latestSequence": 8,
+      "legalCommands": [
+        "cancel_run"
+      ],
+      "mode": "auto_research",
+      "rowVersion": 8,
+      "startedAt": "2026-07-17T02:18:00Z",
+      "state": "repairing",
+      "traceRef": "fixture-trace-spy-01",
+      "usedExperiments": 3,
+      "usedRepairAttempts": 1
+    },
+    "runtimeLabel": "Deterministic fixture",
+    "scope": {
+      "assumptions": [
+        "Synthetic demonstration values",
+        "No network retrieval",
+        "No executable strategy code"
+      ],
+      "benchmark": "SPY Buy and Hold",
+      "dateRange": {
+        "end": "2023-12-29",
+        "start": "2018-01-02"
+      },
+      "interval": "1D",
+      "market": "US Equity",
+      "symbol": "SPY",
+      "version": 1
+    },
+    "trades": [
+      {
+        "candidateId": "candidate-b",
+        "entryDate": "2019-01-02",
+        "exitDate": "2021-01-04",
+        "holdingDays": 733,
+        "id": "fixture-trade-1",
+        "reason": "Synthetic fixture crossover record",
+        "returnPct": 7.4
+      }
+    ],
+    "version": "Phase 0 · server-fixture-v1",
+    "workspaceName": "PokieQuant Research"
+  },
+  "quant-running": {
+    "artifacts": [
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-dataset-a120",
+        "id": "fixture-dataset",
+        "origin": "Server fixture repository",
+        "relatedLabel": "SPY · 1D",
+        "status": "ready",
+        "summary": "Bounded synthetic OHLCV demonstration values.",
+        "title": "SPY Daily Synthetic Snapshot",
+        "type": "dataset_snapshot"
+      },
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-validation-5b20",
+        "id": "fixture-validation",
+        "origin": "Deterministic validator fixture",
+        "relatedLabel": "3 candidates",
+        "status": "ready",
+        "summary": "Candidate-scoped fixture verdicts.",
+        "title": "Synthetic Robustness Validation",
+        "type": "validation_report"
+      },
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-report-4e91",
+        "id": "fixture-report",
+        "origin": "Server fixture projection",
+        "relatedLabel": "Attempt 1",
+        "status": "ready",
+        "summary": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
+        "title": "SPY Synthetic Research Report",
+        "type": "research_report"
+      }
+    ],
+    "authenticity": "synthetic_fixture",
+    "bars": [
+      {
+        "close": 103,
+        "date": "2018-01-02",
+        "high": 104,
+        "low": 98,
+        "open": 100,
+        "volume": 1000
+      },
+      {
+        "close": 108,
+        "date": "2019-01-02",
+        "high": 110,
+        "low": 101,
+        "marker": "entry",
+        "open": 103,
+        "volume": 1200
+      },
+      {
+        "close": 101,
+        "date": "2020-01-02",
+        "high": 112,
+        "low": 99,
+        "marker": "policy",
+        "open": 108,
+        "volume": 1400
+      },
+      {
+        "close": 116,
+        "date": "2021-01-04",
+        "high": 118,
+        "low": 100,
+        "marker": "exit",
+        "open": 101,
+        "volume": 1300
+      }
+    ],
+    "benchmark": {
+      "annualizedReturn": 10.8,
+      "maxDrawdown": -33.7,
+      "sharpe": 0.72,
+      "trades": 1
+    },
+    "candidates": [
+      {
+        "id": "candidate-a",
+        "metrics": {
+          "annualizedReturn": 9.6,
+          "maxDrawdown": -24.8,
+          "sharpe": 0.83,
+          "trades": 38
+        },
+        "name": "Candidate A · SMA 20/100",
+        "parameters": "fast=20 · slow=100",
+        "robustness": [
+          "Fails adjacent-window sensitivity check",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: sma_cross\nfast_window: 20\nslow_window: 100\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "rejected",
+        "verdictReason": "Parameter sensitivity"
+      },
+      {
+        "id": "candidate-b",
+        "metrics": {
+          "annualizedReturn": 8.9,
+          "maxDrawdown": -18.7,
+          "sharpe": 0.88,
+          "trades": 18
+        },
+        "name": "Candidate B · SMA 50/200",
+        "parameters": "fast=50 · slow=200",
+        "robustness": [
+          "One candidate-scoped repair retained",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: sma_cross\nfast_window: 50\nslow_window: 200\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "promising",
+        "verdictReason": "Candidate for paper evaluation"
+      },
+      {
+        "id": "candidate-c",
+        "metrics": {
+          "annualizedReturn": 9.3,
+          "maxDrawdown": -21.4,
+          "sharpe": 0.86,
+          "trades": 12
+        },
+        "name": "Candidate C · 200-day trend filter",
+        "parameters": "window=200",
+        "robustness": [
+          "Insufficient independent periods",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: trend_filter\nwindow: 200\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "inconclusive",
+        "verdictReason": "Too few independent trade periods"
+      }
+    ],
+    "composerLegalCommands": [],
+    "dataset": {
+      "authenticity": "synthetic_fixture",
+      "barCount": 4,
+      "dateRange": {
+        "end": "2023-12-29",
+        "start": "2018-01-02"
+      },
+      "digest": "sha256:fixture-dataset-a120",
+      "id": "fixture-spy-daily-v1",
+      "interval": "1D",
+      "name": "SPY Daily Synthetic Fixture 2018–2023",
+      "parserVersion": "fixture-parser-v1",
+      "schemaVersion": "market-bars-fixture-v1",
+      "symbol": "SPY"
+    },
+    "events": [
+      {
+        "actor": "system",
+        "id": "fixture-event-1",
+        "safeSummary": "Research attempt created from a synthetic fixture.",
+        "sequence": 1,
+        "timestamp": "2026-07-17T02:19:00Z",
+        "type": "run.created"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-2",
+        "safeSummary": "Pinned synthetic SPY fixture snapshot loaded.",
+        "sequence": 2,
+        "timestamp": "2026-07-17T02:20:00Z",
+        "type": "data.load.completed"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-3",
+        "safeSummary": "Candidate B fixture experiment stopped safely; the run did not fail.",
+        "sequence": 3,
+        "timestamp": "2026-07-17T02:21:00Z",
+        "type": "backtest.failed"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-4",
+        "safeSummary": "Candidate B fixture repair completed within the approved limit.",
+        "sequence": 4,
+        "timestamp": "2026-07-17T02:22:00Z",
+        "type": "repair.completed"
+      },
+      {
+        "actor": "validator",
+        "id": "fixture-event-5",
+        "safeSummary": "Candidate A rejected; candidate verdict is independent of run health.",
+        "sequence": 5,
+        "timestamp": "2026-07-17T02:23:00Z",
+        "type": "candidate.rejected"
+      },
+      {
+        "actor": "validator",
+        "id": "fixture-event-6",
+        "safeSummary": "Synthetic robustness validation completed.",
+        "sequence": 6,
+        "timestamp": "2026-07-17T02:24:00Z",
+        "type": "validation.completed"
+      },
+      {
+        "actor": "agent",
+        "id": "fixture-event-7",
+        "safeSummary": "Research Report generated from persisted synthetic fixture records.",
+        "sequence": 7,
+        "timestamp": "2026-07-17T02:25:00Z",
+        "type": "report.generated"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-8",
+        "safeSummary": "Fixture experiments are being recorded.",
+        "sequence": 8,
+        "timestamp": "2026-07-17T02:26:00Z",
+        "type": "run.completed"
+      }
+    ],
+    "limits": {
+      "arbitraryPython": false,
+      "internetAccess": false,
+      "maxExperiments": 3,
+      "maxRepairAttempts": 2,
+      "maxRuntimeMinutes": 5,
+      "paperTrading": false
+    },
+    "modelLabel": "Not connected",
+    "plan": [
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: define research scope.",
+        "humanGate": true,
+        "id": "scope",
+        "owner": "user",
+        "status": "completed",
+        "title": "Define research scope"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: load market dataset.",
+        "humanGate": false,
+        "id": "dataset",
+        "owner": "system",
+        "status": "completed",
+        "title": "Load market dataset"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: build benchmark.",
+        "humanGate": false,
+        "id": "benchmark",
+        "owner": "system",
+        "status": "completed",
+        "title": "Build benchmark"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: generate candidates.",
+        "humanGate": false,
+        "id": "candidates",
+        "owner": "agent",
+        "status": "completed",
+        "title": "Generate candidates"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: run experiments.",
+        "humanGate": false,
+        "id": "experiments",
+        "owner": "agent",
+        "status": "active",
+        "title": "Run experiments"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: repair recoverable failures.",
+        "humanGate": false,
+        "id": "repair",
+        "owner": "agent",
+        "status": "pending",
+        "title": "Repair recoverable failures"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: validate robustness.",
+        "humanGate": false,
+        "id": "validation",
+        "owner": "validator",
+        "status": "pending",
+        "title": "Validate robustness"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: compare candidates.",
+        "humanGate": false,
+        "id": "comparison",
+        "owner": "agent",
+        "status": "pending",
+        "title": "Compare candidates"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: generate report.",
+        "humanGate": false,
+        "id": "report",
+        "owner": "agent",
+        "status": "pending",
+        "title": "Generate report"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: human decision.",
+        "humanGate": true,
+        "id": "decision",
+        "owner": "user",
+        "status": "pending",
+        "title": "Human decision"
+      }
+    ],
+    "project": {
+      "goal": "Evaluate bounded SPY trend hypotheses with synthetic evidence.",
+      "id": "55555555-5555-4555-8555-555555555501",
+      "needsAction": false,
+      "statusLabel": "Fixture experiments are being recorded.",
+      "symbol": "SPY",
+      "title": "SPY · Trend Research",
+      "updatedAt": "2026-07-17T02:24:00Z"
+    },
+    "recentProjects": [
+      {
+        "goal": "Evaluate bounded SPY trend hypotheses with synthetic evidence.",
+        "id": "55555555-5555-4555-8555-555555555501",
+        "needsAction": false,
+        "statusLabel": "Fixture experiments are being recorded.",
+        "symbol": "SPY",
+        "title": "SPY · Trend Research",
+        "updatedAt": "2026-07-17T02:24:00Z"
+      }
+    ],
+    "report": {
+      "conclusion": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
+      "disclaimer": "Demonstration results are synthetic and are not investment advice, a recommendation, or evidence of future performance.",
+      "generationMethod": "Server-owned deterministic fixture projection",
+      "humanReviewStatus": "Fixture review record",
+      "id": "fixture-report",
+      "limitations": [
+        "All values are synthetic demonstration fixtures.",
+        "No real backtest or market-data retrieval occurred.",
+        "This is not investment advice."
+      ],
+      "proposedNextStep": "Review limitations; no broker or paper-trading action is available.",
+      "title": "SPY Synthetic Research Report",
+      "validatorVersion": "validator-fixture-v1"
+    },
+    "run": {
+      "attemptNumber": 1,
+      "completedAt": null,
+      "currentStepId": "experiments",
+      "id": "55555555-5555-4555-8555-555555555502",
+      "latestSequence": 8,
+      "legalCommands": [
+        "cancel_run"
+      ],
+      "mode": "auto_research",
+      "rowVersion": 8,
+      "startedAt": "2026-07-17T02:18:00Z",
+      "state": "running_experiments",
+      "traceRef": "fixture-trace-spy-01",
+      "usedExperiments": 3,
+      "usedRepairAttempts": 1
+    },
+    "runtimeLabel": "Deterministic fixture",
+    "scope": {
+      "assumptions": [
+        "Synthetic demonstration values",
+        "No network retrieval",
+        "No executable strategy code"
+      ],
+      "benchmark": "SPY Buy and Hold",
+      "dateRange": {
+        "end": "2023-12-29",
+        "start": "2018-01-02"
+      },
+      "interval": "1D",
+      "market": "US Equity",
+      "symbol": "SPY",
+      "version": 1
+    },
+    "trades": [
+      {
+        "candidateId": "candidate-b",
+        "entryDate": "2019-01-02",
+        "exitDate": "2021-01-04",
+        "holdingDays": 733,
+        "id": "fixture-trade-1",
+        "reason": "Synthetic fixture crossover record",
+        "returnPct": 7.4
+      }
+    ],
+    "version": "Phase 0 · server-fixture-v1",
+    "workspaceName": "PokieQuant Research"
+  },
+  "quant-validating": {
+    "artifacts": [
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-dataset-a120",
+        "id": "fixture-dataset",
+        "origin": "Server fixture repository",
+        "relatedLabel": "SPY · 1D",
+        "status": "ready",
+        "summary": "Bounded synthetic OHLCV demonstration values.",
+        "title": "SPY Daily Synthetic Snapshot",
+        "type": "dataset_snapshot"
+      },
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-validation-5b20",
+        "id": "fixture-validation",
+        "origin": "Deterministic validator fixture",
+        "relatedLabel": "3 candidates",
+        "status": "ready",
+        "summary": "Candidate-scoped fixture verdicts.",
+        "title": "Synthetic Robustness Validation",
+        "type": "validation_report"
+      },
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-report-4e91",
+        "id": "fixture-report",
+        "origin": "Server fixture projection",
+        "relatedLabel": "Attempt 1",
+        "status": "ready",
+        "summary": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
+        "title": "SPY Synthetic Research Report",
+        "type": "research_report"
+      }
+    ],
+    "authenticity": "synthetic_fixture",
+    "bars": [
+      {
+        "close": 103,
+        "date": "2018-01-02",
+        "high": 104,
+        "low": 98,
+        "open": 100,
+        "volume": 1000
+      },
+      {
+        "close": 108,
+        "date": "2019-01-02",
+        "high": 110,
+        "low": 101,
+        "marker": "entry",
+        "open": 103,
+        "volume": 1200
+      },
+      {
+        "close": 101,
+        "date": "2020-01-02",
+        "high": 112,
+        "low": 99,
+        "marker": "policy",
+        "open": 108,
+        "volume": 1400
+      },
+      {
+        "close": 116,
+        "date": "2021-01-04",
+        "high": 118,
+        "low": 100,
+        "marker": "exit",
+        "open": 101,
+        "volume": 1300
+      }
+    ],
+    "benchmark": {
+      "annualizedReturn": 10.8,
+      "maxDrawdown": -33.7,
+      "sharpe": 0.72,
+      "trades": 1
+    },
+    "candidates": [
+      {
+        "id": "candidate-a",
+        "metrics": {
+          "annualizedReturn": 9.6,
+          "maxDrawdown": -24.8,
+          "sharpe": 0.83,
+          "trades": 38
+        },
+        "name": "Candidate A · SMA 20/100",
+        "parameters": "fast=20 · slow=100",
+        "robustness": [
+          "Fails adjacent-window sensitivity check",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: sma_cross\nfast_window: 20\nslow_window: 100\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "rejected",
+        "verdictReason": "Parameter sensitivity"
+      },
+      {
+        "id": "candidate-b",
+        "metrics": {
+          "annualizedReturn": 8.9,
+          "maxDrawdown": -18.7,
+          "sharpe": 0.88,
+          "trades": 18
+        },
+        "name": "Candidate B · SMA 50/200",
+        "parameters": "fast=50 · slow=200",
+        "robustness": [
+          "One candidate-scoped repair retained",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: sma_cross\nfast_window: 50\nslow_window: 200\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "promising",
+        "verdictReason": "Candidate for paper evaluation"
+      },
+      {
+        "id": "candidate-c",
+        "metrics": {
+          "annualizedReturn": 9.3,
+          "maxDrawdown": -21.4,
+          "sharpe": 0.86,
+          "trades": 12
+        },
+        "name": "Candidate C · 200-day trend filter",
+        "parameters": "window=200",
+        "robustness": [
+          "Insufficient independent periods",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: trend_filter\nwindow: 200\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "inconclusive",
+        "verdictReason": "Too few independent trade periods"
+      }
+    ],
+    "composerLegalCommands": [],
+    "dataset": {
+      "authenticity": "synthetic_fixture",
+      "barCount": 4,
+      "dateRange": {
+        "end": "2023-12-29",
+        "start": "2018-01-02"
+      },
+      "digest": "sha256:fixture-dataset-a120",
+      "id": "fixture-spy-daily-v1",
+      "interval": "1D",
+      "name": "SPY Daily Synthetic Fixture 2018–2023",
+      "parserVersion": "fixture-parser-v1",
+      "schemaVersion": "market-bars-fixture-v1",
+      "symbol": "SPY"
+    },
+    "events": [
+      {
+        "actor": "system",
+        "id": "fixture-event-1",
+        "safeSummary": "Research attempt created from a synthetic fixture.",
+        "sequence": 1,
+        "timestamp": "2026-07-17T02:19:00Z",
+        "type": "run.created"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-2",
+        "safeSummary": "Pinned synthetic SPY fixture snapshot loaded.",
+        "sequence": 2,
+        "timestamp": "2026-07-17T02:20:00Z",
+        "type": "data.load.completed"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-3",
+        "safeSummary": "Candidate B fixture experiment stopped safely; the run did not fail.",
+        "sequence": 3,
+        "timestamp": "2026-07-17T02:21:00Z",
+        "type": "backtest.failed"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-4",
+        "safeSummary": "Candidate B fixture repair completed within the approved limit.",
+        "sequence": 4,
+        "timestamp": "2026-07-17T02:22:00Z",
+        "type": "repair.completed"
+      },
+      {
+        "actor": "validator",
+        "id": "fixture-event-5",
+        "safeSummary": "Candidate A rejected; candidate verdict is independent of run health.",
+        "sequence": 5,
+        "timestamp": "2026-07-17T02:23:00Z",
+        "type": "candidate.rejected"
+      },
+      {
+        "actor": "validator",
+        "id": "fixture-event-6",
+        "safeSummary": "Synthetic robustness validation completed.",
+        "sequence": 6,
+        "timestamp": "2026-07-17T02:24:00Z",
+        "type": "validation.completed"
+      },
+      {
+        "actor": "agent",
+        "id": "fixture-event-7",
+        "safeSummary": "Research Report generated from persisted synthetic fixture records.",
+        "sequence": 7,
+        "timestamp": "2026-07-17T02:25:00Z",
+        "type": "report.generated"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-8",
+        "safeSummary": "Fixture robustness validation is active.",
+        "sequence": 8,
+        "timestamp": "2026-07-17T02:26:00Z",
+        "type": "run.completed"
+      }
+    ],
+    "limits": {
+      "arbitraryPython": false,
+      "internetAccess": false,
+      "maxExperiments": 3,
+      "maxRepairAttempts": 2,
+      "maxRuntimeMinutes": 5,
+      "paperTrading": false
+    },
+    "modelLabel": "Not connected",
+    "plan": [
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: define research scope.",
+        "humanGate": true,
+        "id": "scope",
+        "owner": "user",
+        "status": "completed",
+        "title": "Define research scope"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: load market dataset.",
+        "humanGate": false,
+        "id": "dataset",
+        "owner": "system",
+        "status": "completed",
+        "title": "Load market dataset"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: build benchmark.",
+        "humanGate": false,
+        "id": "benchmark",
+        "owner": "system",
+        "status": "completed",
+        "title": "Build benchmark"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: generate candidates.",
+        "humanGate": false,
+        "id": "candidates",
+        "owner": "agent",
+        "status": "completed",
+        "title": "Generate candidates"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: run experiments.",
+        "humanGate": false,
+        "id": "experiments",
+        "owner": "agent",
+        "status": "completed",
+        "title": "Run experiments"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: repair recoverable failures.",
+        "humanGate": false,
+        "id": "repair",
+        "owner": "agent",
+        "status": "completed",
+        "title": "Repair recoverable failures"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: validate robustness.",
+        "humanGate": false,
+        "id": "validation",
+        "owner": "validator",
+        "status": "active",
+        "title": "Validate robustness"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: compare candidates.",
+        "humanGate": false,
+        "id": "comparison",
+        "owner": "agent",
+        "status": "pending",
+        "title": "Compare candidates"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: generate report.",
+        "humanGate": false,
+        "id": "report",
+        "owner": "agent",
+        "status": "pending",
+        "title": "Generate report"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: human decision.",
+        "humanGate": true,
+        "id": "decision",
+        "owner": "user",
+        "status": "pending",
+        "title": "Human decision"
+      }
+    ],
+    "project": {
+      "goal": "Evaluate bounded SPY trend hypotheses with synthetic evidence.",
+      "id": "55555555-5555-4555-8555-555555555501",
+      "needsAction": false,
+      "statusLabel": "Fixture robustness validation is active.",
+      "symbol": "SPY",
+      "title": "SPY · Trend Research",
+      "updatedAt": "2026-07-17T02:24:00Z"
+    },
+    "recentProjects": [
+      {
+        "goal": "Evaluate bounded SPY trend hypotheses with synthetic evidence.",
+        "id": "55555555-5555-4555-8555-555555555501",
+        "needsAction": false,
+        "statusLabel": "Fixture robustness validation is active.",
+        "symbol": "SPY",
+        "title": "SPY · Trend Research",
+        "updatedAt": "2026-07-17T02:24:00Z"
+      }
+    ],
+    "report": {
+      "conclusion": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
+      "disclaimer": "Demonstration results are synthetic and are not investment advice, a recommendation, or evidence of future performance.",
+      "generationMethod": "Server-owned deterministic fixture projection",
+      "humanReviewStatus": "Fixture review record",
+      "id": "fixture-report",
+      "limitations": [
+        "All values are synthetic demonstration fixtures.",
+        "No real backtest or market-data retrieval occurred.",
+        "This is not investment advice."
+      ],
+      "proposedNextStep": "Review limitations; no broker or paper-trading action is available.",
+      "title": "SPY Synthetic Research Report",
+      "validatorVersion": "validator-fixture-v1"
+    },
+    "run": {
+      "attemptNumber": 1,
+      "completedAt": null,
+      "currentStepId": "validation",
+      "id": "55555555-5555-4555-8555-555555555502",
+      "latestSequence": 8,
+      "legalCommands": [
+        "cancel_run"
+      ],
+      "mode": "auto_research",
+      "rowVersion": 8,
+      "startedAt": "2026-07-17T02:18:00Z",
+      "state": "validating",
+      "traceRef": "fixture-trace-spy-01",
+      "usedExperiments": 3,
+      "usedRepairAttempts": 1
+    },
+    "runtimeLabel": "Deterministic fixture",
+    "scope": {
+      "assumptions": [
+        "Synthetic demonstration values",
+        "No network retrieval",
+        "No executable strategy code"
+      ],
+      "benchmark": "SPY Buy and Hold",
+      "dateRange": {
+        "end": "2023-12-29",
+        "start": "2018-01-02"
+      },
+      "interval": "1D",
+      "market": "US Equity",
+      "symbol": "SPY",
+      "version": 1
+    },
+    "trades": [
+      {
+        "candidateId": "candidate-b",
+        "entryDate": "2019-01-02",
+        "exitDate": "2021-01-04",
+        "holdingDays": 733,
+        "id": "fixture-trade-1",
+        "reason": "Synthetic fixture crossover record",
+        "returnPct": 7.4
+      }
+    ],
+    "version": "Phase 0 · server-fixture-v1",
+    "workspaceName": "PokieQuant Research"
+  },
+  "quant-waiting-review": {
+    "artifacts": [
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-dataset-a120",
+        "id": "fixture-dataset",
+        "origin": "Server fixture repository",
+        "relatedLabel": "SPY · 1D",
+        "status": "ready",
+        "summary": "Bounded synthetic OHLCV demonstration values.",
+        "title": "SPY Daily Synthetic Snapshot",
+        "type": "dataset_snapshot"
+      },
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-validation-5b20",
+        "id": "fixture-validation",
+        "origin": "Deterministic validator fixture",
+        "relatedLabel": "3 candidates",
+        "status": "ready",
+        "summary": "Candidate-scoped fixture verdicts.",
+        "title": "Synthetic Robustness Validation",
+        "type": "validation_report"
+      },
+      {
+        "authenticity": "synthetic_fixture",
+        "digest": "sha256:fixture-report-4e91",
+        "id": "fixture-report",
+        "origin": "Server fixture projection",
+        "relatedLabel": "Attempt 1",
+        "status": "ready",
+        "summary": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
+        "title": "SPY Synthetic Research Report",
+        "type": "research_report"
+      }
+    ],
+    "authenticity": "synthetic_fixture",
+    "bars": [
+      {
+        "close": 103,
+        "date": "2018-01-02",
+        "high": 104,
+        "low": 98,
+        "open": 100,
+        "volume": 1000
+      },
+      {
+        "close": 108,
+        "date": "2019-01-02",
+        "high": 110,
+        "low": 101,
+        "marker": "entry",
+        "open": 103,
+        "volume": 1200
+      },
+      {
+        "close": 101,
+        "date": "2020-01-02",
+        "high": 112,
+        "low": 99,
+        "marker": "policy",
+        "open": 108,
+        "volume": 1400
+      },
+      {
+        "close": 116,
+        "date": "2021-01-04",
+        "high": 118,
+        "low": 100,
+        "marker": "exit",
+        "open": 101,
+        "volume": 1300
+      }
+    ],
+    "benchmark": {
+      "annualizedReturn": 10.8,
+      "maxDrawdown": -33.7,
+      "sharpe": 0.72,
+      "trades": 1
+    },
+    "candidates": [
+      {
+        "id": "candidate-a",
+        "metrics": {
+          "annualizedReturn": 9.6,
+          "maxDrawdown": -24.8,
+          "sharpe": 0.83,
+          "trades": 38
+        },
+        "name": "Candidate A · SMA 20/100",
+        "parameters": "fast=20 · slow=100",
+        "robustness": [
+          "Fails adjacent-window sensitivity check",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: sma_cross\nfast_window: 20\nslow_window: 100\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "rejected",
+        "verdictReason": "Parameter sensitivity"
+      },
+      {
+        "id": "candidate-b",
+        "metrics": {
+          "annualizedReturn": 8.9,
+          "maxDrawdown": -18.7,
+          "sharpe": 0.88,
+          "trades": 18
+        },
+        "name": "Candidate B · SMA 50/200",
+        "parameters": "fast=50 · slow=200",
+        "robustness": [
+          "One candidate-scoped repair retained",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: sma_cross\nfast_window: 50\nslow_window: 200\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "promising",
+        "verdictReason": "Candidate for paper evaluation"
+      },
+      {
+        "id": "candidate-c",
+        "metrics": {
+          "annualizedReturn": 9.3,
+          "maxDrawdown": -21.4,
+          "sharpe": 0.86,
+          "trades": 12
+        },
+        "name": "Candidate C · 200-day trend filter",
+        "parameters": "window=200",
+        "robustness": [
+          "Insufficient independent periods",
+          "Synthetic values only"
+        ],
+        "strategySpec": "family: trend_filter\nwindow: 200\nposition: long_or_cash",
+        "strategySpecVersion": "strategy-fixture-v1",
+        "verdict": "inconclusive",
+        "verdictReason": "Too few independent trade periods"
+      }
+    ],
+    "composerLegalCommands": [],
+    "dataset": {
+      "authenticity": "synthetic_fixture",
+      "barCount": 4,
+      "dateRange": {
+        "end": "2023-12-29",
+        "start": "2018-01-02"
+      },
+      "digest": "sha256:fixture-dataset-a120",
+      "id": "fixture-spy-daily-v1",
+      "interval": "1D",
+      "name": "SPY Daily Synthetic Fixture 2018–2023",
+      "parserVersion": "fixture-parser-v1",
+      "schemaVersion": "market-bars-fixture-v1",
+      "symbol": "SPY"
+    },
+    "events": [
+      {
+        "actor": "system",
+        "id": "fixture-event-1",
+        "safeSummary": "Research attempt created from a synthetic fixture.",
+        "sequence": 1,
+        "timestamp": "2026-07-17T02:19:00Z",
+        "type": "run.created"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-2",
+        "safeSummary": "Pinned synthetic SPY fixture snapshot loaded.",
+        "sequence": 2,
+        "timestamp": "2026-07-17T02:20:00Z",
+        "type": "data.load.completed"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-3",
+        "safeSummary": "Candidate B fixture experiment stopped safely; the run did not fail.",
+        "sequence": 3,
+        "timestamp": "2026-07-17T02:21:00Z",
+        "type": "backtest.failed"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-4",
+        "safeSummary": "Candidate B fixture repair completed within the approved limit.",
+        "sequence": 4,
+        "timestamp": "2026-07-17T02:22:00Z",
+        "type": "repair.completed"
+      },
+      {
+        "actor": "validator",
+        "id": "fixture-event-5",
+        "safeSummary": "Candidate A rejected; candidate verdict is independent of run health.",
+        "sequence": 5,
+        "timestamp": "2026-07-17T02:23:00Z",
+        "type": "candidate.rejected"
+      },
+      {
+        "actor": "validator",
+        "id": "fixture-event-6",
+        "safeSummary": "Synthetic robustness validation completed.",
+        "sequence": 6,
+        "timestamp": "2026-07-17T02:24:00Z",
+        "type": "validation.completed"
+      },
+      {
+        "actor": "agent",
+        "id": "fixture-event-7",
+        "safeSummary": "Research Report generated from persisted synthetic fixture records.",
+        "sequence": 7,
+        "timestamp": "2026-07-17T02:25:00Z",
+        "type": "report.generated"
+      },
+      {
+        "actor": "system",
+        "id": "fixture-event-8",
+        "safeSummary": "The fixture report is waiting for review.",
+        "sequence": 8,
+        "timestamp": "2026-07-17T02:26:00Z",
+        "type": "run.completed"
+      }
+    ],
+    "limits": {
+      "arbitraryPython": false,
+      "internetAccess": false,
+      "maxExperiments": 3,
+      "maxRepairAttempts": 2,
+      "maxRuntimeMinutes": 5,
+      "paperTrading": false
+    },
+    "modelLabel": "Not connected",
+    "plan": [
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: define research scope.",
+        "humanGate": true,
+        "id": "scope",
+        "owner": "user",
+        "status": "completed",
+        "title": "Define research scope"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: load market dataset.",
+        "humanGate": false,
+        "id": "dataset",
+        "owner": "system",
+        "status": "completed",
+        "title": "Load market dataset"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: build benchmark.",
+        "humanGate": false,
+        "id": "benchmark",
+        "owner": "system",
+        "status": "completed",
+        "title": "Build benchmark"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: generate candidates.",
+        "humanGate": false,
+        "id": "candidates",
+        "owner": "agent",
+        "status": "completed",
+        "title": "Generate candidates"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: run experiments.",
+        "humanGate": false,
+        "id": "experiments",
+        "owner": "agent",
+        "status": "completed",
+        "title": "Run experiments"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: repair recoverable failures.",
+        "humanGate": false,
+        "id": "repair",
+        "owner": "agent",
+        "status": "completed",
+        "title": "Repair recoverable failures"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: validate robustness.",
+        "humanGate": false,
+        "id": "validation",
+        "owner": "validator",
+        "status": "completed",
+        "title": "Validate robustness"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: compare candidates.",
+        "humanGate": false,
+        "id": "comparison",
+        "owner": "agent",
+        "status": "completed",
+        "title": "Compare candidates"
+      },
+      {
+        "artifactCount": 1,
+        "description": "Synthetic fixture step: generate report.",
+        "humanGate": false,
+        "id": "report",
+        "owner": "agent",
+        "status": "completed",
+        "title": "Generate report"
+      },
+      {
+        "artifactCount": 0,
+        "description": "Synthetic fixture step: human decision.",
+        "humanGate": true,
+        "id": "decision",
+        "owner": "user",
+        "status": "waiting",
+        "title": "Human decision"
+      }
+    ],
+    "project": {
+      "goal": "Evaluate bounded SPY trend hypotheses with synthetic evidence.",
+      "id": "55555555-5555-4555-8555-555555555501",
+      "needsAction": true,
+      "statusLabel": "The fixture report is waiting for review.",
+      "symbol": "SPY",
+      "title": "SPY · Trend Research",
+      "updatedAt": "2026-07-17T02:24:00Z"
+    },
+    "recentProjects": [
+      {
+        "goal": "Evaluate bounded SPY trend hypotheses with synthetic evidence.",
+        "id": "55555555-5555-4555-8555-555555555501",
+        "needsAction": true,
+        "statusLabel": "The fixture report is waiting for review.",
+        "symbol": "SPY",
+        "title": "SPY · Trend Research",
+        "updatedAt": "2026-07-17T02:24:00Z"
+      }
+    ],
+    "report": {
+      "conclusion": "Candidate B has the strongest fixture profile; Candidate A is rejected and Candidate C is inconclusive.",
+      "disclaimer": "Demonstration results are synthetic and are not investment advice, a recommendation, or evidence of future performance.",
+      "generationMethod": "Server-owned deterministic fixture projection",
+      "humanReviewStatus": "Fixture review record",
+      "id": "fixture-report",
+      "limitations": [
+        "All values are synthetic demonstration fixtures.",
+        "No real backtest or market-data retrieval occurred.",
+        "This is not investment advice."
+      ],
+      "proposedNextStep": "Review limitations; no broker or paper-trading action is available.",
+      "title": "SPY Synthetic Research Report",
+      "validatorVersion": "validator-fixture-v1"
+    },
+    "run": {
+      "attemptNumber": 1,
+      "completedAt": null,
+      "currentStepId": "decision",
+      "id": "55555555-5555-4555-8555-555555555502",
+      "latestSequence": 8,
+      "legalCommands": [
+        "complete_review"
+      ],
+      "mode": "auto_research",
+      "rowVersion": 8,
+      "startedAt": "2026-07-17T02:18:00Z",
+      "state": "waiting_for_review",
+      "traceRef": "fixture-trace-spy-01",
+      "usedExperiments": 3,
+      "usedRepairAttempts": 1
+    },
+    "runtimeLabel": "Deterministic fixture",
+    "scope": {
+      "assumptions": [
+        "Synthetic demonstration values",
+        "No network retrieval",
+        "No executable strategy code"
+      ],
+      "benchmark": "SPY Buy and Hold",
+      "dateRange": {
+        "end": "2023-12-29",
+        "start": "2018-01-02"
+      },
+      "interval": "1D",
+      "market": "US Equity",
+      "symbol": "SPY",
+      "version": 1
+    },
+    "trades": [
+      {
+        "candidateId": "candidate-b",
+        "entryDate": "2019-01-02",
+        "exitDate": "2021-01-04",
+        "holdingDays": 733,
+        "id": "fixture-trade-1",
+        "reason": "Synthetic fixture crossover record",
+        "returnPct": 7.4
+      }
+    ],
+    "version": "Phase 0 · server-fixture-v1",
+    "workspaceName": "PokieQuant Research"
+  }
+}

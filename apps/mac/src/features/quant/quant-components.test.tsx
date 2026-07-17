@@ -1,0 +1,55 @@
+import { renderToStaticMarkup } from 'react-dom/server';
+import { describe, expect, it, vi } from 'vitest';
+import { QuantActivityFeed, QuantArtifactCards } from './QuantActivity';
+import { QuantGoalComposer } from './QuantGoalComposer';
+import { QuantMarketWorkspace } from './QuantMarketWorkspace';
+import { QuantPlanRail } from './QuantPlanRail';
+import { presentQuantWorkspace } from './quant-presentation';
+import { QuantStrategyReport } from './QuantStrategyReport';
+import { quantFixtureSnapshot } from './quant-fixtures';
+
+const presentation = presentQuantWorkspace(quantFixtureSnapshot);
+
+describe('Quant Workspace components', () => {
+  it('renders all research modes and truthfully gates Auto Research', () => {
+    const markup = renderToStaticMarkup(<QuantGoalComposer snapshot={quantFixtureSnapshot} large onSubmit={vi.fn()} />);
+    expect(markup).toContain('Ask');
+    expect(markup).toContain('Plan');
+    expect(markup).toContain('Auto Research');
+    expect(markup).toContain('Internet disabled');
+    expect(markup).not.toContain('token');
+    expect(markup).not.toContain('cost');
+  });
+
+  it('renders discrete plan steps, owners, and artifacts without percentage progress', () => {
+    const markup = renderToStaticMarkup(<QuantPlanRail steps={quantFixtureSnapshot.plan} currentStepId={quantFixtureSnapshot.run.currentStepId} completedStepCount={presentation.completedStepCount} />);
+    expect(markup).toContain('10 of 10 steps');
+    expect(markup).toContain('Human gate');
+    expect(markup).toContain('Validator');
+    expect(markup).not.toMatch(/\d+%/);
+  });
+
+  it('renders safe activity copy and hides exact event names from the feed', () => {
+    const markup = renderToStaticMarkup(<QuantActivityFeed snapshot={quantFixtureSnapshot} presentation={presentation} onInspect={vi.fn()} />);
+    expect(markup).toContain('Candidate rejected by validator');
+    expect(markup).toContain('without failing the run');
+    expect(markup).not.toContain('candidate.rejected');
+  });
+
+  it('labels market evidence and artifact cards as Synthetic Demo Fixture', () => {
+    const market = renderToStaticMarkup(<QuantMarketWorkspace snapshot={quantFixtureSnapshot} onInspect={vi.fn()} />);
+    const artifacts = renderToStaticMarkup(<QuantArtifactCards artifacts={presentation.primaryArtifacts} onInspect={vi.fn()} />);
+    expect(market).toContain('Synthetic Demo Fixture');
+    expect(market).toContain('not live market data');
+    expect(artifacts).toContain('Synthetic Demo Fixture');
+    expect(artifacts).not.toContain('artifact-research-report');
+  });
+
+  it('shows candidate verdicts separately from the completed strategy report', () => {
+    const markup = renderToStaticMarkup(<QuantStrategyReport snapshot={quantFixtureSnapshot} candidates={presentation.candidates} selectedCandidateId="candidate-b" onSelectCandidate={vi.fn()} />);
+    expect(markup).toContain('Candidate for paper evaluation');
+    expect(markup).toContain('Candidate A is rejected');
+    expect(markup).toContain('Synthetic Demo Fixture');
+    expect(markup).not.toContain('Start Paper Trading');
+  });
+});

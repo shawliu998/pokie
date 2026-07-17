@@ -118,6 +118,8 @@ export interface CloudSourceConfiguration {
 
 export interface GlintApi {
   readonly workspaceId: string;
+  /** Authenticated workspace-scoped transport for the parallel Quant API. */
+  quantRequest?<T = unknown>(path: string, init?: RequestInit): Promise<T>;
   bootstrap(): Promise<WorkspaceState>;
   navigation(): Promise<NavigationSummary>;
   setupImportedDataset(): Promise<void>;
@@ -238,6 +240,13 @@ export class RestAdapter implements GlintApi {
     const response = await this.raw(path, init);
     if (!response) throw new Error(`Missing response for ${path}.`);
     return response.json() as Promise<T>;
+  }
+
+  async quantRequest<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
+    if (!path.startsWith("/quant/") || path.includes("..")) {
+      throw new Error("Quant API paths must stay inside /v1/quant/.");
+    }
+    return this.request<T>(path, init);
   }
 
   private activeImportKey(): string { return `glint:active-import:${this.workspaceId}`; }
