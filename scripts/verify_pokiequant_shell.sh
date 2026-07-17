@@ -2,8 +2,11 @@
 set -euo pipefail
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+PROJECT_PYTHON="$SCRIPT_DIR/../.venv/bin/python"
 DEFAULT_CODEX_PYTHON=/Users/a1-6/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3
-if [[ -z "${PYTHON_BIN:-}" && -x "$DEFAULT_CODEX_PYTHON" ]]; then
+if [[ -z "${PYTHON_BIN:-}" && -x "$PROJECT_PYTHON" ]]; then
+  export PYTHON_BIN=$PROJECT_PYTHON
+elif [[ -z "${PYTHON_BIN:-}" && -x "$DEFAULT_CODEX_PYTHON" ]]; then
   export PYTHON_BIN=$DEFAULT_CODEX_PYTHON
 fi
 # shellcheck source=verify_common.sh
@@ -81,10 +84,12 @@ layer "PokieQuant contracts, API, runtime, and OpenAPI" \
   run_required_pytest \
     tests/contract/test_quant_contracts.py \
     tests/contract/test_quant_daily_bar_dataset.py \
+    tests/contract/test_quant_ohlcv_csv.py \
     tests/runtime/test_quant_fixture_runtime.py \
     tests/runtime/test_quant_backtest.py \
     tests/runtime/test_quant_research_evaluation.py \
     tests/integration/test_quant_api.py \
+    tests/integration/test_quant_dataset_api.py \
     tests/contract/test_schema_export.py
 
 layer "PokieQuant autonomous Agent and shared runtime" \
