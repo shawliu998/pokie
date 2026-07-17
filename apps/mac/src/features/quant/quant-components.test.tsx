@@ -6,7 +6,7 @@ import { QuantGoalComposer } from './QuantGoalComposer';
 import { QuantMarketWorkspace } from './QuantMarketWorkspace';
 import { QuantPlanRail } from './QuantPlanRail';
 import { presentQuantWorkspace } from './quant-presentation';
-import { QuantStrategyReport } from './QuantStrategyReport';
+import { QuantGeneralizationPanel, QuantStrategyReport } from './QuantStrategyReport';
 import { quantFixtureSnapshot } from './quant-fixtures';
 import { createFixtureQuantApi } from '../../quant-api';
 
@@ -60,7 +60,51 @@ describe('Quant Workspace components', () => {
     expect(markup).toContain('Candidate for paper evaluation');
     expect(markup).toContain('Candidate A is rejected');
     expect(markup).toContain('Synthetic Demo Fixture');
+    expect(markup).toContain('generalization');
+    expect(markup).toContain('Training annualized return');
     expect(markup).not.toContain('Start Paper Trading');
+  });
+
+  it('renders a safe unavailable state when a report has no generalization result', () => {
+    const markup = renderToStaticMarkup(<QuantGeneralizationPanel />);
+    expect(markup).toContain('Generalization unavailable');
+    expect(markup).toContain('does not include a chronological train/holdout evaluation');
+  });
+
+  it('renders chronological split provenance and train/holdout metrics', () => {
+    const candidate = quantFixtureSnapshot.candidates[0]!.metrics;
+    const benchmark = quantFixtureSnapshot.benchmark!;
+    const markup = renderToStaticMarkup(<QuantGeneralizationPanel generalization={{
+      status: 'pass',
+      reason: 'The selected candidate remained ahead of the benchmark on holdout data.',
+      selectedCandidateId: 'candidate-a',
+      split: {
+        method: 'chronological',
+        ruleVersion: 'chronological-v1',
+        trainBarCount: 1200,
+        holdoutBarCount: 364,
+        cutoffDate: '2024-01-02',
+        datasetId: 'dataset-immutable-01',
+        datasetDigest: 'sha256:generalization-fixture',
+      },
+      train: { candidate, benchmark },
+      holdout: {
+        candidate: { ...candidate, annualizedReturn: 9.4, trades: 5 },
+        benchmark: { ...benchmark, annualizedReturn: 7.2, trades: 1 },
+      },
+    }} />);
+    expect(markup).toContain('Chronological generalization');
+    expect(markup).toContain('The selected candidate remained ahead');
+    expect(markup).toContain('chronological-v1');
+    expect(markup).toContain('1200');
+    expect(markup).toContain('364');
+    expect(markup).toContain('2024-01-02');
+    expect(markup).toContain('candidate-a');
+    expect(markup).toContain('dataset-immutable-01');
+    expect(markup).toContain('sha256:generalization-fixture');
+    expect(markup).toContain('Training metrics');
+    expect(markup).toContain('Holdout metrics');
+    expect(markup).toContain('9.4%');
   });
 
   it('uses imported provenance and symbol copy for imported evidence', () => {

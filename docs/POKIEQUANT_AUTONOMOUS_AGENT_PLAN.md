@@ -32,6 +32,9 @@ required for recovery.
    lint, type checking and UI build.
 9. Add strict local CSV OHLCV normalization, immutable workspace dataset versions, and pin each Run
    to a dataset ID and canonical digest before its first Agent decision.
+10. Split each pinned dataset chronologically into 80% training and 20% sealed holdout bars. Expose
+    only training metrics to Agent decisions, then compute the selected candidate's holdout result
+    while freezing the final report.
 
 ## Bounded scope
 

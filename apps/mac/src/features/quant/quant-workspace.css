@@ -168,6 +168,12 @@
 .quant-check-list h4 { margin:0 0 6px; }
 .quant-check-list ul { margin:0; padding-left:18px; }
 .quant-check-list p, .quant-check-list li { font-size:10px; line-height:15px; }
+.quant-generalization h4 { display:flex; align-items:center; gap:7px; }
+.quant-generalization>dl { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:5px; margin:9px 0 13px; }
+.quant-generalization>dl>div { min-width:0; padding:6px; border:1px solid var(--border); border-radius:4px; }
+.quant-generalization dt { color:var(--faint); font-size:8.5px; text-transform:uppercase; }
+.quant-generalization dd { margin:2px 0 0; font-size:9.5px; overflow-wrap:anywhere; }
+.quant-generalization table+table { margin-top:13px; }
 .quant-spec>div { display:flex; gap:8px; align-items:center; color:var(--muted); font-size:9.5px; }
 .quant-spec pre { padding:9px; border:1px solid var(--border); border-radius:5px; background:var(--background); font-size:10px; line-height:15px; }
 .quant-safe-logs { margin:0; padding:0; list-style:none; }

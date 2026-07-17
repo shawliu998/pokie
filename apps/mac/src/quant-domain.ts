@@ -183,6 +183,30 @@ export interface TradeRecord {
   reason: string;
 }
 
+export interface GeneralizationSplit {
+  method: 'chronological';
+  ruleVersion: string;
+  trainBarCount: number;
+  holdoutBarCount: number;
+  cutoffDate: string;
+  datasetId: string;
+  datasetDigest: string;
+}
+
+export interface GeneralizationMetrics {
+  candidate: BacktestMetrics;
+  benchmark: BacktestMetrics;
+}
+
+export interface ResearchGeneralization {
+  status: 'pass' | 'fail' | 'inconclusive' | 'not_evaluated';
+  reason: string;
+  selectedCandidateId?: string | null;
+  split: GeneralizationSplit;
+  train?: GeneralizationMetrics;
+  holdout?: GeneralizationMetrics;
+}
+
 export interface ResearchReport {
   id: string;
   title: string;
@@ -193,6 +217,7 @@ export interface ResearchReport {
   validatorVersion: string;
   generationMethod: string;
   disclaimer: string;
+  generalization?: ResearchGeneralization;
 }
 
 export interface QuantKernelResult {

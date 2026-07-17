@@ -35,12 +35,17 @@ Implemented:
   ID/digest pinning retained across retries.
 - a Mac Data workspace that imports daily OHLCV CSV files, lists immutable versions, exposes
   provenance and eligibility, and pins the selected dataset into a new Auto Research run.
+- a sealed chronological 80/20 evaluation boundary: the Agent creates, revises, and compares
+  candidates using only training metrics; the selected candidate is evaluated on holdout bars only
+  when the final report is frozen, with both partitions visible in the Mac Strategy Report.
 
 Still intentionally not implemented:
 
 - live/historical market-provider retrieval or news data;
 - independently verified market evidence, production backtest orchestration, broad parameter search,
   or optimization (imported CSV provenance is user-supplied and is not provider-verified);
+- repeated walk-forward validation, statistical significance testing, or production strategy
+  certification; the current holdout is one deterministic implementation check;
 - Spark/Jupyter/sandbox or uploaded-code execution;
 - providers other than the optional DeepSeek-compatible decision endpoint; the decision provider
   never receives market-network or arbitrary execution tools;

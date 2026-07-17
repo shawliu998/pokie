@@ -98,6 +98,11 @@ not own provider configuration, retry, persistence, or Run state.
   dataset to a new Auto Research command. The UI labels synthetic versus imported provenance and
   displays Agent decisions, tool calls, provider, budgets, dynamic candidates, kernel metrics, and
   the final report.
+- Added `chronological-80-20-v1`: Agent tools receive only the first 80% training partition for
+  candidate creation, revision, backtesting, and comparison. After the Agent selects a candidate,
+  the Store evaluates it over the sealed 20% holdout partition and freezes both partitions into the
+  final report. Historical bars may warm indicators, but cannot create pre-holdout positions or
+  measured trades.
 
 ## Autonomous Demonstrations
 
@@ -105,8 +110,8 @@ The following are reproduced Mock-provider Runs from the current code over the c
 synthetic SPY dataset (`1,564` daily bars, 2018-01-02 through 2023-12-29, digest
 `sha256:b675da3aa6fac3c199ae8d8ab51968aff32e660d5b487a35e4da9e7e74edf919`). The local kernel computed
 all metrics. These are deterministic implementation evidence, not real-market findings or
-investment advice. The shared buy-and-hold benchmark returned `265.0697%`, maximum drawdown
-`-23.7909%`, Sharpe `5.3024`, and one trade.
+investment advice. The chronological split contains 1,251 training bars through 2022-10-18 and 313
+sealed holdout bars beginning 2022-10-19. Agent decisions never receive holdout metrics.
 
 ### Goal A — reduce maximum drawdown
 
@@ -130,13 +135,15 @@ inspect_research_context
 
 | Candidate | Parameters | Total return | Max drawdown | Sharpe | Trades | Verdict |
 | --- | --- | ---: | ---: | ---: | ---: | --- |
-| SMA 50/200 | `fast_window=50`, `slow_window=200` | 184.7050% | -11.1204% | 5.0662 | 2 | viable |
-| SMA 20/100 | `fast_window=20`, `slow_window=100` | 219.8124% | -8.7998% | 5.7794 | 7 | viable |
-| 200-day breakout | `lookback_window=200` | 155.3844% | -15.5030% | 4.4579 | 2 | viable |
+| SMA 50/200 | `fast_window=50`, `slow_window=200` | 107.9760% | -11.1204% | 4.6766 | 2 | viable |
+| SMA 20/100 | `fast_window=20`, `slow_window=100` | 142.7217% | -8.6852% | 5.7709 | 5 | viable |
+| 200-day breakout | `lookback_window=200` | 86.5574% | -15.5030% | 3.8912 | 2 | viable |
 
 **Persisted conclusion:** “Completed bounded candidates were compared with the benchmark. SMA
-20/100 best reduced drawdown in the tested set.” The selected candidate was SMA 20/100; its
-drawdown improvement versus the synthetic benchmark was `14.9911` percentage points.
+20/100 best reduced drawdown in the tested set.” The selected candidate was SMA 20/100. Only after
+selection, its holdout evaluation returned `30.9220%`, maximum drawdown `-8.7998%`, Sharpe
+`5.8239`, and two closed trades versus holdout buy-and-hold drawdown `-9.6269%`; the deterministic
+generalization status was `pass`.
 
 ### Goal B — more trading opportunities without excessive drawdown
 
@@ -160,14 +167,15 @@ inspect_research_context
 
 | Candidate | Parameters | Total return | Max drawdown | Sharpe | Trades | Verdict |
 | --- | --- | ---: | ---: | ---: | ---: | --- |
-| RSI 30/55 | `period=14`, `entry=30`, `exit=55` | -52.7765% | -53.0531% | -5.9640 | 8 | not viable; revised |
-| SMA 10/50 | `fast_window=10`, `slow_window=50` | 399.2624% | -7.1666% | 8.3729 | 9 | viable |
-| 20-day breakout | `lookback_window=20` | 596.4211% | -2.9481% | 10.7272 | 9 | viable |
-| RSI 30/55 revision 1 | `period=14`, `entry=25`, `exit=55` | -52.1074% | -52.3880% | -5.8873 | 8 | not viable |
+| RSI 30/55 | `period=14`, `entry=30`, `exit=55` | -45.9480% | -47.2898% | -5.9909 | 7 | not viable; revised |
+| SMA 10/50 | `fast_window=10`, `slow_window=50` | 236.0881% | -7.1666% | 7.9976 | 7 | viable |
+| 20-day breakout | `lookback_window=20` | 347.2798% | -2.9481% | 10.4202 | 7 | viable |
+| RSI 30/55 revision 1 | `period=14`, `entry=25`, `exit=55` | -45.3436% | -46.7004% | -5.9184 | 7 | not viable |
 
 **Persisted conclusion:** “The bounded decision budget is exhausted. 20-day breakout best reduced
-drawdown in the tested set.” The selected candidate was 20-day breakout. The Run still compared and
-finished safely at its 12-iteration limit.
+drawdown in the tested set.” The selected candidate was 20-day breakout. Its post-selection holdout
+evaluation returned `54.7101%`, maximum drawdown `-2.4387%`, Sharpe `11.9486`, and two closed trades;
+the deterministic status was `pass`. The Run still finished safely at its 12-iteration limit.
 
 The candidate sets and sequences differ: Goal B introduces RSI and fast trend parameters and adds
 `revise_candidate`; Goal A uses slower trend/drawdown controls and no revision. This is the key
@@ -181,22 +189,19 @@ The current additive gate was executed from the repository root:
 ./scripts/verify_pokiequant_shell.sh
 ```
 
-Result: **all functional layers passed**. One final full-gate invocation hit a transient
-Playwright Chromium launch timeout in the completed-state E2E; the same completed-state command was
-immediately rerun in isolation and passed (`1 passed`, `2` conditionally skipped). The API-owned
-ready-command E2E passed in the full invocation.
+Result: **all functional layers passed in one full-gate invocation**.
 
 | Gate layer | Actual result |
 | --- | --- |
-| Quant contracts, daily-bar/CSV contracts, API, dataset lifecycle, fixture runtime, kernel, research evaluation, OpenAPI drift | 74 Python tests passed |
-| Shared registry/model primitives, autonomous Agent lifecycle, goal differentiation, revision lineage, cancellation, provider failure/fallback, comparison differences, transport, and inherited Model Research regression | 55 Python tests passed (the layer was re-run after the model primitives were added) |
-| Mac API/presentation/component tests | 17 Vitest tests across 3 files passed |
+| Quant contracts, daily-bar/CSV contracts, API, dataset lifecycle, fixture runtime, kernel, research evaluation, OpenAPI drift | 85 Python tests passed |
+| Shared registry/model primitives, autonomous Agent lifecycle, goal differentiation, revision lineage, cancellation, provider failure/fallback, comparison differences, transport, and inherited Model Research regression | 55 Python tests passed |
+| Mac API/presentation/component tests | 19 Vitest tests across 3 files passed |
 | Mac lint | ESLint passed with zero warnings |
 | Mac typecheck | TypeScript compiler passed |
 | Mac production build | Vite built 55 modules successfully |
-| Completed-state browser E2E | Initial browser launch timed out; isolated rerun passed 1 test with 2 conditionally skipped |
+| Completed-state browser E2E | 1 Playwright test passed; 2 conditionally skipped |
 | API-owned ready-command browser E2E | 2 Playwright tests passed; 1 screenshot-only test skipped |
-| Loopback API + Vite dataset-selection smoke | Imported and selected the generated 300-bar ACME integration CSV, showed ACME/date-range provenance in the composer and workspace header, enabled Auto Research, and created a new Run pinned to that dataset |
+| Loopback API + Vite generalization smoke | Completed a real local Agent run, opened Generalization, and verified the sealed `chronological-80-20-v1` evidence: 1,251 training bars, 313 holdout bars, persisted dataset digest, separate metrics, and `pass` status |
 | Reviewed workbench assets | Six required 1440×960 PNGs validated |
 | Dependency-license policy | 5 tests passed |
 | Truth/capability assertions, no active Glint product copy, dependency/notice drift, whitespace | All passed |
@@ -228,9 +233,9 @@ Run or model-quality certification.
 - There is no paper trading, live trading, broker credential, order routing, portfolio execution,
   or risk-management service. A report's `paper_evaluation` next-step label triggers no trading
   capability.
-- There is no production statistical validation: no walk-forward/out-of-sample protocol,
+- There is one sealed chronological 80/20 holdout, but no repeated walk-forward evaluation,
   significance testing, survivorship/corporate-action assurance, robust optimization, or claim of
-  strategy profitability.
+  strategy profitability. A holdout `pass` is an implementation verdict, not strategy certification.
 - The optional decision provider is one DeepSeek/OpenAI-compatible endpoint plus Mock fallback. A
   generic stateless tier router exists, but no multi-provider selection/cost policy is wired into
   Quant execution.
@@ -245,10 +250,8 @@ synthetic-only baseline: strict CSV import, immutable versioning, workspace isol
 ID/digest pinning, Mac selection, and a complete 300-bar imported-ACME integration lifecycle are in
 place.
 
-The next bounded slice should add **declared source metadata and a deterministic train/test or
-walk-forward evaluation protocol for user-imported OHLCV**, while preserving the seven-tool loop,
-local kernel, current store/lease/fencing boundaries, and no-trading constraint. It should include
-one reproducible imported-data Agent demonstration and report in-sample versus held-out metrics
-without presenting the result as production validation. The completed one-shot DeepSeek smoke can
-then be extended to an opt-in, end-to-end bounded Run over that pinned dataset, still outside CI and
-without sending raw bars unless the user explicitly enables that provider-data boundary.
+The next bounded slice should add **declared source metadata plus repeated walk-forward windows for
+user-imported OHLCV**, while preserving the sealed-test principle, seven-tool loop, local kernel,
+current Store/lease/fencing boundaries, and no-trading constraint. The completed one-shot DeepSeek
+smoke can then be extended to an opt-in end-to-end bounded Run over a pinned imported dataset; the
+provider should continue receiving compact metrics/context rather than raw bars.
