@@ -87,6 +87,12 @@ layer "PokieQuant contracts, API, runtime, and OpenAPI" \
     tests/integration/test_quant_api.py \
     tests/contract/test_schema_export.py
 
+layer "PokieQuant autonomous Agent and shared runtime" \
+  run_required_pytest \
+    tests/agent_runtime \
+    tests/quant_agent \
+    tests/eval/test_model_research.py
+
 layer "PokieQuant key Mac unit and component tests" \
   pnpm --dir apps/mac exec vitest run \
     src/quant-api.test.ts \
