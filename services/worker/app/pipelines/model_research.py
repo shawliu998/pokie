@@ -8,13 +8,10 @@ proposals that still pass through the existing Evidence/ClaimVersion ledger.
 from __future__ import annotations
 
 import json
-import os
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal, NotRequired, Protocol, Required, TypedDict
-from urllib.parse import urlparse
 
-import httpx
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
@@ -28,6 +25,11 @@ from services.worker.app.contracts import (
 )
 from services.worker.app.pipelines.digests import deterministic_id, sha256_text
 from services.worker.app.pipelines.research import scan_injection
+from services.worker.app.providers import (
+    HttpxOpenAICompatibleTransport,
+    OpenAICompatibleConfig,
+    OpenAICompatibleError,
+)
 
 DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-flash"
@@ -56,17 +58,28 @@ class DeepSeekConfig:
 
     @classmethod
     def from_env(cls) -> DeepSeekConfig:
-        raw_key = os.environ.get("DEEPSEEK_API_KEY")
-        if not raw_key:
-            raise ModelProviderError("DeepSeek credentials are not configured.")
-        base_url = os.environ.get("DEEPSEEK_BASE_URL", DEFAULT_DEEPSEEK_BASE_URL).rstrip("/")
-        parsed = urlparse(base_url)
-        if parsed.scheme != "https" or not parsed.netloc or parsed.query or parsed.fragment:
-            raise ModelProviderError("DEEPSEEK_BASE_URL must be an HTTPS origin.")
-        model = os.environ.get("DEEPSEEK_MODEL", DEFAULT_DEEPSEEK_MODEL).strip()
-        if not model or len(model) > 128:
-            raise ModelProviderError("DEEPSEEK_MODEL is invalid.")
-        return cls(api_key=SecretStr(raw_key), base_url=base_url, model=model)
+        try:
+            config = OpenAICompatibleConfig.from_env(
+                key_var="DEEPSEEK_API_KEY",
+                base_url_var="DEEPSEEK_BASE_URL",
+                model_var="DEEPSEEK_MODEL",
+                default_base_url=DEFAULT_DEEPSEEK_BASE_URL,
+                default_model=DEFAULT_DEEPSEEK_MODEL,
+                timeout_seconds=cls.timeout_seconds,
+                max_tokens=cls.max_tokens,
+            )
+        except OpenAICompatibleError as exc:
+            message = str(exc)
+            if "is not configured" in message:
+                message = "DeepSeek credentials are not configured."
+            raise ModelProviderError(message) from None
+        return cls(
+            api_key=config.api_key,
+            base_url=config.base_url,
+            model=config.model,
+            timeout_seconds=config.timeout_seconds,
+            max_tokens=config.max_tokens or cls.max_tokens,
+        )
 
 
 class DeepSeekTransport(Protocol):
@@ -74,37 +87,23 @@ class DeepSeekTransport(Protocol):
 
 
 class HttpxDeepSeekTransport:
+    """Compatibility adapter over the shared OpenAI-compatible transport."""
+
     def __init__(self, config: DeepSeekConfig) -> None:
-        self.config = config
+        shared_config = OpenAICompatibleConfig(
+            api_key=config.api_key,
+            base_url=config.base_url,
+            model=config.model,
+            timeout_seconds=config.timeout_seconds,
+            max_tokens=config.max_tokens,
+        )
+        self._transport = HttpxOpenAICompatibleTransport(shared_config)
 
     def complete(self, request: dict[str, Any]) -> dict[str, Any]:
         try:
-            with httpx.Client(
-                timeout=httpx.Timeout(self.config.timeout_seconds),
-                follow_redirects=False,
-            ) as client:
-                response = client.post(
-                    f"{self.config.base_url}/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {self.config.api_key.get_secret_value()}",
-                        "Content-Type": "application/json",
-                    },
-                    json=request,
-                )
-            if response.status_code != 200:
-                raise ModelProviderError(
-                    f"DeepSeek request failed with HTTP status {response.status_code}."
-                )
-            if len(response.content) > MAX_RESPONSE_BYTES:
-                raise ModelProviderError("DeepSeek response exceeded the configured byte limit.")
-            value = response.json()
-        except ModelProviderError:
-            raise
-        except (httpx.HTTPError, json.JSONDecodeError, ValueError):
-            raise ModelProviderError("DeepSeek request failed safely.") from None
-        if not isinstance(value, dict):
-            raise ModelProviderError("DeepSeek response envelope is invalid.")
-        return value
+            return self._transport.complete(request)
+        except OpenAICompatibleError as exc:
+            raise ModelProviderError(str(exc)) from None
 
 
 class _EvidenceSelection(BaseModel):
