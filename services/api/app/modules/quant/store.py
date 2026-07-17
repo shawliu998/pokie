@@ -5,9 +5,10 @@ from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import Enum
 from hashlib import sha256
-from statistics import median
+from math import sqrt
+from statistics import median, pstdev
 from threading import RLock
-from typing import Any
+from typing import Any, Literal
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from pydantic import BaseModel
@@ -20,8 +21,10 @@ from packages.contracts.quant import (
     QuantAgentDecision,
     QuantAgentPlan,
     QuantDailyBarDataset,
+    QuantDatasetDataQuality,
     QuantDatasetSourceMetadata,
     QuantToolObservation,
+    assess_daily_bar_quality,
     parse_ohlcv_csv,
 )
 from packages.contracts.quant.enums import (
@@ -51,8 +54,12 @@ from services.api.app.db.session import get_session_factory, set_rls_context
 MIN_AUTONOMOUS_RESEARCH_BARS = 252
 AGENT_TRAIN_PERCENT = 80
 AGENT_SPLIT_RULE_VERSION = "chronological-80-20-v1"
-AGENT_WALK_FORWARD_RULE_VERSION = "expanding-3fold-20pct-v1"
+AGENT_WALK_FORWARD_RULE_VERSION = "expanding-3fold-20pct-regime-v1"
 AGENT_WALK_FORWARD_FOLDS = 3
+AGENT_WALK_FORWARD_STATE_RULE_VERSION = "trailing-60bar-trend-vol-v1"
+AGENT_WALK_FORWARD_STATE_LOOKBACK_BARS = 60
+AGENT_WALK_FORWARD_TREND_THRESHOLD = 0.03
+AGENT_WALK_FORWARD_HIGH_VOLATILITY_THRESHOLD = 0.25
 
 
 def _utcnow() -> datetime:
@@ -105,6 +112,15 @@ def _legacy_dataset_source_metadata() -> QuantDatasetSourceMetadata:
     return QuantDatasetSourceMetadata(source_name="Legacy CSV import")
 
 
+def _dataset_quality(record: QuantDatasetRecord) -> QuantDatasetDataQuality:
+    return record.data_quality or assess_daily_bar_quality(
+        record.dataset,
+        market_calendar=record.source_metadata.market_calendar,
+        time_zone=record.source_metadata.time_zone,
+        price_adjustment=record.source_metadata.price_adjustment,
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class QuantDatasetRecord:
     id: str
@@ -114,6 +130,7 @@ class QuantDatasetRecord:
     source_metadata: QuantDatasetSourceMetadata = field(
         default_factory=_legacy_dataset_source_metadata
     )
+    data_quality: QuantDatasetDataQuality | None = None
     parser_version: str = QUANT_OHLCV_CSV_PARSER_VERSION
     created_at: datetime = field(default_factory=_utcnow)
     data_authenticity: DataAuthenticity = DataAuthenticity.IMPORTED
@@ -281,6 +298,11 @@ class QuantStore:
                                 "source_metadata",
                                 _legacy_dataset_source_metadata().model_dump(mode="json"),
                             )
+                        ),
+                        "data_quality": (
+                            QuantDatasetDataQuality.model_validate(item["data_quality"])
+                            if item.get("data_quality") is not None
+                            else None
                         ),
                         "created_at": _datetime(item["created_at"]),
                         "data_authenticity": DataAuthenticity(item["data_authenticity"]),
@@ -1182,6 +1204,7 @@ class QuantStore:
                 "selected_candidate_id": selected_candidate_id,
                 "split": split,
             }
+            walk_forward: dict[str, Any] | None = None
             if selected is not None:
                 execution = ExecutionConfig(fee_rate=0.001, slippage_rate=0.0005)
                 walk_forward = self._walk_forward_candidate(
@@ -1248,7 +1271,7 @@ class QuantStore:
                 "conclusion": conclusion,
                 "next_step": next_step,
                 "generalization": generalization,
-                "walk_forward": walk_forward if selected is not None else None,
+                "walk_forward": walk_forward,
                 "limitations": [
                     source_limitation,
                     (
@@ -1391,16 +1414,26 @@ class QuantStore:
                 "evaluation_partition": "train",
                 "fold_count": 0,
                 "window_bar_count": window_size,
+                "state_rule_version": AGENT_WALK_FORWARD_STATE_RULE_VERSION,
+                "state_lookback_bars": AGENT_WALK_FORWARD_STATE_LOOKBACK_BARS,
                 "status": "not_evaluated",
                 "reason": "Training partition is too short for three walk-forward windows.",
                 "folds": [],
-                "aggregate": {"evaluated_folds": 0},
+                "aggregate": {
+                    "evaluated_folds": 0,
+                    "distinct_market_regimes": 0,
+                    "regime_diversity_status": "insufficient_regime_diversity",
+                    "by_market_regime": [],
+                },
             }
 
         folds: list[dict[str, Any]] = []
         for fold_index in range(AGENT_WALK_FORWARD_FOLDS):
             evaluation_start = initial_train_end + fold_index * window_size
             evaluation_end = evaluation_start + window_size
+            market_regime = self._walk_forward_market_regime(
+                training_bars, evaluation_start
+            )
             measured = run_backtest(
                 training_bars[:evaluation_end],
                 strategy,
@@ -1428,6 +1461,7 @@ class QuantStore:
                     "history_end": training_bars[evaluation_start - 1].date.isoformat(),
                     "evaluation_start": training_bars[evaluation_start].date.isoformat(),
                     "evaluation_end": training_bars[evaluation_end - 1].date.isoformat(),
+                    "market_regime": market_regime,
                     "candidate": candidate_metrics,
                     "benchmark": benchmark_metrics,
                     "status": status,
@@ -1444,6 +1478,14 @@ class QuantStore:
         ]
         candidate_sharpes = [float(item["candidate"]["sharpe_ratio"]) for item in folds]
         benchmark_sharpes = [float(item["benchmark"]["sharpe_ratio"]) for item in folds]
+        by_label: dict[str, list[dict[str, Any]]] = {}
+        for fold in folds:
+            label = str(fold["market_regime"]["label"])
+            by_label.setdefault(label, []).append(fold)
+        by_market_regime = [
+            self._walk_forward_regime_summary(label, by_label[label])
+            for label in sorted(by_label)
+        ]
         aggregate = {
             "evaluated_folds": len(folds),
             "candidate_positive_return_folds": sum(value > 0 for value in candidate_returns),
@@ -1459,6 +1501,11 @@ class QuantStore:
             "benchmark_median_drawdown_pct": round(median(benchmark_drawdowns), 4),
             "candidate_median_sharpe_ratio": round(median(candidate_sharpes), 4),
             "benchmark_median_sharpe_ratio": round(median(benchmark_sharpes), 4),
+            "distinct_market_regimes": len(by_market_regime),
+            "regime_diversity_status": (
+                "covered" if len(by_market_regime) > 1 else "insufficient_regime_diversity"
+            ),
+            "by_market_regime": by_market_regime,
         }
         return {
             "method": "expanding",
@@ -1466,10 +1513,66 @@ class QuantStore:
             "evaluation_partition": "train",
             "fold_count": AGENT_WALK_FORWARD_FOLDS,
             "window_bar_count": window_size,
+            "state_rule_version": AGENT_WALK_FORWARD_STATE_RULE_VERSION,
+            "state_lookback_bars": AGENT_WALK_FORWARD_STATE_LOOKBACK_BARS,
             "status": "completed",
             "reason": "Fixed candidate evaluated in three expanding training-only windows.",
             "folds": folds,
             "aggregate": aggregate,
+        }
+
+    @staticmethod
+    def _walk_forward_market_regime(
+        training_bars: tuple[DailyBar, ...], evaluation_start: int
+    ) -> dict[str, Any]:
+        """Classify from bars strictly before a walk-forward measurement begins."""
+        history_count = min(AGENT_WALK_FORWARD_STATE_LOOKBACK_BARS, evaluation_start)
+        history = training_bars[evaluation_start - history_count : evaluation_start]
+        closes = [bar.close for bar in history]
+        trailing_return = closes[-1] / closes[0] - 1.0
+        daily_returns = [
+            closes[index] / closes[index - 1] - 1.0 for index in range(1, len(closes))
+        ]
+        annualized_volatility = pstdev(daily_returns) * sqrt(252.0) if daily_returns else 0.0
+        trend = (
+            "uptrend"
+            if trailing_return >= AGENT_WALK_FORWARD_TREND_THRESHOLD
+            else "downtrend"
+            if trailing_return <= -AGENT_WALK_FORWARD_TREND_THRESHOLD
+            else "sideways"
+        )
+        volatility = (
+            "high_volatility"
+            if annualized_volatility >= AGENT_WALK_FORWARD_HIGH_VOLATILITY_THRESHOLD
+            else "normal_volatility"
+        )
+        return {
+            "label": f"{trend}_{volatility}",
+            "trend": trend,
+            "volatility": volatility,
+            "history_start": history[0].date.isoformat(),
+            "history_end": history[-1].date.isoformat(),
+            "history_bar_count": history_count,
+            "trailing_return_pct": round(trailing_return * 100, 4),
+            "annualized_volatility_pct": round(annualized_volatility * 100, 4),
+        }
+
+    @staticmethod
+    def _walk_forward_regime_summary(
+        label: str, folds: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        def metric(side: str, name: str) -> float:
+            return round(median(float(fold[side][name]) for fold in folds), 4)
+
+        return {
+            "label": label,
+            "fold_count": len(folds),
+            "candidate_median_return_pct": metric("candidate", "total_return_pct"),
+            "benchmark_median_return_pct": metric("benchmark", "total_return_pct"),
+            "candidate_median_drawdown_pct": metric("candidate", "maximum_drawdown_pct"),
+            "benchmark_median_drawdown_pct": metric("benchmark", "maximum_drawdown_pct"),
+            "candidate_median_sharpe_ratio": metric("candidate", "sharpe_ratio"),
+            "benchmark_median_sharpe_ratio": metric("benchmark", "sharpe_ratio"),
         }
 
     @staticmethod
@@ -1509,9 +1612,32 @@ class QuantStore:
         file_name: str | None = None,
         source_name: str = "User-provided CSV",
         source_reference: str | None = None,
-        price_adjustment: str = "unknown",
+        market_calendar: Literal[
+            "unknown", "weekday", "XNYS", "XNAS", "XSHG", "XSHE"
+        ] = "unknown",
+        time_zone: str = "UTC",
+        price_adjustment: Literal[
+            "unknown", "unadjusted", "split_adjusted", "total_return_adjusted"
+        ] = "unknown",
     ) -> QuantDatasetRecord:
         dataset = parse_ohlcv_csv(csv_text, name=name, symbol=symbol)
+        source_metadata = QuantDatasetSourceMetadata(
+            file_name=file_name,
+            source_name=source_name,
+            source_reference=source_reference,
+            submitted_csv_digest=(
+                "sha256:" + sha256(csv_text.encode("utf-8")).hexdigest()
+            ),
+            market_calendar=market_calendar,
+            time_zone=time_zone,
+            price_adjustment=price_adjustment,
+        )
+        data_quality = assess_daily_bar_quality(
+            dataset,
+            market_calendar=source_metadata.market_calendar,
+            time_zone=source_metadata.time_zone,
+            price_adjustment=source_metadata.price_adjustment,
+        )
         with self._lock:
             self._ensure_workspace_loaded(workspace_id)
             key = (workspace_id, dataset.dataset_id)
@@ -1523,15 +1649,8 @@ class QuantStore:
                 workspace_id=workspace_id,
                 name=name.strip(),
                 dataset=dataset,
-                source_metadata=QuantDatasetSourceMetadata(
-                    file_name=file_name,
-                    source_name=source_name,
-                    source_reference=source_reference,
-                    submitted_csv_digest=(
-                        "sha256:" + sha256(csv_text.encode("utf-8")).hexdigest()
-                    ),
-                    price_adjustment=price_adjustment,
-                ),
+                source_metadata=source_metadata,
+                data_quality=data_quality,
             )
             self._datasets[key] = record
             self._persist_workspace(workspace_id)
@@ -1583,6 +1702,14 @@ class QuantStore:
         record = self._datasets.get((workspace_id, selected_id))
         if record is None:
             raise not_found("QuantDataset")
+        quality = _dataset_quality(record)
+        if quality.status == "blocked":
+            issue_codes = ", ".join(
+                issue.code for issue in quality.issues if issue.severity == "blocked"
+            )
+            raise invalid_state(
+                "Autonomous research is blocked by data quality checks: " + issue_codes
+            )
         if len(record.dataset.bars) < MIN_AUTONOMOUS_RESEARCH_BARS:
             raise invalid_state(
                 "Autonomous research requires at least "
@@ -2216,6 +2343,11 @@ class QuantStore:
                     "generator": "deterministic-weekday-generator-v2",
                 }
             ),
+            "data_quality": (
+                _dataset_quality(record).model_dump(mode="json")
+                if record is not None
+                else None
+            ),
             "evaluation_partition": "train",
             "split": split,
         }
@@ -2398,6 +2530,7 @@ class QuantStore:
             "parser_version": record.parser_version,
             "digest": dataset.digest,
             "source_metadata": record.source_metadata.model_dump(mode="json"),
+            "data_quality": _dataset_quality(record).model_dump(mode="json"),
             "data_authenticity": record.data_authenticity,
             "created_at": record.created_at,
         }

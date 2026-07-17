@@ -217,6 +217,8 @@ def import_dataset_csv(
             file_name=body.file_name,
             source_name=body.source_name,
             source_reference=body.source_reference,
+            market_calendar=body.market_calendar,
+            time_zone=body.time_zone,
             price_adjustment=body.price_adjustment,
         )
     except ValueError as exc:

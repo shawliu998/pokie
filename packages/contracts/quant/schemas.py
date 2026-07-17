@@ -5,8 +5,9 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from ..base import ContractModel, Digest, NonEmptyString, VersionString
 from ..enums import DataAuthenticity
@@ -21,6 +22,17 @@ from .enums import (
     QuantRunMode,
     QuantRunState,
 )
+from .quality import QuantDatasetDataQuality
+
+QuantMarketCalendar = Literal["unknown", "weekday", "XNYS", "XNAS", "XSHG", "XSHE"]
+
+
+def _validated_time_zone(value: str) -> str:
+    try:
+        ZoneInfo(value)
+    except ZoneInfoNotFoundError as exc:
+        raise ValueError("time_zone must be a valid IANA time zone") from exc
+    return value
 
 
 class QuantDatasetImportRequest(ContractModel):
@@ -30,9 +42,16 @@ class QuantDatasetImportRequest(ContractModel):
     file_name: NonEmptyString | None = Field(default=None, max_length=255)
     source_name: NonEmptyString = Field(default="User-provided CSV", max_length=200)
     source_reference: NonEmptyString | None = Field(default=None, max_length=2000)
+    market_calendar: QuantMarketCalendar = "unknown"
+    time_zone: NonEmptyString = Field(default="UTC", max_length=100)
     price_adjustment: Literal[
         "unknown", "unadjusted", "split_adjusted", "total_return_adjusted"
     ] = "unknown"
+
+    @field_validator("time_zone")
+    @classmethod
+    def validate_time_zone(cls, value: str) -> str:
+        return _validated_time_zone(value)
 
 
 class QuantDatasetSourceMetadata(ContractModel):
@@ -43,9 +62,16 @@ class QuantDatasetSourceMetadata(ContractModel):
     source_name: NonEmptyString = Field(default="User-provided CSV", max_length=200)
     source_reference: NonEmptyString | None = Field(default=None, max_length=2000)
     submitted_csv_digest: Digest | None = None
+    market_calendar: QuantMarketCalendar = "unknown"
+    time_zone: NonEmptyString = Field(default="UTC", max_length=100)
     price_adjustment: Literal[
         "unknown", "unadjusted", "split_adjusted", "total_return_adjusted"
     ] = "unknown"
+
+    @field_validator("time_zone")
+    @classmethod
+    def validate_time_zone(cls, value: str) -> str:
+        return _validated_time_zone(value)
 
 
 class QuantDatasetResponse(ContractModel):
@@ -61,6 +87,7 @@ class QuantDatasetResponse(ContractModel):
     parser_version: VersionString
     digest: Digest
     source_metadata: QuantDatasetSourceMetadata
+    data_quality: QuantDatasetDataQuality
     data_authenticity: DataAuthenticity
     created_at: datetime
 

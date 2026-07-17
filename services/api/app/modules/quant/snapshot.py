@@ -258,6 +258,38 @@ def _walk_forward_projection(value: object) -> dict[str, Any] | None:
                 "historyEnd": fold.get("history_end", ""),
                 "evaluationStart": fold.get("evaluation_start", ""),
                 "evaluationEnd": fold.get("evaluation_end", ""),
+                "marketRegime": {
+                    "label": fold.get("market_regime", {}).get("label", "")
+                    if isinstance(fold.get("market_regime"), dict)
+                    else "",
+                    "trend": fold.get("market_regime", {}).get("trend", "")
+                    if isinstance(fold.get("market_regime"), dict)
+                    else "",
+                    "volatility": fold.get("market_regime", {}).get("volatility", "")
+                    if isinstance(fold.get("market_regime"), dict)
+                    else "",
+                    "historyStart": fold.get("market_regime", {}).get("history_start", "")
+                    if isinstance(fold.get("market_regime"), dict)
+                    else "",
+                    "historyEnd": fold.get("market_regime", {}).get("history_end", "")
+                    if isinstance(fold.get("market_regime"), dict)
+                    else "",
+                    "historyBarCount": int(
+                        fold.get("market_regime", {}).get("history_bar_count", 0)
+                    )
+                    if isinstance(fold.get("market_regime"), dict)
+                    else 0,
+                    "trailingReturn": float(
+                        fold.get("market_regime", {}).get("trailing_return_pct", 0)
+                    )
+                    if isinstance(fold.get("market_regime"), dict)
+                    else 0.0,
+                    "annualizedVolatility": float(
+                        fold.get("market_regime", {}).get("annualized_volatility_pct", 0)
+                    )
+                    if isinstance(fold.get("market_regime"), dict)
+                    else 0.0,
+                },
                 "candidate": candidate,
                 "benchmark": benchmark,
                 "status": fold.get("status", "not_evaluated"),
@@ -285,6 +317,36 @@ def _walk_forward_projection(value: object) -> dict[str, Any] | None:
         "benchmarkMedianSharpe": float(
             aggregate.get("benchmark_median_sharpe_ratio", 0)
         ),
+        "distinctMarketRegimes": int(aggregate.get("distinct_market_regimes", 0)),
+        "regimeDiversityStatus": aggregate.get(
+            "regime_diversity_status", "insufficient_regime_diversity"
+        ),
+        "byMarketRegime": [
+            {
+                "label": row.get("label", ""),
+                "foldCount": int(row.get("fold_count", 0)),
+                "candidateMedianReturn": float(
+                    row.get("candidate_median_return_pct", 0)
+                ),
+                "benchmarkMedianReturn": float(
+                    row.get("benchmark_median_return_pct", 0)
+                ),
+                "candidateMedianDrawdown": float(
+                    row.get("candidate_median_drawdown_pct", 0)
+                ),
+                "benchmarkMedianDrawdown": float(
+                    row.get("benchmark_median_drawdown_pct", 0)
+                ),
+                "candidateMedianSharpe": float(
+                    row.get("candidate_median_sharpe_ratio", 0)
+                ),
+                "benchmarkMedianSharpe": float(
+                    row.get("benchmark_median_sharpe_ratio", 0)
+                ),
+            }
+            for row in aggregate.get("by_market_regime", [])
+            if isinstance(row, dict)
+        ],
     }
     return {
         "method": value.get("method", "expanding"),
@@ -292,10 +354,37 @@ def _walk_forward_projection(value: object) -> dict[str, Any] | None:
         "evaluationPartition": value.get("evaluation_partition", "train"),
         "foldCount": int(value.get("fold_count", 0)),
         "windowBarCount": int(value.get("window_bar_count", 0)),
+        "stateRuleVersion": value.get("state_rule_version", ""),
+        "stateLookbackBars": int(value.get("state_lookback_bars", 0)),
         "status": value.get("status", "not_evaluated"),
         "reason": value.get("reason", "Walk-forward evaluation was not available."),
         "folds": projected_folds,
         "aggregate": aggregate_projection,
+    }
+
+
+def _dataset_quality_projection(value: object) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    issues = value.get("issues")
+    notes = value.get("notes")
+    if not isinstance(issues, list) or not isinstance(notes, list):
+        return None
+    return {
+        "schemaVersion": value.get("schema_version", ""),
+        "policyVersion": value.get("policy_version", ""),
+        "status": value.get("status", "warning"),
+        "verificationStatus": value.get("verification_status", "checked"),
+        "reportDigest": value.get("report_digest", ""),
+        "datasetDigest": value.get("dataset_digest", ""),
+        "barCount": int(value.get("bar_count", 0)),
+        "calendarGapCount": int(value.get("calendar_gap_count", 0)),
+        "largestCalendarGapDays": int(value.get("largest_calendar_gap_days", 0)),
+        "unexpectedSessionCount": int(value.get("unexpected_session_count", 0)),
+        "zeroVolumeBarCount": int(value.get("zero_volume_bar_count", 0)),
+        "priceJumpCount": int(value.get("price_jump_count", 0)),
+        "issues": [dict(item) for item in issues if isinstance(item, dict)],
+        "notes": [str(item) for item in notes],
     }
 
 
@@ -782,8 +871,13 @@ def quant_agent_workspace_snapshot(*, workspace_id: str) -> dict[str, Any] | Non
                     "submittedCsvDigest": (
                         dataset_record.source_metadata.submitted_csv_digest
                     ),
+                    "marketCalendar": dataset_record.source_metadata.market_calendar,
+                    "timeZone": dataset_record.source_metadata.time_zone,
                     "priceAdjustment": dataset_record.source_metadata.price_adjustment,
-                }
+                },
+                "quality": _dataset_quality_projection(
+                    context["dataset_summary"].get("data_quality")
+                ),
             }
             if dataset_record is not None
             else {}
@@ -1013,6 +1107,11 @@ def quant_agent_workspace_snapshot(*, workspace_id: str) -> dict[str, Any] | Non
                 report_artifact.content.get("generalization")
             ),
             "walkForward": _walk_forward_projection(report_artifact.content.get("walk_forward")),
+            "datasetQuality": _dataset_quality_projection(
+                report_artifact.content.get("dataset", {}).get("data_quality")
+                if isinstance(report_artifact.content.get("dataset"), dict)
+                else None
+            ),
             "disclaimer": (
                 "Imported-data results are not investment advice or evidence of future "
                 "performance."

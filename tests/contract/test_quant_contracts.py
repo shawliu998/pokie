@@ -8,6 +8,7 @@ from pydantic import ValidationError
 
 from packages.contracts.quant import (
     UNKNOWN_EVENT_SAFE_SUMMARY,
+    QuantDatasetImportRequest,
     QuantRunEvent,
     QuantRunEventPayload,
     QuantStreamResetEvent,
@@ -17,6 +18,19 @@ from packages.contracts.quant import (
     encode_quant_sse,
     safe_event_copy,
 )
+
+
+def test_quant_dataset_import_requires_an_iana_time_zone() -> None:
+    payload = {
+        "name": "SPY daily",
+        "symbol": "SPY",
+        "csv_text": "date,open,high,low,close\n2024-01-02,1,1,1,1\n",
+        "market_calendar": "XNYS",
+        "time_zone": "America/New_York",
+    }
+    assert QuantDatasetImportRequest.model_validate(payload).time_zone == "America/New_York"
+    with pytest.raises(ValidationError, match="valid IANA"):
+        QuantDatasetImportRequest.model_validate({**payload, "time_zone": "Mars/Olympus"})
 
 
 def test_quant_run_event_payload_is_closed_and_safe() -> None:

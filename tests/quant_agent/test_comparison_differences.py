@@ -89,11 +89,24 @@ def test_comparison_includes_difference_fields(
         )
         walk_forward = candidate["walk_forward"]
         assert walk_forward["evaluation_partition"] == "train"
-        assert walk_forward["rule_version"] == "expanding-3fold-20pct-v1"
+        assert walk_forward["rule_version"] == "expanding-3fold-20pct-regime-v1"
         assert walk_forward["fold_count"] == 3
+        assert walk_forward["state_rule_version"] == "trailing-60bar-trend-vol-v1"
+        assert walk_forward["state_lookback_bars"] == 60
         assert len(walk_forward["folds"]) == 3
         assert walk_forward["aggregate"]["evaluated_folds"] == 3
         assert all("holdout" not in fold for fold in walk_forward["folds"])
+        assert all(
+            fold["market_regime"]["history_end"] < fold["evaluation_start"]
+            and fold["market_regime"]["history_bar_count"] <= 60
+            for fold in walk_forward["folds"]
+        )
+        by_regime = walk_forward["aggregate"]["by_market_regime"]
+        assert [item["label"] for item in by_regime] == sorted(
+            item["label"] for item in by_regime
+        )
+        assert sum(item["fold_count"] for item in by_regime) == 3
+        assert walk_forward["aggregate"]["distinct_market_regimes"] == len(by_regime)
 
     research_report = next(
         item for item in artifacts if item.kind.value == "research_report"
