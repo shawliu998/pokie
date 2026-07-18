@@ -871,6 +871,28 @@ def quant_agent_workspace_snapshot(*, workspace_id: str) -> dict[str, Any] | Non
                     "submittedCsvDigest": (
                         dataset_record.source_metadata.submitted_csv_digest
                     ),
+                    "providerId": dataset_record.source_metadata.provider_id,
+                    "providerResponseDigest": (
+                        dataset_record.source_metadata.provider_response_digest
+                    ),
+                    "retrievedAt": (
+                        dataset_record.source_metadata.retrieved_at.isoformat()
+                        if dataset_record.source_metadata.retrieved_at is not None
+                        else None
+                    ),
+                    "requestedLimit": dataset_record.source_metadata.requested_limit,
+                    "returnedBarCount": (
+                        dataset_record.source_metadata.returned_bar_count
+                    ),
+                    "droppedIncompleteCount": (
+                        dataset_record.source_metadata.dropped_incomplete_count
+                    ),
+                    "normalizationNote": (
+                        dataset_record.source_metadata.normalization_note
+                    ),
+                    "attestationStatus": (
+                        dataset_record.source_metadata.attestation_status
+                    ),
                     "marketCalendar": dataset_record.source_metadata.market_calendar,
                     "timeZone": dataset_record.source_metadata.time_zone,
                     "priceAdjustment": dataset_record.source_metadata.price_adjustment,
@@ -1026,17 +1048,23 @@ def quant_agent_workspace_snapshot(*, workspace_id: str) -> dict[str, Any] | Non
         ],
         "limitations": [
             (
-                "Workspace-imported bars were not independently verified against a market "
-                "data provider."
+                "Provider-retrieved bars retain a raw-response digest but were not "
+                "cross-validated against a second market source."
                 if dataset_record is not None
-                else "The deterministic synthetic bars are not market observations."
+                and dataset_record.source_metadata.kind == "provider_fetch"
+                else (
+                    "Workspace-imported bars were not independently verified against a market "
+                    "data provider."
+                    if dataset_record is not None
+                    else "The deterministic synthetic bars are not market observations."
+                )
             ),
             (
                 "Candidate and benchmark metrics shown outside Generalization use the "
                 "chronological training partition."
             ),
             "No statistical significance or live execution was evaluated.",
-            "No network, broker, or arbitrary code execution is available.",
+            "The Agent has no network, broker, or arbitrary code execution tool.",
         ],
     }
     snapshot["benchmark"] = {

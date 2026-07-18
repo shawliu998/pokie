@@ -80,3 +80,27 @@ def test_quality_blocks_time_zone_mismatch_and_long_elapsed_gap() -> None:
         "MARKET_CALENDAR_TIME_ZONE_MISMATCH",
         "EXCESSIVE_ELAPSED_GAP",
     }
+
+
+def test_24x7_quality_counts_all_missing_days_and_allows_weekend_sessions() -> None:
+    report = assess_daily_bar_quality(
+        _dataset("2024-01-05,100,102,99,101,1\n2024-01-08,101,103,100,102,1\n"),
+        market_calendar="24x7",
+        time_zone="UTC",
+        price_adjustment="unadjusted",
+    )
+    assert report.calendar_gap_count == 2
+    assert report.unexpected_session_count == 0
+    assert "MISSING_CALENDAR_DAYS" in {issue.code for issue in report.issues}
+    assert "UNEXPECTED_WEEKEND_SESSIONS" not in {issue.code for issue in report.issues}
+
+
+def test_24x7_quality_blocks_non_utc_time_zone() -> None:
+    report = assess_daily_bar_quality(
+        _dataset("2024-01-05,100,102,99,101,1\n2024-01-06,101,103,100,102,1\n"),
+        market_calendar="24x7",
+        time_zone="America/New_York",
+        price_adjustment="unadjusted",
+    )
+    assert report.status == "blocked"
+    assert "MARKET_CALENDAR_TIME_ZONE_MISMATCH" in {issue.code for issue in report.issues}

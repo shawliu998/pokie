@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from hashlib import sha256
 from typing import Any
 from uuid import uuid4
@@ -10,6 +10,8 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
+from services.api.app.api import routes_quant
+from services.api.app.modules.quant.binance_market_data import BinanceDailyBarsResult
 from services.api.app.modules.quant.store import QuantStore, get_quant_store
 from services.worker.app.pipelines.quant_agent import run_quant_agent_once
 from services.worker.app.quant_agent.provider import MockQuantAgentProvider
@@ -158,6 +160,14 @@ def test_imported_ohlcv_dataset_is_listed_pinned_and_exposed_to_agent_context(
         "source_reference": "internal-export:acme-daily-v1",
         "submitted_csv_digest": "sha256:"
         + sha256(CSV_V1.strip().encode("utf-8")).hexdigest(),
+        "provider_id": None,
+        "provider_response_digest": None,
+        "retrieved_at": None,
+        "requested_limit": None,
+        "returned_bar_count": None,
+        "dropped_incomplete_count": None,
+        "normalization_note": None,
+        "attestation_status": "declared",
         "market_calendar": "unknown",
         "time_zone": "UTC",
         "price_adjustment": "split_adjusted",
@@ -225,6 +235,14 @@ def test_imported_ohlcv_dataset_is_listed_pinned_and_exposed_to_agent_context(
             "sourceName": "ACME Research Export",
             "sourceReference": "internal-export:acme-daily-v1",
             "submittedCsvDigest": dataset["source_metadata"]["submitted_csv_digest"],
+            "providerId": None,
+            "providerResponseDigest": None,
+            "retrievedAt": None,
+            "requestedLimit": None,
+            "returnedBarCount": None,
+            "droppedIncompleteCount": None,
+            "normalizationNote": None,
+            "attestationStatus": "declared",
             "marketCalendar": "unknown",
             "timeZone": "UTC",
             "priceAdjustment": "split_adjusted",
@@ -498,3 +516,66 @@ def test_blocking_data_quality_issue_is_retained_but_cannot_start_a_run(
 
     assert response.status_code == 409
     assert "EXCESSIVE_ELAPSED_GAP" in response.json()["error"]["message"]
+
+
+def test_binance_provider_fetch_retains_attestation_and_can_start_a_run(
+    client: TestClient, principal_id: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class FakeBinanceClient:
+        def fetch_daily_klines(
+            self, *, symbol: str, limit: int
+        ) -> BinanceDailyBarsResult:
+            assert symbol == "BTCUSDT"
+            assert limit == 365
+            return BinanceDailyBarsResult(
+                csv_text=CSV_V1.replace("ACME", "BTCUSDT"),
+                provider_response_digest="sha256:binance-provider-response-v1",
+                retrieved_at=datetime(2026, 7, 18, 2, 0, tzinfo=UTC),
+                source_reference=(
+                    "binance-vision:/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=365"
+                ),
+                bar_count=300,
+                requested_limit=365,
+                returned_bar_count=300,
+                dropped_incomplete_count=1,
+                normalization_note="Base-asset volume rounded to whole units.",
+            )
+
+    monkeypatch.setattr(
+        routes_quant, "_binance_market_data_client", lambda: FakeBinanceClient()
+    )
+    workspace = _workspace(client, principal_id, "Binance provider workspace")
+    workspace_id = workspace["workspace_id"]
+    response = client.post(
+        "/v1/quant/datasets/fetch-binance-spot",
+        headers=_headers(principal_id, workspace_id),
+        json={"symbol": "BTCUSDT", "interval": "1d", "limit": 365},
+    )
+    assert response.status_code == 201, response.text
+    dataset = response.json()
+    assert dataset["data_quality"]["status"] == "passed"
+    assert dataset["source_metadata"] == {
+        "kind": "provider_fetch",
+        "file_name": None,
+        "source_name": "Binance Spot public market data",
+        "source_reference": (
+            "binance-vision:/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=365"
+        ),
+        "submitted_csv_digest": dataset["source_metadata"]["submitted_csv_digest"],
+        "provider_id": "binance_spot",
+        "provider_response_digest": "sha256:binance-provider-response-v1",
+        "retrieved_at": "2026-07-18T02:00:00Z",
+        "requested_limit": 365,
+        "returned_bar_count": 300,
+        "dropped_incomplete_count": 1,
+        "normalization_note": "Base-asset volume rounded to whole units.",
+        "attestation_status": "provider_retrieved",
+        "market_calendar": "24x7",
+        "time_zone": "UTC",
+        "price_adjustment": "unadjusted",
+    }
+    project = _project(client, principal_id, workspace_id)
+    run = _create_run(
+        client, principal_id, workspace_id, project, dataset["dataset_id"]
+    )
+    assert run.status_code == 201, run.text

@@ -111,6 +111,33 @@ def test_mock_agent_executes_one_action_per_poll_and_finishes(
     assert any(item.kind.value == "research_report" for item in artifacts)
 
 
+def test_completed_candidate_must_be_selected_before_finish(
+    client: TestClient, principal_id: str
+) -> None:
+    workspace_id, created = _create_auto_run(
+        client, principal_id, "Require holdout evidence before completion."
+    )
+    for _ in range(4):
+        assert run_quant_agent_once(workspace_id=workspace_id)
+
+    store = QuantStore()
+    claim = store.claim_agent_run(workspace_id=workspace_id, worker_id="selection-gate")
+    assert claim is not None
+    report, artifact_ids, error = store.finish_agent_research(
+        claim,
+        selected_candidate_id=None,
+        conclusion="Do not finish without sealed holdout evidence.",
+        next_step="stop",
+    )
+
+    assert report is None
+    assert artifact_ids == []
+    assert error == "SELECTION_REQUIRED"
+    current = store.get_run(workspace_id=workspace_id, run_id=created["id"])
+    assert current.state.value != "completed"
+    store.release_agent_claim(claim)
+
+
 def test_goals_create_different_candidates_and_cancel_stops_recovery(
     client: TestClient, principal_id: str
 ) -> None:

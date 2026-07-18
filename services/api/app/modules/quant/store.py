@@ -1185,18 +1185,32 @@ class QuantStore:
             ]
             if not completed and run.agent_iteration < run.max_agent_iterations - 1:
                 return None, [], "NO_COMPLETED_CANDIDATES"
+            if completed and selected_candidate_id is None:
+                return None, [], "SELECTION_REQUIRED"
             selected = self._experiments.get(selected_candidate_id or "")
             if selected_candidate_id and (
                 selected is None or selected.run_id != run.id or selected.state != "completed"
             ):
                 return None, [], "INVALID_SELECTED_CANDIDATE"
             dataset = self.dataset_for_run(run)
-            source_limitation = (
-                "The pinned dataset was imported by the workspace and was not independently "
-                "verified against a market data provider."
-                if dataset.dataset_id != SPY_DAILY_FIXTURE.dataset_id
-                else "The pinned dataset is synthetic and is not real market data."
-            )
+            dataset_record = self._datasets.get((run.workspace_id, dataset.dataset_id))
+            if dataset.dataset_id == SPY_DAILY_FIXTURE.dataset_id:
+                source_limitation = (
+                    "The pinned dataset is synthetic and is not real market data."
+                )
+            elif (
+                dataset_record is not None
+                and dataset_record.source_metadata.kind == "provider_fetch"
+            ):
+                source_limitation = (
+                    "The pinned bars were retrieved from the declared provider and retain a "
+                    "raw-response digest, but were not cross-validated against a second source."
+                )
+            else:
+                source_limitation = (
+                    "The pinned dataset was imported by the workspace and was not independently "
+                    "verified against a market data provider."
+                )
             all_bars, training_bars, split_index, split = self._agent_split(run)
             generalization: dict[str, Any] = {
                 "status": "not_evaluated",
@@ -1612,8 +1626,17 @@ class QuantStore:
         file_name: str | None = None,
         source_name: str = "User-provided CSV",
         source_reference: str | None = None,
+        source_kind: Literal["csv_upload", "provider_fetch"] = "csv_upload",
+        provider_id: Literal["binance_spot"] | None = None,
+        provider_response_digest: str | None = None,
+        retrieved_at: datetime | None = None,
+        requested_limit: int | None = None,
+        returned_bar_count: int | None = None,
+        dropped_incomplete_count: int | None = None,
+        normalization_note: str | None = None,
+        attestation_status: Literal["declared", "provider_retrieved"] = "declared",
         market_calendar: Literal[
-            "unknown", "weekday", "XNYS", "XNAS", "XSHG", "XSHE"
+            "unknown", "weekday", "24x7", "XNYS", "XNAS", "XSHG", "XSHE"
         ] = "unknown",
         time_zone: str = "UTC",
         price_adjustment: Literal[
@@ -1622,12 +1645,21 @@ class QuantStore:
     ) -> QuantDatasetRecord:
         dataset = parse_ohlcv_csv(csv_text, name=name, symbol=symbol)
         source_metadata = QuantDatasetSourceMetadata(
+            kind=source_kind,
             file_name=file_name,
             source_name=source_name,
             source_reference=source_reference,
             submitted_csv_digest=(
                 "sha256:" + sha256(csv_text.encode("utf-8")).hexdigest()
             ),
+            provider_id=provider_id,
+            provider_response_digest=provider_response_digest,
+            retrieved_at=retrieved_at,
+            requested_limit=requested_limit,
+            returned_bar_count=returned_bar_count,
+            dropped_incomplete_count=dropped_incomplete_count,
+            normalization_note=normalization_note,
+            attestation_status=attestation_status,
             market_calendar=market_calendar,
             time_zone=time_zone,
             price_adjustment=price_adjustment,

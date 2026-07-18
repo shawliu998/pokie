@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 from packages.contracts.quant import (
     QuantAgentAction,
+    QuantAgentContext,
     QuantAgentDecision,
     QuantToolObservation,
 )
@@ -57,7 +58,7 @@ class QuantAgentRunner:
         )
         try:
             decision = (
-                self._budget_finish_decision()
+                self._budget_finish_decision(context)
                 if run.agent_iteration >= run.max_agent_iterations
                 else provider.decide(context)
             )
@@ -93,14 +94,26 @@ class QuantAgentRunner:
         return QuantAgentStepResult(completed, observation.terminal)
 
     @staticmethod
-    def _budget_finish_decision() -> QuantAgentDecision:
+    def _budget_finish_decision(context: QuantAgentContext) -> QuantAgentDecision:
+        candidates = context.candidates
+        selected = next(
+            (
+                candidate.candidate_id
+                for candidate in candidates
+                if candidate.state == "completed" and candidate.metrics is not None
+            ),
+            None,
+        )
         return QuantAgentDecision(
             action=QuantAgentAction.FINISH_RESEARCH,
             arguments={
-                "selected_candidate_id": None,
+                "selected_candidate_id": selected,
                 "conclusion": (
                     "The autonomous research loop reached its iteration budget. "
-                    "Existing completed experiments were retained."
+                    "Existing completed experiments were retained; the first completed "
+                    "candidate was selected deterministically for holdout evaluation."
+                    if selected is not None
+                    else "No candidate completed before the iteration budget was reached."
                 ),
                 "next_step": "stop",
             },

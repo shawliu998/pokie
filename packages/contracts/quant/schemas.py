@@ -24,7 +24,9 @@ from .enums import (
 )
 from .quality import QuantDatasetDataQuality
 
-QuantMarketCalendar = Literal["unknown", "weekday", "XNYS", "XNAS", "XSHG", "XSHE"]
+QuantMarketCalendar = Literal[
+    "unknown", "weekday", "24x7", "XNYS", "XNAS", "XSHG", "XSHE"
+]
 
 
 def _validated_time_zone(value: str) -> str:
@@ -54,14 +56,29 @@ class QuantDatasetImportRequest(ContractModel):
         return _validated_time_zone(value)
 
 
+class QuantBinanceSpotFetchRequest(ContractModel):
+    name: NonEmptyString | None = Field(default=None, max_length=200)
+    symbol: NonEmptyString = Field(default="BTCUSDT", pattern=r"^[A-Z][A-Z0-9]{4,15}$")
+    interval: Literal["1d"] = "1d"
+    limit: int = Field(default=365, ge=252, le=1000)
+
+
 class QuantDatasetSourceMetadata(ContractModel):
     model_config = ConfigDict(frozen=True)
 
-    kind: Literal["csv_upload"] = "csv_upload"
+    kind: Literal["csv_upload", "provider_fetch"] = "csv_upload"
     file_name: NonEmptyString | None = Field(default=None, max_length=255)
     source_name: NonEmptyString = Field(default="User-provided CSV", max_length=200)
     source_reference: NonEmptyString | None = Field(default=None, max_length=2000)
     submitted_csv_digest: Digest | None = None
+    provider_id: Literal["binance_spot"] | None = None
+    provider_response_digest: Digest | None = None
+    retrieved_at: datetime | None = None
+    requested_limit: int | None = Field(default=None, ge=1)
+    returned_bar_count: int | None = Field(default=None, ge=1)
+    dropped_incomplete_count: int | None = Field(default=None, ge=0)
+    normalization_note: NonEmptyString | None = Field(default=None, max_length=1000)
+    attestation_status: Literal["declared", "provider_retrieved"] = "declared"
     market_calendar: QuantMarketCalendar = "unknown"
     time_zone: NonEmptyString = Field(default="UTC", max_length=100)
     price_adjustment: Literal[
@@ -72,6 +89,28 @@ class QuantDatasetSourceMetadata(ContractModel):
     @classmethod
     def validate_time_zone(cls, value: str) -> str:
         return _validated_time_zone(value)
+
+    @model_validator(mode="after")
+    def validate_provider_attestation(self) -> QuantDatasetSourceMetadata:
+        provider_fields = (
+            self.provider_id,
+            self.provider_response_digest,
+            self.retrieved_at,
+            self.requested_limit,
+            self.returned_bar_count,
+            self.dropped_incomplete_count,
+            self.normalization_note,
+        )
+        if self.kind == "provider_fetch":
+            if any(value is None for value in provider_fields):
+                raise ValueError("provider_fetch metadata requires provider attestation fields")
+            if self.attestation_status != "provider_retrieved":
+                raise ValueError("provider_fetch metadata requires provider_retrieved status")
+        elif any(value is not None for value in provider_fields):
+            raise ValueError("CSV metadata cannot contain provider attestation fields")
+        elif self.attestation_status != "declared":
+            raise ValueError("CSV metadata requires declared attestation status")
+        return self
 
 
 class QuantDatasetResponse(ContractModel):

@@ -15,8 +15,10 @@ write code, execute shell commands, place orders, or invent tool results.
 
 At every turn select exactly one registered tool. Use actual observations, never repeat identical
 template parameters, respect experiment/repair/iteration budgets, backtest before judging, compare
-multiple completed candidates, and finish when evidence or budget is sufficient. It is valid to
-finish with no selected candidate.
+multiple completed candidates, and finish when evidence or budget is sufficient. When at least one
+candidate completed, finish_research must select one for sealed holdout evaluation; a weak result
+may still use next_step=stop and does not become an investment recommendation. Finish with no
+selected candidate only when no candidate completed.
 
 Return exactly one JSON object with action, arguments, decision_summary, and expected_result.
 Do not return Markdown, multiple actions, hidden reasoning, chain-of-thought, or invented

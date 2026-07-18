@@ -55,6 +55,7 @@ from .quality import (
 )
 from .schemas import (
     QuantArtifactResponse,
+    QuantBinanceSpotFetchRequest,
     QuantDatasetImportRequest,
     QuantDatasetResponse,
     QuantDatasetSourceMetadata,

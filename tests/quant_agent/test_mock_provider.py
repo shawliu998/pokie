@@ -3,7 +3,11 @@ from __future__ import annotations
 import pytest
 from pydantic import SecretStr
 
-from packages.contracts.quant import QuantAgentBudget, QuantAgentContext
+from packages.contracts.quant import (
+    QuantAgentBudget,
+    QuantAgentCandidateContext,
+    QuantAgentContext,
+)
 from services.worker.app.quant_agent.prompt import build_plan_messages
 from services.worker.app.quant_agent.provider import (
     MockQuantAgentProvider,
@@ -11,6 +15,7 @@ from services.worker.app.quant_agent.provider import (
     OpenAICompatibleProvider,
     QuantAgentProviderError,
 )
+from services.worker.app.quant_agent.runner import QuantAgentRunner
 
 
 def _context() -> QuantAgentContext:
@@ -67,6 +72,31 @@ def test_mock_finishes_when_iteration_budget_is_exhausted() -> None:
         }
     )
     assert MockQuantAgentProvider().decide(context).action.value == "finish_research"
+
+
+def test_budget_finish_selects_a_completed_candidate_for_holdout() -> None:
+    context = _context().model_copy(
+        update={
+            "candidates": [
+                QuantAgentCandidateContext(
+                    candidate_id="candidate-1",
+                    name="Completed candidate",
+                    template="sma_crossover",
+                    hypothesis="Retain holdout evidence.",
+                    parameters={"fast_window": 20, "slow_window": 100},
+                    state="completed",
+                    repair_count=0,
+                    verdict="viable",
+                    metrics={"maximum_drawdown_pct": -10.0},
+                    latest_observation="Backtest completed.",
+                )
+            ]
+        }
+    )
+
+    decision = QuantAgentRunner._budget_finish_decision(context)
+
+    assert decision.arguments["selected_candidate_id"] == "candidate-1"
 
 
 def test_model_provider_rejects_invalid_decision_json() -> None:

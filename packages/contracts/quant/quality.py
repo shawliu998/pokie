@@ -13,13 +13,14 @@ from ..base import ContractModel, Digest, NonEmptyString, VersionString
 from .data import QuantDailyBarDataset
 
 QUANT_DATA_QUALITY_SCHEMA_VERSION = "quant-data-quality-v1"
-QUANT_DATA_QUALITY_POLICY_VERSION = "weekday-gap-price-jump-v1"
+QUANT_DATA_QUALITY_POLICY_VERSION = "calendar-gap-price-jump-v2"
 
 _CALENDAR_TIME_ZONES = {
     "XNYS": "America/New_York",
     "XNAS": "America/New_York",
     "XSHG": "Asia/Shanghai",
     "XSHE": "Asia/Shanghai",
+    "24X7": "UTC",
 }
 
 
@@ -71,13 +72,13 @@ class QuantDatasetDataQuality(ContractModel):
         return self
 
 
-def _weekday_gap_count(dataset: QuantDailyBarDataset) -> int:
+def _calendar_gap_count(dataset: QuantDailyBarDataset, *, include_weekends: bool) -> int:
     missing = 0
     dates = [bar.trading_date for bar in dataset.bars]
     for previous, current in zip(dates, dates[1:], strict=False):
         cursor = previous + timedelta(days=1)
         while cursor < current:
-            if cursor.weekday() < 5:
+            if include_weekends or cursor.weekday() < 5:
                 missing += 1
             cursor += timedelta(days=1)
     return missing
@@ -92,25 +93,31 @@ def assess_daily_bar_quality(
 ) -> QuantDatasetDataQuality:
     """Assess daily bars without asserting exchange-holiday knowledge.
 
-    Weekdays absent between consecutive observations are counted, but are only a
-    warning because exchange holidays and source-specific trading schedules are
-    intentionally outside this Phase 1B contract.
+    Weekdays absent between consecutive observations are counted for exchange
+    calendars. A declared 24x7 calendar instead counts every missing calendar
+    day; neither rule attempts to infer exchange holidays.
     """
+    calendar = market_calendar.strip().upper() if market_calendar else ""
     dates = [bar.trading_date for bar in dataset.bars]
     elapsed = [
         max(0, (current - previous).days - 1)
         for previous, current in zip(dates, dates[1:], strict=False)
     ]
     largest_gap = max(elapsed, default=0)
-    calendar_gap_count = _weekday_gap_count(dataset)
+    calendar_gap_count = _calendar_gap_count(
+        dataset, include_weekends=calendar == "24X7"
+    )
     zero_volume = sum(bar.volume == 0 for bar in dataset.bars)
-    unexpected_sessions = sum(bar.trading_date.weekday() >= 5 for bar in dataset.bars)
+    unexpected_sessions = (
+        0
+        if calendar == "24X7"
+        else sum(bar.trading_date.weekday() >= 5 for bar in dataset.bars)
+    )
     jumps = sum(
         abs(float(current.close / previous.close) - 1) >= 0.5
         for previous, current in zip(dataset.bars, dataset.bars[1:], strict=False)
     )
     issues: list[QuantDataQualityIssue] = []
-    calendar = market_calendar.strip().upper() if market_calendar else ""
     expected_zone = _CALENDAR_TIME_ZONES.get(calendar)
     if calendar not in {*_CALENDAR_TIME_ZONES, "WEEKDAY"}:
         issues.append(
@@ -140,14 +147,17 @@ def assess_daily_bar_quality(
             )
         )
     if calendar_gap_count:
+        missing_day_code = "MISSING_CALENDAR_DAYS" if calendar == "24X7" else "MISSING_WEEKDAYS"
+        missing_day_message = (
+            "Calendar days absent between bars were detected for the declared 24x7 calendar."
+            if calendar == "24X7"
+            else "Weekdays absent between bars were detected; exchange holidays are not inferred."
+        )
         issues.append(
             QuantDataQualityIssue(
-                code="MISSING_WEEKDAYS",
+                code=missing_day_code,
                 severity="warning",
-                message=(
-                    "Weekdays absent between bars were detected; "
-                    "exchange holidays are not inferred."
-                ),
+                message=missing_day_message,
                 count=calendar_gap_count,
             )
         )
@@ -221,7 +231,7 @@ def assess_daily_bar_quality(
         "price_jump_count": jumps,
         "issues": [item.model_dump(mode="json") for item in issues],
         "notes": [
-            "Weekday gap counts do not identify exchange holidays.",
+            "Calendar gap counts do not identify exchange holidays.",
             "Corporate actions are not independently verified without an external reference feed.",
             "This report is not part of the immutable dataset digest.",
         ],

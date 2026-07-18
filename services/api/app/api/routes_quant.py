@@ -11,6 +11,7 @@ from fastapi.responses import StreamingResponse
 from packages.contracts.quant import (
     QuantAgentPlan,
     QuantArtifactResponse,
+    QuantBinanceSpotFetchRequest,
     QuantDatasetImportRequest,
     QuantDatasetResponse,
     QuantExperimentResponse,
@@ -30,6 +31,10 @@ from packages.contracts.quant import (
 from packages.contracts.quant.enums import QuantRunMode
 from services.api.app.core.auth import WorkspaceContext, require_owner
 from services.api.app.core.errors import invalid_state
+from services.api.app.modules.quant.binance_market_data import (
+    BinanceMarketDataClient,
+    BinanceMarketDataError,
+)
 from services.api.app.modules.quant.snapshot import (
     apply_fixture_command,
     quant_agent_workspace_snapshot,
@@ -48,6 +53,10 @@ Ctx = Annotated[WorkspaceContext, Depends(require_owner)]
 
 def _store():
     return get_quant_store()
+
+
+def _binance_market_data_client() -> BinanceMarketDataClient:
+    return BinanceMarketDataClient()
 
 
 def _generate_agent_plan(research_goal: str) -> QuantAgentPlan:
@@ -225,6 +234,46 @@ def import_dataset_csv(
         raise invalid_state(str(exc)) from exc
     return QuantDatasetResponse.model_validate(
         store.to_dataset_response(record)
+    ).model_dump(mode="json")
+
+
+@router.post(
+    "/datasets/fetch-binance-spot",
+    response_model=QuantDatasetResponse,
+    status_code=201,
+)
+def fetch_binance_spot_dataset(
+    body: QuantBinanceSpotFetchRequest, context: Ctx
+) -> dict[str, Any]:
+    try:
+        fetched = _binance_market_data_client().fetch_daily_klines(
+            symbol=body.symbol,
+            limit=body.limit,
+        )
+        record = _store().import_dataset_csv(
+            workspace_id=context.workspace_id,
+            name=body.name or f"{body.symbol} Binance Spot daily",
+            symbol=body.symbol,
+            csv_text=fetched.csv_text,
+            source_kind="provider_fetch",
+            source_name="Binance Spot public market data",
+            source_reference=fetched.source_reference,
+            provider_id="binance_spot",
+            provider_response_digest=fetched.provider_response_digest,
+            retrieved_at=fetched.retrieved_at,
+            requested_limit=fetched.requested_limit,
+            returned_bar_count=fetched.returned_bar_count,
+            dropped_incomplete_count=fetched.dropped_incomplete_count,
+            normalization_note=fetched.normalization_note,
+            attestation_status="provider_retrieved",
+            market_calendar="24x7",
+            time_zone="UTC",
+            price_adjustment="unadjusted",
+        )
+    except (BinanceMarketDataError, ValueError) as exc:
+        raise invalid_state(str(exc)) from exc
+    return QuantDatasetResponse.model_validate(
+        _store().to_dataset_response(record)
     ).model_dump(mode="json")
 
 

@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from packages.contracts.quant import (
     UNKNOWN_EVENT_SAFE_SUMMARY,
     QuantDatasetImportRequest,
+    QuantDatasetSourceMetadata,
     QuantRunEvent,
     QuantRunEventPayload,
     QuantStreamResetEvent,
@@ -31,6 +32,48 @@ def test_quant_dataset_import_requires_an_iana_time_zone() -> None:
     assert QuantDatasetImportRequest.model_validate(payload).time_zone == "America/New_York"
     with pytest.raises(ValidationError, match="valid IANA"):
         QuantDatasetImportRequest.model_validate({**payload, "time_zone": "Mars/Olympus"})
+
+
+def test_quant_dataset_import_accepts_a_24x7_market_calendar() -> None:
+    request = QuantDatasetImportRequest.model_validate(
+        {
+            "name": "Crypto daily bars",
+            "symbol": "BTC-USD",
+            "csv_text": "date,open,high,low,close\\n2024-01-01,1,1,1,1\\n",
+            "market_calendar": "24x7",
+            "time_zone": "UTC",
+        }
+    )
+    assert request.market_calendar == "24x7"
+
+
+def test_provider_source_requires_complete_provider_retrieval_attestation() -> None:
+    payload = {
+        "kind": "provider_fetch",
+        "source_name": "Binance Spot public market data",
+        "provider_id": "binance_spot",
+        "provider_response_digest": "sha256:provider-response",
+        "retrieved_at": "2026-07-18T02:00:00Z",
+        "requested_limit": 365,
+        "returned_bar_count": 364,
+        "dropped_incomplete_count": 1,
+        "normalization_note": "Rounded base-asset volume to whole units.",
+        "attestation_status": "provider_retrieved",
+        "market_calendar": "24x7",
+        "time_zone": "UTC",
+        "price_adjustment": "unadjusted",
+    }
+    metadata = QuantDatasetSourceMetadata.model_validate(payload)
+    assert metadata.provider_id == "binance_spot"
+
+    with pytest.raises(ValidationError, match="provider attestation fields"):
+        QuantDatasetSourceMetadata.model_validate(
+            {**payload, "provider_response_digest": None}
+        )
+    with pytest.raises(ValidationError, match="declared attestation status"):
+        QuantDatasetSourceMetadata.model_validate(
+            {"kind": "csv_upload", "attestation_status": "provider_retrieved"}
+        )
 
 
 def test_quant_run_event_payload_is_closed_and_safe() -> None:
