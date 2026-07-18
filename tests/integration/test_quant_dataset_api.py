@@ -12,7 +12,10 @@ from pydantic import ValidationError
 
 from services.api.app.api import routes_quant
 from services.api.app.modules.quant.binance_market_data import BinanceDailyBarsResult
-from services.api.app.modules.quant.nasdaq_market_data import NasdaqDailyBarsResult
+from services.api.app.modules.quant.nasdaq_market_data import (
+    NasdaqDailyBarsResult,
+    NasdaqSplitEvent,
+)
 from services.api.app.modules.quant.store import QuantStore, get_quant_store
 from services.worker.app.pipelines.quant_agent import run_quant_agent_once
 from services.worker.app.quant_agent.provider import MockQuantAgentProvider
@@ -607,6 +610,7 @@ def test_nasdaq_provider_fetch_retains_dividend_and_listing_evidence(
                 info_response_digest="sha256:nasdaq-info-v1",
                 historical_response_digest="sha256:nasdaq-history-v1",
                 dividends_response_digest="sha256:nasdaq-dividends-v1",
+                splits_response_digest="sha256:nasdaq-splits-v1",
                 retrieved_at=datetime(2026, 7, 18, 2, 30, tzinfo=UTC),
                 source_reference=(
                     "nasdaq:AAPL:historical?assetclass=stocks&fromdate="
@@ -617,7 +621,18 @@ def test_nasdaq_provider_fetch_retains_dividend_and_listing_evidence(
                 dividend_coverage_start="1988-11-21",
                 dividend_coverage_end="2026-05-11",
                 price_adjustment="unadjusted",
-                split_verification_note="Split verification is unavailable.",
+                split_verification_note=(
+                    "Current split snapshot only; historical completeness is not asserted."
+                ),
+                split_snapshot_as_of=date(2026, 7, 17),
+                split_coverage_start=date(2026, 7, 17),
+                split_coverage_end=date(2026, 8, 4),
+                split_event_count=1,
+                split_events=(
+                    NasdaqSplitEvent(
+                        symbol="AAPL", ratio="4:1", execution_date=date(2026, 7, 20)
+                    ),
+                ),
                 exchange="NASDAQ-GS",
                 company_name="Apple Inc. Common Stock",
             )
@@ -644,17 +659,33 @@ def test_nasdaq_provider_fetch_retains_dividend_and_listing_evidence(
         "daily_bars",
         "instrument_info",
         "dividends",
+        "splits",
     ]
     assert source["corporate_actions_attestation"] == {
         "dividends_status": "retrieved_unverified",
-        "splits_status": "unavailable",
+        "splits_status": "retrieved_unverified",
         "coverage_start": "1988-11-21",
         "coverage_end": "2026-05-11",
+        "dividend_coverage_start": "1988-11-21",
+        "dividend_coverage_end": "2026-05-11",
+        "split_coverage_start": "2026-07-17",
+        "split_coverage_end": "2026-08-04",
+        "split_snapshot_as_of": "2026-07-17",
+        "split_completeness_status": "current_snapshot_only",
+        "split_reconciliation_status": "not_attempted",
         "dividend_event_count": 82,
-        "split_event_count": None,
+        "split_event_count": 1,
+        "split_events": [
+            {
+                "effective_date": "2026-07-20",
+                "ratio_numerator": "4",
+                "ratio_denominator": "1",
+            }
+        ],
         "note": (
             "Dividend rows were retrieved from Nasdaq and retained as response evidence; "
-            "split history was unavailable and prices remain unadjusted."
+            "split events are a current/future calendar snapshot only, not proof of "
+            "historical completeness, and prices remain unadjusted."
         ),
     }
     project = _project(client, principal_id, workspace_id)
@@ -670,10 +701,37 @@ def test_nasdaq_provider_fetch_retains_dividend_and_listing_evidence(
     projected_source = snapshot.json()["dataset"]["source"]
     assert [
         item["kind"] for item in projected_source["providerResponseAttestations"]
-    ] == ["daily_bars", "instrument_info", "dividends"]
+    ] == ["daily_bars", "instrument_info", "dividends", "splits"]
     assert projected_source["corporateActionsAttestation"]["dividendsStatus"] == (
         "retrieved_unverified"
     )
     assert projected_source["corporateActionsAttestation"]["splitsStatus"] == (
-        "unavailable"
+        "retrieved_unverified"
     )
+    assert projected_source["corporateActionsAttestation"] == {
+        "dividendsStatus": "retrieved_unverified",
+        "splitsStatus": "retrieved_unverified",
+        "coverageStart": "1988-11-21",
+        "coverageEnd": "2026-05-11",
+        "dividendCoverageStart": "1988-11-21",
+        "dividendCoverageEnd": "2026-05-11",
+        "splitCoverageStart": "2026-07-17",
+        "splitCoverageEnd": "2026-08-04",
+        "splitSnapshotAsOf": "2026-07-17",
+        "splitCompletenessStatus": "current_snapshot_only",
+        "splitReconciliationStatus": "not_attempted",
+        "dividendEventCount": 82,
+        "splitEventCount": 1,
+        "splitEvents": [
+            {
+                "effectiveDate": "2026-07-20",
+                "ratioNumerator": "4",
+                "ratioDenominator": "1",
+            }
+        ],
+        "note": (
+            "Dividend rows were retrieved from Nasdaq and retained as response evidence; "
+            "split events are a current/future calendar snapshot only, not proof of "
+            "historical completeness, and prices remain unadjusted."
+        ),
+    }

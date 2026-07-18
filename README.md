@@ -53,14 +53,16 @@ Implemented:
   raw-response digest, retrieval timestamp, request/return/drop counts, UTC 24×7 quality checks,
   normalized immutable dataset digest, API route, Mac fetch controls, and retained provider proof.
 - a fixed-host Nasdaq equity adapter that retrieves provider-listed instrument information,
-  unadjusted historical OHLCV and dividend history as three separately hashed responses; XNAS
-  quality checks exclude regular full-day US exchange holidays while retaining special-closure
-  warnings, and unavailable split verification remains explicit in API and Mac evidence.
+  unadjusted historical OHLCV, dividend history, and a point-in-time split-calendar snapshot as
+  four separately hashed responses; XNAS quality checks exclude regular full-day US exchange
+  holidays while retaining special-closure warnings. Dividend coverage and split snapshot coverage
+  remain separate, and the API/Mac UI explicitly avoid claiming historical split completeness.
 
 Still intentionally not implemented:
 
 - provider adapters beyond public Binance Spot and Nasdaq-listed US equities, or news data;
-- exchange-holiday/corporate-action reference verification, production backtest orchestration,
+- special exchange-closure and historically complete corporate-action reference verification,
+  production backtest orchestration,
   broad parameter search, or optimization (manual CSV provenance remains user-supplied);
 - nested cross-validation, broad regime coverage, statistical significance testing, or production
   strategy certification; regime diversity is reported truthfully and may be insufficient;

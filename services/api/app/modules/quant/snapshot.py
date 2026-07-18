@@ -897,8 +897,43 @@ def quant_agent_workspace_snapshot(*, workspace_id: str) -> dict[str, Any] | Non
                                 if actions.coverage_end is not None
                                 else None
                             ),
+                            "dividendCoverageStart": (
+                                actions.dividend_coverage_start.isoformat()
+                                if actions.dividend_coverage_start is not None
+                                else None
+                            ),
+                            "dividendCoverageEnd": (
+                                actions.dividend_coverage_end.isoformat()
+                                if actions.dividend_coverage_end is not None
+                                else None
+                            ),
+                            "splitCoverageStart": (
+                                actions.split_coverage_start.isoformat()
+                                if actions.split_coverage_start is not None
+                                else None
+                            ),
+                            "splitCoverageEnd": (
+                                actions.split_coverage_end.isoformat()
+                                if actions.split_coverage_end is not None
+                                else None
+                            ),
+                            "splitSnapshotAsOf": (
+                                actions.split_snapshot_as_of.isoformat()
+                                if actions.split_snapshot_as_of is not None
+                                else None
+                            ),
+                            "splitCompletenessStatus": actions.split_completeness_status,
+                            "splitReconciliationStatus": actions.split_reconciliation_status,
                             "dividendEventCount": actions.dividend_event_count,
                             "splitEventCount": actions.split_event_count,
+                            "splitEvents": [
+                                {
+                                    "effectiveDate": event.effective_date.isoformat(),
+                                    "ratioNumerator": str(event.ratio_numerator),
+                                    "ratioDenominator": str(event.ratio_denominator),
+                                }
+                                for event in actions.split_events
+                            ],
                             "note": actions.note,
                         }
                         if (

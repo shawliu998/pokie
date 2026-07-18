@@ -130,6 +130,44 @@ def test_nasdaq_request_and_partial_corporate_action_evidence_are_explicit() -> 
     assert metadata.corporate_actions_attestation is not None
     assert metadata.corporate_actions_attestation.splits_status == "unavailable"
 
+    snapshot_metadata = QuantDatasetSourceMetadata.model_validate(
+        {
+            **metadata.model_dump(mode="json"),
+            "provider_response_attestations": [
+                *metadata.model_dump(mode="json")["provider_response_attestations"],
+                {
+                    "kind": "splits",
+                    "digest": "sha256:splits",
+                    "source_reference": "nasdaq:calendar/splits",
+                },
+            ],
+            "corporate_actions_attestation": {
+                **metadata.model_dump(mode="json")["corporate_actions_attestation"],
+                "splits_status": "retrieved_unverified",
+                "split_coverage_start": "2026-07-17",
+                "split_coverage_end": "2026-08-04",
+                "split_snapshot_as_of": "2026-07-17",
+                "split_completeness_status": "current_snapshot_only",
+                "split_reconciliation_status": "not_attempted",
+                "split_event_count": 1,
+                "split_events": [
+                    {
+                        "effective_date": "2026-07-20",
+                        "ratio_numerator": "1.5",
+                        "ratio_denominator": "1",
+                    }
+                ],
+                "note": "Current split calendar snapshot; not historical completeness.",
+            },
+        }
+    )
+    assert snapshot_metadata.corporate_actions_attestation is not None
+    assert (
+        snapshot_metadata.corporate_actions_attestation.split_completeness_status
+        == "current_snapshot_only"
+    )
+    assert snapshot_metadata.corporate_actions_attestation.split_events[0].ratio_numerator == 1.5
+
     with pytest.raises(ValidationError, match="verified split evidence"):
         QuantDatasetSourceMetadata.model_validate(
             {

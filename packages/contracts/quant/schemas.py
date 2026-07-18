@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -77,6 +78,14 @@ class QuantProviderResponseAttestation(ContractModel):
     source_reference: NonEmptyString = Field(max_length=2000)
 
 
+class QuantSplitEventSummary(ContractModel):
+    model_config = ConfigDict(frozen=True)
+
+    effective_date: date
+    ratio_numerator: Decimal = Field(gt=0, max_digits=18, decimal_places=8)
+    ratio_denominator: Decimal = Field(gt=0, max_digits=18, decimal_places=8)
+
+
 class QuantCorporateActionsAttestation(ContractModel):
     model_config = ConfigDict(frozen=True)
 
@@ -86,20 +95,81 @@ class QuantCorporateActionsAttestation(ContractModel):
     splits_status: Literal[
         "not_requested", "unavailable", "retrieved_unverified", "verified", "conflict"
     ]
+    # Deprecated dividend aliases retained so Phase 1D records remain readable.
     coverage_start: date | None = None
     coverage_end: date | None = None
+    dividend_coverage_start: date | None = None
+    dividend_coverage_end: date | None = None
+    split_coverage_start: date | None = None
+    split_coverage_end: date | None = None
+    split_snapshot_as_of: date | None = None
+    split_completeness_status: Literal[
+        "unknown", "current_snapshot_only", "partial_history", "historically_complete"
+    ] = "unknown"
+    split_reconciliation_status: Literal[
+        "not_attempted", "consistent", "conflict", "unavailable"
+    ] = "unavailable"
     dividend_event_count: int | None = Field(default=None, ge=0)
     split_event_count: int | None = Field(default=None, ge=0)
+    split_events: tuple[QuantSplitEventSummary, ...] = Field(default=(), max_length=100)
     note: NonEmptyString = Field(max_length=1000)
 
     @model_validator(mode="after")
     def validate_coverage(self) -> QuantCorporateActionsAttestation:
+        coverage_pairs = (
+            (self.coverage_start, self.coverage_end, "legacy dividend"),
+            (self.dividend_coverage_start, self.dividend_coverage_end, "dividend"),
+            (self.split_coverage_start, self.split_coverage_end, "split"),
+        )
+        for start, end, label in coverage_pairs:
+            if start is not None and end is not None and start > end:
+                raise ValueError(f"{label} coverage start must not exceed end")
         if (
             self.coverage_start is not None
-            and self.coverage_end is not None
-            and self.coverage_start > self.coverage_end
+            and self.dividend_coverage_start is not None
+            and self.coverage_start != self.dividend_coverage_start
+        ) or (
+            self.coverage_end is not None
+            and self.dividend_coverage_end is not None
+            and self.coverage_end != self.dividend_coverage_end
         ):
-            raise ValueError("corporate-action coverage start must not exceed end")
+            raise ValueError("legacy and explicit dividend coverage must agree")
+        if self.split_completeness_status == "current_snapshot_only" and (
+            self.splits_status != "retrieved_unverified"
+            or self.split_snapshot_as_of is None
+            or self.split_coverage_start is None
+            or self.split_coverage_end is None
+        ):
+            raise ValueError(
+                "current split snapshot requires retrieved evidence and bounded coverage"
+            )
+        if self.split_snapshot_as_of is not None and (
+            self.split_coverage_start is None
+            or self.split_coverage_end is None
+            or not (
+                self.split_coverage_start
+                <= self.split_snapshot_as_of
+                <= self.split_coverage_end
+            )
+        ):
+            raise ValueError("split snapshot date must lie within split coverage")
+        if self.split_events:
+            if self.split_event_count != len(self.split_events):
+                raise ValueError("split event count must match retained split events")
+            if self.split_coverage_start is None or self.split_coverage_end is None:
+                raise ValueError("retained split events require split coverage")
+            if any(
+                not self.split_coverage_start
+                <= event.effective_date
+                <= self.split_coverage_end
+                for event in self.split_events
+            ):
+                raise ValueError("retained split events must lie within split coverage")
+        elif (
+            self.split_completeness_status == "current_snapshot_only"
+            and self.split_event_count != 0
+        ):
+            raise ValueError("empty current split snapshot requires zero target events")
         return self
 
 
@@ -175,12 +245,14 @@ class QuantDatasetSourceMetadata(ContractModel):
             and daily_evidence.digest != self.provider_response_digest
         ):
             raise ValueError("daily-bars evidence must match provider response digest")
-        if self.provider_id == "nasdaq_equity" and set(response_kinds) != {
-            "daily_bars",
-            "instrument_info",
-            "dividends",
-        }:
-            raise ValueError("Nasdaq equity metadata requires bars, listing, and dividend evidence")
+        if self.provider_id == "nasdaq_equity" and set(response_kinds) not in (
+            {"daily_bars", "instrument_info", "dividends"},
+            {"daily_bars", "instrument_info", "dividends", "splits"},
+        ):
+            raise ValueError(
+                "Nasdaq equity metadata requires bars, listing, dividends, "
+                "and optional split evidence"
+            )
         actions = self.corporate_actions_attestation
         if actions is not None:
             if self.provider_id != "nasdaq_equity":
@@ -197,6 +269,11 @@ class QuantDatasetSourceMetadata(ContractModel):
                 "conflict",
             } and "splits" not in response_kinds:
                 raise ValueError("split status requires split response evidence")
+            if (
+                actions.split_completeness_status != "unknown"
+                and "splits" not in response_kinds
+            ):
+                raise ValueError("split completeness requires split response evidence")
         if self.kind == "csv_upload" and (
             self.provider_response_attestations
             or self.corporate_actions_attestation is not None

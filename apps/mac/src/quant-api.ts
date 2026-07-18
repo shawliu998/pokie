@@ -90,6 +90,14 @@ interface QuantDatasetDto {
       splits_status: string;
       coverage_start: string | null;
       coverage_end: string | null;
+      dividend_coverage_start?: string | null;
+      dividend_coverage_end?: string | null;
+      split_coverage_start?: string | null;
+      split_coverage_end?: string | null;
+      split_snapshot_as_of?: string | null;
+      split_completeness_status?: string;
+      split_reconciliation_status?: string;
+      split_events?: Array<{ effective_date: string; ratio_numerator: number; ratio_denominator: number }>;
       dividend_event_count: number | null;
       split_event_count: number | null;
       note: string;
@@ -162,6 +170,22 @@ function mapDataset(dto: QuantDatasetDto): DatasetSnapshot {
           splitsStatus: dto.source_metadata.corporate_actions_attestation.splits_status,
           coverageStart: dto.source_metadata.corporate_actions_attestation.coverage_start,
           coverageEnd: dto.source_metadata.corporate_actions_attestation.coverage_end,
+          dividendCoverageStart: dto.source_metadata.corporate_actions_attestation.dividend_coverage_start
+            ?? dto.source_metadata.corporate_actions_attestation.coverage_start,
+          dividendCoverageEnd: dto.source_metadata.corporate_actions_attestation.dividend_coverage_end
+            ?? dto.source_metadata.corporate_actions_attestation.coverage_end,
+          splitCoverageStart: dto.source_metadata.corporate_actions_attestation.split_coverage_start
+            ?? dto.source_metadata.corporate_actions_attestation.coverage_start,
+          splitCoverageEnd: dto.source_metadata.corporate_actions_attestation.split_coverage_end
+            ?? dto.source_metadata.corporate_actions_attestation.coverage_end,
+          splitSnapshotAsOf: dto.source_metadata.corporate_actions_attestation.split_snapshot_as_of ?? null,
+          splitCompletenessStatus: dto.source_metadata.corporate_actions_attestation.split_completeness_status,
+          splitReconciliationStatus: dto.source_metadata.corporate_actions_attestation.split_reconciliation_status,
+          splitEvents: dto.source_metadata.corporate_actions_attestation.split_events?.map((event) => ({
+            effectiveDate: event.effective_date,
+            ratioNumerator: event.ratio_numerator,
+            ratioDenominator: event.ratio_denominator,
+          })),
           dividendEventCount: dto.source_metadata.corporate_actions_attestation.dividend_event_count,
           splitEventCount: dto.source_metadata.corporate_actions_attestation.split_event_count,
           note: dto.source_metadata.corporate_actions_attestation.note,

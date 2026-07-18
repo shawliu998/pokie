@@ -97,6 +97,12 @@ def _run() -> int:
         ],
         "dividends_status": actions.get("dividends_status"),
         "splits_status": actions.get("splits_status"),
+        "split_completeness_status": actions.get("split_completeness_status"),
+        "split_snapshot_as_of_present": bool(actions.get("split_snapshot_as_of")),
+        "split_coverage_start_present": "split_coverage_start" in actions,
+        "split_coverage_end_present": bool(actions.get("split_coverage_end")),
+        "split_history_complete": False,
+        "split_evidence_scope": "current_snapshot_only_not_historical_complete",
         "price_adjustment": source.get("price_adjustment"),
         "price_adjustment_verification": source.get("price_adjustment_verification_status"),
         "market_calendar": source.get("market_calendar"),
@@ -114,12 +120,18 @@ def _run() -> int:
     print(summary)
     return int(not (
         current.state.value == "completed" and current.provider == "deepseek"
-        and summary["provider_failure_count"] <= 1
+        and summary["provider_failure_count"] == 0
         and not summary["provider_fallback"]
         and summary["provider_id"] == "nasdaq_equity"
-        and summary["attestation_kinds"] == ["daily_bars", "instrument_info", "dividends"]
+        and summary["attestation_kinds"] == [
+            "daily_bars", "instrument_info", "dividends", "splits"
+        ]
         and summary["dividends_status"] == "retrieved_unverified"
-        and summary["splits_status"] == "unavailable"
+        and summary["splits_status"] == "retrieved_unverified"
+        and summary["split_completeness_status"] == "current_snapshot_only"
+        and summary["split_snapshot_as_of_present"]
+        and summary["split_coverage_start_present"]
+        and summary["split_coverage_end_present"]
         and summary["price_adjustment"] == "unadjusted"
         and summary["price_adjustment_verification"] == "not_applicable"
         and summary["market_calendar"] == "XNAS"

@@ -109,6 +109,14 @@ describe('Quant fixture API adapter', () => {
           splits_status: 'unavailable',
           coverage_start: '2024-07-18',
           coverage_end: '2026-07-18',
+          dividend_coverage_start: '2024-07-18',
+          dividend_coverage_end: '2026-07-18',
+          split_coverage_start: '2026-01-01',
+          split_coverage_end: '2026-07-18',
+          split_snapshot_as_of: '2026-07-18',
+          split_completeness_status: 'current_snapshot_only',
+          split_reconciliation_status: 'not_reconciled',
+          split_events: [{ effective_date: '2026-06-15', ratio_numerator: 2, ratio_denominator: 1 }],
           dividend_event_count: 82,
           split_event_count: null,
           note: 'Dividend coverage is retained; split coverage was unavailable.',
@@ -166,7 +174,7 @@ describe('Quant fixture API adapter', () => {
     expect(JSON.parse(String(calls[2]?.init?.body))).toEqual({ symbol: 'BTCUSDT', interval: '1d', limit: 365 });
 
     const nasdaq = await api.fetchNasdaqEquityDataset({ idempotencyKey: importKey });
-    expect(nasdaq).toMatchObject({ id: nasdaqDto.dataset_id, source: { kind: 'provider_fetch', providerId: 'nasdaq_equity', marketCalendar: 'XNAS', timeZone: 'America/New_York', priceAdjustment: 'unadjusted', priceAdjustmentVerificationStatus: 'not_applicable', providerResponseAttestations: [{ kind: 'daily_bars' }, { kind: 'instrument_info' }, { kind: 'dividends' }], corporateActionsAttestation: { dividendsStatus: 'retrieved_unverified', splitsStatus: 'unavailable', dividendEventCount: 82, splitEventCount: null } } });
+    expect(nasdaq).toMatchObject({ id: nasdaqDto.dataset_id, source: { kind: 'provider_fetch', providerId: 'nasdaq_equity', marketCalendar: 'XNAS', timeZone: 'America/New_York', priceAdjustment: 'unadjusted', priceAdjustmentVerificationStatus: 'not_applicable', providerResponseAttestations: [{ kind: 'daily_bars' }, { kind: 'instrument_info' }, { kind: 'dividends' }], corporateActionsAttestation: { dividendsStatus: 'retrieved_unverified', splitsStatus: 'unavailable', dividendCoverageStart: '2024-07-18', splitCoverageStart: '2026-01-01', splitSnapshotAsOf: '2026-07-18', splitCompletenessStatus: 'current_snapshot_only', splitReconciliationStatus: 'not_reconciled', splitEvents: [{ effectiveDate: '2026-06-15', ratioNumerator: 2, ratioDenominator: 1 }], dividendEventCount: 82, splitEventCount: null } } });
     expect(calls[3]?.path).toBe('/quant/datasets/fetch-nasdaq-equity');
     expect(JSON.parse(String(calls[3]?.init?.body))).toEqual({ symbol: 'AAPL', lookback_days: 730 });
   });

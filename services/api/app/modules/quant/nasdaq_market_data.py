@@ -18,6 +18,9 @@ MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 MAX_HISTORY_LIMIT = 5_000
 DEFAULT_HISTORY_DAYS = 730
 _SYMBOL_PATTERN = re.compile(r"^[A-Z][A-Z0-9.\-]{0,15}$")
+_SPLIT_RATIO_PATTERN = re.compile(
+    r"^(?P<numerator>[0-9]+(?:\.[0-9]+)?)\s*:\s*(?P<denominator>[0-9]+(?:\.[0-9]+)?)$"
+)
 
 
 class NasdaqMarketDataError(ValueError):
@@ -34,6 +37,7 @@ class NasdaqDailyBarsResult:
     info_response_digest: str
     historical_response_digest: str
     dividends_response_digest: str
+    splits_response_digest: str
     retrieved_at: datetime
     source_reference: str
     bar_count: int
@@ -42,8 +46,20 @@ class NasdaqDailyBarsResult:
     dividend_coverage_end: str | None
     price_adjustment: str
     split_verification_note: str
+    split_snapshot_as_of: date
+    split_coverage_start: date
+    split_coverage_end: date
+    split_event_count: int
+    split_events: tuple[NasdaqSplitEvent, ...]
     exchange: str
     company_name: str
+
+
+@dataclass(frozen=True, slots=True)
+class NasdaqSplitEvent:
+    symbol: str
+    ratio: str
+    execution_date: date
 
 
 class NasdaqMarketDataClient:
@@ -93,8 +109,15 @@ class NasdaqMarketDataClient:
             f"{NASDAQ_API_BASE_URL}/api/quote/{normalized_symbol}/dividends",
             params={"assetclass": "stocks"},
         )
+        splits_raw = self._request(
+            f"{NASDAQ_API_BASE_URL}/api/calendar/splits",
+            params={},
+        )
         historical_rows = self._historical_rows(historical_raw)
         dividend_rows = self._dividend_rows(dividend_raw)
+        split_snapshot_as_of, all_split_dates, split_events = self._split_events(
+            splits_raw, normalized_symbol
+        )
         bars = [self._parse_bar(row) for row in historical_rows]
         if len(bars) > limit:
             raise NasdaqMarketDataError(
@@ -116,6 +139,7 @@ class NasdaqMarketDataClient:
             info_response_digest="sha256:" + hashlib.sha256(info_raw).hexdigest(),
             historical_response_digest="sha256:" + hashlib.sha256(historical_raw).hexdigest(),
             dividends_response_digest="sha256:" + hashlib.sha256(dividend_raw).hexdigest(),
+            splits_response_digest="sha256:" + hashlib.sha256(splits_raw).hexdigest(),
             retrieved_at=datetime.now(tz=UTC),
             source_reference=(
                 f"nasdaq:{normalized_symbol}:historical?assetclass=stocks&fromdate="
@@ -126,7 +150,15 @@ class NasdaqMarketDataClient:
             dividend_coverage_start=coverage[0].isoformat() if coverage else None,
             dividend_coverage_end=coverage[-1].isoformat() if coverage else None,
             price_adjustment="unadjusted",
-            split_verification_note="Split verification is unavailable from this bounded client.",
+            split_verification_note=(
+                "Split events are a point-in-time Nasdaq calendar snapshot; "
+                "historical completeness is not asserted."
+            ),
+            split_snapshot_as_of=split_snapshot_as_of,
+            split_coverage_start=min((split_snapshot_as_of, *all_split_dates)),
+            split_coverage_end=max((split_snapshot_as_of, *all_split_dates)),
+            split_event_count=len(split_events),
+            split_events=split_events,
             exchange=exchange,
             company_name=company_name,
         )
@@ -206,6 +238,50 @@ class NasdaqMarketDataClient:
         rows = dividends.get("rows") if isinstance(dividends, dict) else None
         return self._rows(rows, "dividend")
 
+    def _split_events(
+        self, raw: bytes, symbol: str
+    ) -> tuple[date, list[date], tuple[NasdaqSplitEvent, ...]]:
+        value = self._json_object(raw)
+        data = value.get("data")
+        as_of_raw = data.get("asOf") if isinstance(data, dict) else None
+        rows = data.get("rows") if isinstance(data, dict) else None
+        if not isinstance(as_of_raw, str):
+            raise NasdaqMarketDataError("Nasdaq split calendar snapshot is invalid.")
+        try:
+            as_of = datetime.strptime(as_of_raw, "%a, %b %d, %Y").date()
+        except ValueError:
+            raise NasdaqMarketDataError("Nasdaq split calendar snapshot is invalid.") from None
+        parsed: list[NasdaqSplitEvent] = []
+        all_dates: list[date] = []
+        for row in self._rows(rows, "split"):
+            raw_symbol = row.get("symbol")
+            raw_ratio = row.get("ratio")
+            raw_date = row.get("executionDate")
+            if (
+                not isinstance(raw_symbol, str)
+                or not isinstance(raw_ratio, str)
+                or not isinstance(raw_date, str)
+            ):
+                raise NasdaqMarketDataError("Nasdaq split calendar row is invalid.")
+            ratio = _normalized_split_ratio(raw_ratio)
+            if ratio is None:
+                raise NasdaqMarketDataError("Nasdaq split calendar row is invalid.")
+            try:
+                execution_date = datetime.strptime(raw_date.strip(), "%m/%d/%Y").date()
+            except ValueError:
+                raise NasdaqMarketDataError("Nasdaq split calendar row is invalid.") from None
+            all_dates.append(execution_date)
+            if raw_symbol.strip().upper() == symbol:
+                parsed.append(
+                    NasdaqSplitEvent(
+                        symbol=symbol, ratio=ratio, execution_date=execution_date
+                    )
+                )
+        parsed.sort(key=lambda item: (item.execution_date, item.ratio))
+        if len({(item.symbol, item.execution_date) for item in parsed}) != len(parsed):
+            raise NasdaqMarketDataError("Nasdaq split calendar contained duplicate symbol dates.")
+        return as_of, all_dates, tuple(parsed)
+
     @staticmethod
     def _rows(value: object, kind: str) -> list[dict[str, object]]:
         if not isinstance(value, list):
@@ -258,3 +334,22 @@ def _integer(value: object) -> int:
     if not parsed.is_finite() or parsed != parsed.to_integral_value() or parsed < 0:
         raise ValueError("not integer")
     return int(parsed)
+
+
+def _normalized_split_ratio(value: str) -> str | None:
+    match = _SPLIT_RATIO_PATTERN.fullmatch(value.strip())
+    if match is None:
+        return None
+    try:
+        numerator = Decimal(match.group("numerator"))
+        denominator = Decimal(match.group("denominator"))
+    except InvalidOperation:
+        return None
+    if (
+        not numerator.is_finite()
+        or not denominator.is_finite()
+        or numerator <= 0
+        or denominator <= 0
+    ):
+        return None
+    return f"{format(numerator.normalize(), 'f')}:{format(denominator.normalize(), 'f')}"

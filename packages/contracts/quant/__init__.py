@@ -73,6 +73,7 @@ from .schemas import (
     QuantRunCreateRequest,
     QuantRunResponse,
     QuantRunRetryRequest,
+    QuantSplitEventSummary,
 )
 from .tools import QUANT_AGENT_TOOL_REGISTRY, QuantToolObservation
 

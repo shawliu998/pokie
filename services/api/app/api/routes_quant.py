@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -28,6 +29,7 @@ from packages.contracts.quant import (
     QuantRunCreateRequest,
     QuantRunResponse,
     QuantRunRetryRequest,
+    QuantSplitEventSummary,
     QuantStreamResetEvent,
     decode_quant_event,
     encode_quant_sse,
@@ -320,6 +322,7 @@ def fetch_nasdaq_equity_dataset(
         history_reference = fetched.source_reference
         info_reference = f"nasdaq:{body.symbol}:info?assetclass=stocks"
         dividends_reference = f"nasdaq:{body.symbol}:dividends?assetclass=stocks"
+        splits_reference = "nasdaq:calendar/splits"
         record = _store().import_dataset_csv(
             workspace_id=context.workspace_id,
             name=body.name or f"{body.symbol} Nasdaq daily",
@@ -346,17 +349,38 @@ def fetch_nasdaq_equity_dataset(
                     digest=fetched.dividends_response_digest,
                     source_reference=dividends_reference,
                 ),
+                QuantProviderResponseAttestation(
+                    kind="splits",
+                    digest=fetched.splits_response_digest,
+                    source_reference=splits_reference,
+                ),
             ),
             corporate_actions_attestation=QuantCorporateActionsAttestation(
                 dividends_status="retrieved_unverified",
-                splits_status="unavailable",
+                splits_status="retrieved_unverified",
                 coverage_start=fetched.dividend_coverage_start,
                 coverage_end=fetched.dividend_coverage_end,
+                dividend_coverage_start=fetched.dividend_coverage_start,
+                dividend_coverage_end=fetched.dividend_coverage_end,
+                split_coverage_start=fetched.split_coverage_start,
+                split_coverage_end=fetched.split_coverage_end,
+                split_snapshot_as_of=fetched.split_snapshot_as_of,
+                split_completeness_status="current_snapshot_only",
+                split_reconciliation_status="not_attempted",
                 dividend_event_count=fetched.dividend_row_count,
-                split_event_count=None,
+                split_event_count=fetched.split_event_count,
+                split_events=tuple(
+                    QuantSplitEventSummary(
+                        effective_date=event.execution_date,
+                        ratio_numerator=Decimal(event.ratio.split(":", maxsplit=1)[0]),
+                        ratio_denominator=Decimal(event.ratio.split(":", maxsplit=1)[1]),
+                    )
+                    for event in fetched.split_events
+                ),
                 note=(
                     "Dividend rows were retrieved from Nasdaq and retained as response evidence; "
-                    "split history was unavailable and prices remain unadjusted."
+                    "split events are a current/future calendar snapshot only, not proof of "
+                    "historical completeness, and prices remain unadjusted."
                 ),
             ),
             price_adjustment_verification_status="not_applicable",
@@ -367,7 +391,7 @@ def fetch_nasdaq_equity_dataset(
             normalization_note=(
                 "Nasdaq dollar and thousands separators were removed; MM/DD/YYYY dates were "
                 "normalized to ISO order. Prices remain unadjusted and dividends were not "
-                "applied to OHLCV rows."
+                "applied to OHLCV rows. Split evidence is a point-in-time calendar snapshot."
             ),
             attestation_status="provider_retrieved",
             market_calendar="XNAS",

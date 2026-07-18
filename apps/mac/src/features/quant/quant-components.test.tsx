@@ -294,6 +294,14 @@ describe('Quant Workspace components', () => {
             splitsStatus: 'unavailable',
             coverageStart: '2024-07-18',
             coverageEnd: '2026-07-18',
+            dividendCoverageStart: '2024-07-18',
+            dividendCoverageEnd: '2026-07-18',
+            splitCoverageStart: '2026-01-01',
+            splitCoverageEnd: '2026-07-18',
+            splitSnapshotAsOf: '2026-07-18',
+            splitCompletenessStatus: 'current_snapshot_only',
+            splitReconciliationStatus: 'not_reconciled',
+            splitEvents: [{ effectiveDate: '2026-06-15', ratioNumerator: 2, ratioDenominator: 1 }],
             dividendEventCount: 82,
             splitEventCount: null,
             note: 'Dividend coverage is retained; split coverage was unavailable.',
@@ -308,5 +316,8 @@ describe('Quant Workspace components', () => {
     expect(markup).toContain('sha256:dividends');
     expect(markup).toContain('retrieved unverified · 82 events · 2024-07-18 – 2026-07-18');
     expect(markup).toContain('Warning: split coverage unavailable.');
+    expect(markup).toContain('2026-01-01 – 2026-07-18 · snapshot 2026-07-18');
+    expect(markup).toContain('current_snapshot_only · not_reconciled · current snapshot only; not historical completeness.');
+    expect(markup).toContain('2026-06-15: 2:1');
   });
 });

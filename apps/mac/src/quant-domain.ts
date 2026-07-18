@@ -183,6 +183,14 @@ export interface DatasetProviderFetchSource {
     splitsStatus: string;
     coverageStart: string | null;
     coverageEnd: string | null;
+    dividendCoverageStart?: string | null;
+    dividendCoverageEnd?: string | null;
+    splitCoverageStart?: string | null;
+    splitCoverageEnd?: string | null;
+    splitSnapshotAsOf?: string | null;
+    splitCompletenessStatus?: string;
+    splitReconciliationStatus?: string;
+    splitEvents?: Array<{ effectiveDate: string; ratioNumerator: number; ratioDenominator: number }>;
     dividendEventCount: number | null;
     splitEventCount: number | null;
     note: string;
