@@ -20,9 +20,11 @@ from packages.contracts.quant import (
     QUANT_OHLCV_CSV_PARSER_VERSION,
     QuantAgentDecision,
     QuantAgentPlan,
+    QuantCorporateActionsAttestation,
     QuantDailyBarDataset,
     QuantDatasetDataQuality,
     QuantDatasetSourceMetadata,
+    QuantProviderResponseAttestation,
     QuantToolObservation,
     assess_daily_bar_quality,
     parse_ohlcv_csv,
@@ -1200,6 +1202,15 @@ class QuantStore:
                 )
             elif (
                 dataset_record is not None
+                and dataset_record.source_metadata.provider_id == "nasdaq_equity"
+            ):
+                source_limitation = (
+                    "The pinned unadjusted bars, Nasdaq listing information, and dividend rows "
+                    "retain provider-response digests; dividends were not independently verified "
+                    "and split history was unavailable."
+                )
+            elif (
+                dataset_record is not None
                 and dataset_record.source_metadata.kind == "provider_fetch"
             ):
                 source_limitation = (
@@ -1627,8 +1638,15 @@ class QuantStore:
         source_name: str = "User-provided CSV",
         source_reference: str | None = None,
         source_kind: Literal["csv_upload", "provider_fetch"] = "csv_upload",
-        provider_id: Literal["binance_spot"] | None = None,
+        provider_id: Literal["binance_spot", "nasdaq_equity"] | None = None,
         provider_response_digest: str | None = None,
+        provider_response_attestations: tuple[
+            QuantProviderResponseAttestation, ...
+        ] = (),
+        corporate_actions_attestation: QuantCorporateActionsAttestation | None = None,
+        price_adjustment_verification_status: Literal[
+            "not_applicable", "unverified", "verified", "conflict"
+        ] = "unverified",
         retrieved_at: datetime | None = None,
         requested_limit: int | None = None,
         returned_bar_count: int | None = None,
@@ -1654,6 +1672,11 @@ class QuantStore:
             ),
             provider_id=provider_id,
             provider_response_digest=provider_response_digest,
+            provider_response_attestations=provider_response_attestations,
+            corporate_actions_attestation=corporate_actions_attestation,
+            price_adjustment_verification_status=(
+                price_adjustment_verification_status
+            ),
             retrieved_at=retrieved_at,
             requested_limit=requested_limit,
             returned_bar_count=returned_bar_count,

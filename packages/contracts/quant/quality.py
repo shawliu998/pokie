@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import date, timedelta
 from typing import Literal
 
 from pydantic import ConfigDict, Field, model_validator
@@ -13,7 +13,7 @@ from ..base import ContractModel, Digest, NonEmptyString, VersionString
 from .data import QuantDailyBarDataset
 
 QUANT_DATA_QUALITY_SCHEMA_VERSION = "quant-data-quality-v1"
-QUANT_DATA_QUALITY_POLICY_VERSION = "calendar-gap-price-jump-v2"
+QUANT_DATA_QUALITY_POLICY_VERSION = "calendar-gap-price-jump-v3"
 
 _CALENDAR_TIME_ZONES = {
     "XNYS": "America/New_York",
@@ -72,13 +72,99 @@ class QuantDatasetDataQuality(ContractModel):
         return self
 
 
-def _calendar_gap_count(dataset: QuantDailyBarDataset, *, include_weekends: bool) -> int:
+def _nth_weekday_of_month(year: int, month: int, weekday: int, ordinal: int) -> date:
+    first = date(year, month, 1)
+    return first + timedelta(days=(weekday - first.weekday()) % 7 + 7 * (ordinal - 1))
+
+
+def _last_weekday_of_month(year: int, month: int, weekday: int) -> date:
+    cursor = date(year, month + 1, 1) - timedelta(days=1) if month < 12 else date(year, 12, 31)
+    return cursor - timedelta(days=(cursor.weekday() - weekday) % 7)
+
+
+def _observed_fixed_holiday(year: int, month: int, day: int) -> date:
+    holiday = date(year, month, day)
+    if holiday.weekday() == 5:
+        return holiday - timedelta(days=1)
+    if holiday.weekday() == 6:
+        return holiday + timedelta(days=1)
+    return holiday
+
+
+def _observed_new_year(year: int) -> date | None:
+    holiday = date(year, 1, 1)
+    if holiday.weekday() == 5:
+        # Unlike other fixed holidays, US equities do not close on the
+        # preceding Friday when New Year's Day falls on Saturday.
+        return None
+    if holiday.weekday() == 6:
+        return holiday + timedelta(days=1)
+    return holiday
+
+
+def _western_easter(year: int) -> date:
+    """Gregorian computus, sufficient for the deterministic Good Friday rule."""
+    golden_number = year % 19
+    century = year // 100
+    year_of_century = year % 100
+    leap_century = century // 4
+    century_remainder = century % 4
+    correction = (century + 8) // 25
+    adjustment = (century - correction + 1) // 3
+    epact = (19 * golden_number + century - leap_century - adjustment + 15) % 30
+    leap_year = year_of_century // 4
+    year_remainder = year_of_century % 4
+    weekday_adjustment = (
+        32 + 2 * century_remainder + 2 * leap_year - epact - year_remainder
+    ) % 7
+    month_adjustment = (golden_number + 11 * epact + 22 * weekday_adjustment) // 451
+    month = (epact + weekday_adjustment - 7 * month_adjustment + 114) // 31
+    day = (epact + weekday_adjustment - 7 * month_adjustment + 114) % 31 + 1
+    return date(year, month, day)
+
+
+def _us_exchange_regular_holidays(year: int) -> set[date]:
+    """Known regular full-day XNYS/XNAS holidays; special closures are excluded."""
+    holidays = {
+        _nth_weekday_of_month(year, 1, 0, 3),
+        _nth_weekday_of_month(year, 2, 0, 3),
+        _western_easter(year) - timedelta(days=2),
+        _last_weekday_of_month(year, 5, 0),
+        _observed_fixed_holiday(year, 7, 4),
+        _nth_weekday_of_month(year, 9, 0, 1),
+        _nth_weekday_of_month(year, 11, 3, 4),
+        _observed_fixed_holiday(year, 12, 25),
+    }
+    observed_new_year = _observed_new_year(year)
+    if observed_new_year is not None:
+        holidays.add(observed_new_year)
+    if year >= 2022:
+        holidays.add(_observed_fixed_holiday(year, 6, 19))
+    return holidays
+
+
+def _us_exchange_holidays_between(start: date, end: date) -> set[date]:
+    return {
+        holiday
+        for year in range(start.year - 1, end.year + 2)
+        for holiday in _us_exchange_regular_holidays(year)
+        if start <= holiday <= end
+    }
+
+
+def _calendar_gap_count(
+    dataset: QuantDailyBarDataset,
+    *,
+    include_weekends: bool,
+    excluded_dates: set[date] | None = None,
+) -> int:
     missing = 0
+    excluded = excluded_dates or set()
     dates = [bar.trading_date for bar in dataset.bars]
     for previous, current in zip(dates, dates[1:], strict=False):
         cursor = previous + timedelta(days=1)
         while cursor < current:
-            if include_weekends or cursor.weekday() < 5:
+            if (include_weekends or cursor.weekday() < 5) and cursor not in excluded:
                 missing += 1
             cursor += timedelta(days=1)
     return missing
@@ -104,8 +190,15 @@ def assess_daily_bar_quality(
         for previous, current in zip(dates, dates[1:], strict=False)
     ]
     largest_gap = max(elapsed, default=0)
+    exchange_holidays = (
+        _us_exchange_holidays_between(dates[0], dates[-1])
+        if calendar in {"XNYS", "XNAS"}
+        else set()
+    )
     calendar_gap_count = _calendar_gap_count(
-        dataset, include_weekends=calendar == "24X7"
+        dataset,
+        include_weekends=calendar == "24X7",
+        excluded_dates=exchange_holidays,
     )
     zero_volume = sum(bar.volume == 0 for bar in dataset.bars)
     unexpected_sessions = (
@@ -231,7 +324,12 @@ def assess_daily_bar_quality(
         "price_jump_count": jumps,
         "issues": [item.model_dump(mode="json") for item in issues],
         "notes": [
-            "Calendar gap counts do not identify exchange holidays.",
+            (
+                "XNYS/XNAS gap counts exclude a fixed set of regular full-day US holidays; "
+                "special closures and early closes are not inferred."
+                if calendar in {"XNYS", "XNAS"}
+                else "Calendar gap counts do not identify exchange holidays."
+            ),
             "Corporate actions are not independently verified without an external reference feed.",
             "This report is not part of the immutable dataset digest.",
         ],

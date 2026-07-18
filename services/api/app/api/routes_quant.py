@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterator
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -12,14 +13,17 @@ from packages.contracts.quant import (
     QuantAgentPlan,
     QuantArtifactResponse,
     QuantBinanceSpotFetchRequest,
+    QuantCorporateActionsAttestation,
     QuantDatasetImportRequest,
     QuantDatasetResponse,
     QuantExperimentResponse,
     QuantFixtureCommandRequest,
+    QuantNasdaqEquityFetchRequest,
     QuantPlanApproveRequest,
     QuantPlanChangesRequest,
     QuantProjectCreateRequest,
     QuantProjectResponse,
+    QuantProviderResponseAttestation,
     QuantRunCancelRequest,
     QuantRunCreateRequest,
     QuantRunResponse,
@@ -34,6 +38,11 @@ from services.api.app.core.errors import invalid_state
 from services.api.app.modules.quant.binance_market_data import (
     BinanceMarketDataClient,
     BinanceMarketDataError,
+)
+from services.api.app.modules.quant.nasdaq_market_data import (
+    MAX_HISTORY_LIMIT,
+    NasdaqMarketDataClient,
+    NasdaqMarketDataError,
 )
 from services.api.app.modules.quant.snapshot import (
     apply_fixture_command,
@@ -57,6 +66,10 @@ def _store():
 
 def _binance_market_data_client() -> BinanceMarketDataClient:
     return BinanceMarketDataClient()
+
+
+def _nasdaq_market_data_client() -> NasdaqMarketDataClient:
+    return NasdaqMarketDataClient()
 
 
 def _generate_agent_plan(research_goal: str) -> QuantAgentPlan:
@@ -260,6 +273,14 @@ def fetch_binance_spot_dataset(
             source_reference=fetched.source_reference,
             provider_id="binance_spot",
             provider_response_digest=fetched.provider_response_digest,
+            provider_response_attestations=(
+                QuantProviderResponseAttestation(
+                    kind="daily_bars",
+                    digest=fetched.provider_response_digest,
+                    source_reference=fetched.source_reference,
+                ),
+            ),
+            price_adjustment_verification_status="not_applicable",
             retrieved_at=fetched.retrieved_at,
             requested_limit=fetched.requested_limit,
             returned_bar_count=fetched.returned_bar_count,
@@ -271,6 +292,89 @@ def fetch_binance_spot_dataset(
             price_adjustment="unadjusted",
         )
     except (BinanceMarketDataError, ValueError) as exc:
+        raise invalid_state(str(exc)) from exc
+    return QuantDatasetResponse.model_validate(
+        _store().to_dataset_response(record)
+    ).model_dump(mode="json")
+
+
+@router.post(
+    "/datasets/fetch-nasdaq-equity",
+    response_model=QuantDatasetResponse,
+    status_code=201,
+)
+def fetch_nasdaq_equity_dataset(
+    body: QuantNasdaqEquityFetchRequest, context: Ctx
+) -> dict[str, Any]:
+    cutoff = datetime.now(tz=UTC).date() - timedelta(days=1)
+    start = cutoff - timedelta(days=body.lookback_days)
+    try:
+        fetched = _nasdaq_market_data_client().fetch_daily_bars(
+            symbol=body.symbol,
+            from_date=start,
+            to_date=cutoff,
+            limit=MAX_HISTORY_LIMIT,
+        )
+        if fetched.bar_count < 252:
+            raise ValueError("Nasdaq history returned fewer than 252 closed daily bars.")
+        history_reference = fetched.source_reference
+        info_reference = f"nasdaq:{body.symbol}:info?assetclass=stocks"
+        dividends_reference = f"nasdaq:{body.symbol}:dividends?assetclass=stocks"
+        record = _store().import_dataset_csv(
+            workspace_id=context.workspace_id,
+            name=body.name or f"{body.symbol} Nasdaq daily",
+            symbol=body.symbol,
+            csv_text=fetched.csv_text,
+            source_kind="provider_fetch",
+            source_name=f"Nasdaq historical quotes · {fetched.company_name}",
+            source_reference=history_reference,
+            provider_id="nasdaq_equity",
+            provider_response_digest=fetched.historical_response_digest,
+            provider_response_attestations=(
+                QuantProviderResponseAttestation(
+                    kind="daily_bars",
+                    digest=fetched.historical_response_digest,
+                    source_reference=history_reference,
+                ),
+                QuantProviderResponseAttestation(
+                    kind="instrument_info",
+                    digest=fetched.info_response_digest,
+                    source_reference=info_reference,
+                ),
+                QuantProviderResponseAttestation(
+                    kind="dividends",
+                    digest=fetched.dividends_response_digest,
+                    source_reference=dividends_reference,
+                ),
+            ),
+            corporate_actions_attestation=QuantCorporateActionsAttestation(
+                dividends_status="retrieved_unverified",
+                splits_status="unavailable",
+                coverage_start=fetched.dividend_coverage_start,
+                coverage_end=fetched.dividend_coverage_end,
+                dividend_event_count=fetched.dividend_row_count,
+                split_event_count=None,
+                note=(
+                    "Dividend rows were retrieved from Nasdaq and retained as response evidence; "
+                    "split history was unavailable and prices remain unadjusted."
+                ),
+            ),
+            price_adjustment_verification_status="not_applicable",
+            retrieved_at=fetched.retrieved_at,
+            requested_limit=MAX_HISTORY_LIMIT,
+            returned_bar_count=fetched.bar_count,
+            dropped_incomplete_count=0,
+            normalization_note=(
+                "Nasdaq dollar and thousands separators were removed; MM/DD/YYYY dates were "
+                "normalized to ISO order. Prices remain unadjusted and dividends were not "
+                "applied to OHLCV rows."
+            ),
+            attestation_status="provider_retrieved",
+            market_calendar="XNAS",
+            time_zone="America/New_York",
+            price_adjustment="unadjusted",
+        )
+    except (NasdaqMarketDataError, ValueError) as exc:
         raise invalid_state(str(exc)) from exc
     return QuantDatasetResponse.model_validate(
         _store().to_dataset_response(record)

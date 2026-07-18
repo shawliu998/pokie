@@ -63,6 +63,46 @@ class QuantBinanceSpotFetchRequest(ContractModel):
     limit: int = Field(default=365, ge=252, le=1000)
 
 
+class QuantNasdaqEquityFetchRequest(ContractModel):
+    name: NonEmptyString | None = Field(default=None, max_length=200)
+    symbol: NonEmptyString = Field(default="AAPL", pattern=r"^[A-Z][A-Z.\-]{0,9}$")
+    lookback_days: int = Field(default=730, ge=370, le=3650)
+
+
+class QuantProviderResponseAttestation(ContractModel):
+    model_config = ConfigDict(frozen=True)
+
+    kind: Literal["daily_bars", "instrument_info", "dividends", "splits"]
+    digest: Digest
+    source_reference: NonEmptyString = Field(max_length=2000)
+
+
+class QuantCorporateActionsAttestation(ContractModel):
+    model_config = ConfigDict(frozen=True)
+
+    dividends_status: Literal[
+        "not_requested", "unavailable", "retrieved_unverified", "verified", "conflict"
+    ]
+    splits_status: Literal[
+        "not_requested", "unavailable", "retrieved_unverified", "verified", "conflict"
+    ]
+    coverage_start: date | None = None
+    coverage_end: date | None = None
+    dividend_event_count: int | None = Field(default=None, ge=0)
+    split_event_count: int | None = Field(default=None, ge=0)
+    note: NonEmptyString = Field(max_length=1000)
+
+    @model_validator(mode="after")
+    def validate_coverage(self) -> QuantCorporateActionsAttestation:
+        if (
+            self.coverage_start is not None
+            and self.coverage_end is not None
+            and self.coverage_start > self.coverage_end
+        ):
+            raise ValueError("corporate-action coverage start must not exceed end")
+        return self
+
+
 class QuantDatasetSourceMetadata(ContractModel):
     model_config = ConfigDict(frozen=True)
 
@@ -71,8 +111,13 @@ class QuantDatasetSourceMetadata(ContractModel):
     source_name: NonEmptyString = Field(default="User-provided CSV", max_length=200)
     source_reference: NonEmptyString | None = Field(default=None, max_length=2000)
     submitted_csv_digest: Digest | None = None
-    provider_id: Literal["binance_spot"] | None = None
+    provider_id: Literal["binance_spot", "nasdaq_equity"] | None = None
     provider_response_digest: Digest | None = None
+    provider_response_attestations: tuple[QuantProviderResponseAttestation, ...] = ()
+    corporate_actions_attestation: QuantCorporateActionsAttestation | None = None
+    price_adjustment_verification_status: Literal[
+        "not_applicable", "unverified", "verified", "conflict"
+    ] = "unverified"
     retrieved_at: datetime | None = None
     requested_limit: int | None = Field(default=None, ge=1)
     returned_bar_count: int | None = Field(default=None, ge=1)
@@ -110,6 +155,69 @@ class QuantDatasetSourceMetadata(ContractModel):
             raise ValueError("CSV metadata cannot contain provider attestation fields")
         elif self.attestation_status != "declared":
             raise ValueError("CSV metadata requires declared attestation status")
+        if self.provider_response_attestations and not any(
+            item.kind == "daily_bars" for item in self.provider_response_attestations
+        ):
+            raise ValueError("provider response attestations require daily_bars evidence")
+        response_kinds = [item.kind for item in self.provider_response_attestations]
+        if len(response_kinds) != len(set(response_kinds)):
+            raise ValueError("provider response attestation kinds must be unique")
+        daily_evidence = next(
+            (
+                item
+                for item in self.provider_response_attestations
+                if item.kind == "daily_bars"
+            ),
+            None,
+        )
+        if (
+            daily_evidence is not None
+            and daily_evidence.digest != self.provider_response_digest
+        ):
+            raise ValueError("daily-bars evidence must match provider response digest")
+        if self.provider_id == "nasdaq_equity" and set(response_kinds) != {
+            "daily_bars",
+            "instrument_info",
+            "dividends",
+        }:
+            raise ValueError("Nasdaq equity metadata requires bars, listing, and dividend evidence")
+        actions = self.corporate_actions_attestation
+        if actions is not None:
+            if self.provider_id != "nasdaq_equity":
+                raise ValueError("corporate-action evidence is only supported for Nasdaq equity")
+            if actions.dividends_status in {
+                "retrieved_unverified",
+                "verified",
+                "conflict",
+            } and "dividends" not in response_kinds:
+                raise ValueError("dividend status requires dividend response evidence")
+            if actions.splits_status in {
+                "retrieved_unverified",
+                "verified",
+                "conflict",
+            } and "splits" not in response_kinds:
+                raise ValueError("split status requires split response evidence")
+        if self.kind == "csv_upload" and (
+            self.provider_response_attestations
+            or self.corporate_actions_attestation is not None
+        ):
+            raise ValueError("CSV metadata cannot contain provider evidence")
+        if self.price_adjustment == "unadjusted":
+            if self.price_adjustment_verification_status not in {
+                "not_applicable",
+                "unverified",
+            }:
+                raise ValueError("unadjusted prices cannot claim adjustment verification")
+        elif self.price_adjustment_verification_status == "verified":
+            if actions is None or actions.splits_status != "verified":
+                raise ValueError("verified adjusted prices require verified split evidence")
+            if (
+                self.price_adjustment == "total_return_adjusted"
+                and actions.dividends_status != "verified"
+            ):
+                raise ValueError(
+                    "verified total-return prices require verified dividend evidence"
+                )
         return self
 
 

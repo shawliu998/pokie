@@ -85,6 +85,9 @@ layer "PokieQuant contracts, API, runtime, and OpenAPI" \
     tests/contract/test_quant_contracts.py \
     tests/contract/test_quant_daily_bar_dataset.py \
     tests/contract/test_quant_ohlcv_csv.py \
+    tests/contract/test_quant_data_quality.py \
+    tests/contract/test_binance_market_data.py \
+    tests/contract/test_nasdaq_market_data.py \
     tests/runtime/test_quant_fixture_runtime.py \
     tests/runtime/test_quant_backtest.py \
     tests/runtime/test_quant_research_evaluation.py \

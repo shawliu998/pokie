@@ -10,6 +10,7 @@ from packages.contracts.quant import (
     UNKNOWN_EVENT_SAFE_SUMMARY,
     QuantDatasetImportRequest,
     QuantDatasetSourceMetadata,
+    QuantNasdaqEquityFetchRequest,
     QuantRunEvent,
     QuantRunEventPayload,
     QuantStreamResetEvent,
@@ -73,6 +74,69 @@ def test_provider_source_requires_complete_provider_retrieval_attestation() -> N
     with pytest.raises(ValidationError, match="declared attestation status"):
         QuantDatasetSourceMetadata.model_validate(
             {"kind": "csv_upload", "attestation_status": "provider_retrieved"}
+        )
+
+
+def test_nasdaq_request_and_partial_corporate_action_evidence_are_explicit() -> None:
+    assert QuantNasdaqEquityFetchRequest().model_dump() == {
+        "name": None,
+        "symbol": "AAPL",
+        "lookback_days": 730,
+    }
+    metadata = QuantDatasetSourceMetadata.model_validate(
+        {
+            "kind": "provider_fetch",
+            "source_name": "Nasdaq historical quotes",
+            "provider_id": "nasdaq_equity",
+            "provider_response_digest": "sha256:history",
+            "provider_response_attestations": [
+                {
+                    "kind": "daily_bars",
+                    "digest": "sha256:history",
+                    "source_reference": "nasdaq:AAPL:historical",
+                },
+                {
+                    "kind": "instrument_info",
+                    "digest": "sha256:info",
+                    "source_reference": "nasdaq:AAPL:info",
+                },
+                {
+                    "kind": "dividends",
+                    "digest": "sha256:dividends",
+                    "source_reference": "nasdaq:AAPL:dividends",
+                },
+            ],
+            "corporate_actions_attestation": {
+                "dividends_status": "retrieved_unverified",
+                "splits_status": "unavailable",
+                "coverage_start": "1988-11-21",
+                "coverage_end": "2026-05-11",
+                "dividend_event_count": 82,
+                "split_event_count": None,
+                "note": "Dividend response retrieved; split response unavailable.",
+            },
+            "price_adjustment_verification_status": "not_applicable",
+            "retrieved_at": "2026-07-18T02:00:00Z",
+            "requested_limit": 5000,
+            "returned_bar_count": 502,
+            "dropped_incomplete_count": 0,
+            "normalization_note": "Provider prices retained as unadjusted.",
+            "attestation_status": "provider_retrieved",
+            "market_calendar": "XNAS",
+            "time_zone": "America/New_York",
+            "price_adjustment": "unadjusted",
+        }
+    )
+    assert metadata.corporate_actions_attestation is not None
+    assert metadata.corporate_actions_attestation.splits_status == "unavailable"
+
+    with pytest.raises(ValidationError, match="verified split evidence"):
+        QuantDatasetSourceMetadata.model_validate(
+            {
+                **metadata.model_dump(mode="json"),
+                "price_adjustment": "split_adjusted",
+                "price_adjustment_verification_status": "verified",
+            }
         )
 
 

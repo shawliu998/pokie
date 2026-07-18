@@ -12,6 +12,7 @@ from pydantic import ValidationError
 
 from services.api.app.api import routes_quant
 from services.api.app.modules.quant.binance_market_data import BinanceDailyBarsResult
+from services.api.app.modules.quant.nasdaq_market_data import NasdaqDailyBarsResult
 from services.api.app.modules.quant.store import QuantStore, get_quant_store
 from services.worker.app.pipelines.quant_agent import run_quant_agent_once
 from services.worker.app.quant_agent.provider import MockQuantAgentProvider
@@ -162,6 +163,9 @@ def test_imported_ohlcv_dataset_is_listed_pinned_and_exposed_to_agent_context(
         + sha256(CSV_V1.strip().encode("utf-8")).hexdigest(),
         "provider_id": None,
         "provider_response_digest": None,
+        "provider_response_attestations": [],
+        "corporate_actions_attestation": None,
+        "price_adjustment_verification_status": "unverified",
         "retrieved_at": None,
         "requested_limit": None,
         "returned_bar_count": None,
@@ -237,6 +241,9 @@ def test_imported_ohlcv_dataset_is_listed_pinned_and_exposed_to_agent_context(
             "submittedCsvDigest": dataset["source_metadata"]["submitted_csv_digest"],
             "providerId": None,
             "providerResponseDigest": None,
+            "providerResponseAttestations": [],
+            "corporateActionsAttestation": None,
+            "priceAdjustmentVerificationStatus": "unverified",
             "retrievedAt": None,
             "requestedLimit": None,
             "returnedBarCount": None,
@@ -564,6 +571,17 @@ def test_binance_provider_fetch_retains_attestation_and_can_start_a_run(
         "submitted_csv_digest": dataset["source_metadata"]["submitted_csv_digest"],
         "provider_id": "binance_spot",
         "provider_response_digest": "sha256:binance-provider-response-v1",
+        "provider_response_attestations": [
+            {
+                "kind": "daily_bars",
+                "digest": "sha256:binance-provider-response-v1",
+                "source_reference": (
+                    "binance-vision:/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=365"
+                ),
+            }
+        ],
+        "corporate_actions_attestation": None,
+        "price_adjustment_verification_status": "not_applicable",
         "retrieved_at": "2026-07-18T02:00:00Z",
         "requested_limit": 365,
         "returned_bar_count": 300,
@@ -579,3 +597,83 @@ def test_binance_provider_fetch_retains_attestation_and_can_start_a_run(
         client, principal_id, workspace_id, project, dataset["dataset_id"]
     )
     assert run.status_code == 201, run.text
+def test_nasdaq_provider_fetch_retains_dividend_and_listing_evidence(
+    client: TestClient, principal_id: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class FakeNasdaqClient:
+        def fetch_daily_bars(self, **_: object) -> NasdaqDailyBarsResult:
+            return NasdaqDailyBarsResult(
+                csv_text=CSV_V1,
+                info_response_digest="sha256:nasdaq-info-v1",
+                historical_response_digest="sha256:nasdaq-history-v1",
+                dividends_response_digest="sha256:nasdaq-dividends-v1",
+                retrieved_at=datetime(2026, 7, 18, 2, 30, tzinfo=UTC),
+                source_reference=(
+                    "nasdaq:AAPL:historical?assetclass=stocks&fromdate="
+                    "2024-07-17&todate=2026-07-17&limit=5000"
+                ),
+                bar_count=300,
+                dividend_row_count=82,
+                dividend_coverage_start="1988-11-21",
+                dividend_coverage_end="2026-05-11",
+                price_adjustment="unadjusted",
+                split_verification_note="Split verification is unavailable.",
+                exchange="NASDAQ-GS",
+                company_name="Apple Inc. Common Stock",
+            )
+
+    monkeypatch.setattr(
+        routes_quant, "_nasdaq_market_data_client", lambda: FakeNasdaqClient()
+    )
+    workspace = _workspace(client, principal_id, "Nasdaq provider workspace")
+    workspace_id = workspace["workspace_id"]
+    response = client.post(
+        "/v1/quant/datasets/fetch-nasdaq-equity",
+        headers=_headers(principal_id, workspace_id),
+        json={"symbol": "AAPL", "lookback_days": 730},
+    )
+    assert response.status_code == 201, response.text
+    dataset = response.json()
+    source = dataset["source_metadata"]
+    assert source["provider_id"] == "nasdaq_equity"
+    assert source["market_calendar"] == "XNAS"
+    assert source["time_zone"] == "America/New_York"
+    assert source["price_adjustment"] == "unadjusted"
+    assert source["price_adjustment_verification_status"] == "not_applicable"
+    assert [item["kind"] for item in source["provider_response_attestations"]] == [
+        "daily_bars",
+        "instrument_info",
+        "dividends",
+    ]
+    assert source["corporate_actions_attestation"] == {
+        "dividends_status": "retrieved_unverified",
+        "splits_status": "unavailable",
+        "coverage_start": "1988-11-21",
+        "coverage_end": "2026-05-11",
+        "dividend_event_count": 82,
+        "split_event_count": None,
+        "note": (
+            "Dividend rows were retrieved from Nasdaq and retained as response evidence; "
+            "split history was unavailable and prices remain unadjusted."
+        ),
+    }
+    project = _project(client, principal_id, workspace_id)
+    run = _create_run(
+        client, principal_id, workspace_id, project, dataset["dataset_id"]
+    )
+    assert run.status_code == 201, run.text
+    snapshot = client.get(
+        "/v1/quant/workspace-snapshot",
+        headers=_headers(principal_id, workspace_id),
+    )
+    assert snapshot.status_code == 200, snapshot.text
+    projected_source = snapshot.json()["dataset"]["source"]
+    assert [
+        item["kind"] for item in projected_source["providerResponseAttestations"]
+    ] == ["daily_bars", "instrument_info", "dividends"]
+    assert projected_source["corporateActionsAttestation"]["dividendsStatus"] == (
+        "retrieved_unverified"
+    )
+    assert projected_source["corporateActionsAttestation"]["splitsStatus"] == (
+        "unavailable"
+    )

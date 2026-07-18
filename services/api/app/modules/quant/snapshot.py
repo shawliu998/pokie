@@ -840,7 +840,7 @@ def quant_agent_workspace_snapshot(*, workspace_id: str) -> dict[str, Any] | Non
         "assumptions": [
             f"{len(dataset.bars):,} pinned daily OHLCV bars",
             "10 bps fee and 5 bps slippage per fill",
-            "No network retrieval; only fixed typed strategy specifications",
+            "No Agent network tool; only fixed typed strategy specifications",
         ],
     }
     snapshot["dataset"] = {
@@ -874,6 +874,41 @@ def quant_agent_workspace_snapshot(*, workspace_id: str) -> dict[str, Any] | Non
                     "providerId": dataset_record.source_metadata.provider_id,
                     "providerResponseDigest": (
                         dataset_record.source_metadata.provider_response_digest
+                    ),
+                    "providerResponseAttestations": [
+                        {
+                            "kind": item.kind,
+                            "digest": item.digest,
+                            "sourceReference": item.source_reference,
+                        }
+                        for item in dataset_record.source_metadata.provider_response_attestations
+                    ],
+                    "corporateActionsAttestation": (
+                        {
+                            "dividendsStatus": actions.dividends_status,
+                            "splitsStatus": actions.splits_status,
+                            "coverageStart": (
+                                actions.coverage_start.isoformat()
+                                if actions.coverage_start is not None
+                                else None
+                            ),
+                            "coverageEnd": (
+                                actions.coverage_end.isoformat()
+                                if actions.coverage_end is not None
+                                else None
+                            ),
+                            "dividendEventCount": actions.dividend_event_count,
+                            "splitEventCount": actions.split_event_count,
+                            "note": actions.note,
+                        }
+                        if (
+                            actions := dataset_record.source_metadata.corporate_actions_attestation
+                        )
+                        is not None
+                        else None
+                    ),
+                    "priceAdjustmentVerificationStatus": (
+                        dataset_record.source_metadata.price_adjustment_verification_status
                     ),
                     "retrievedAt": (
                         dataset_record.source_metadata.retrieved_at.isoformat()
@@ -1048,15 +1083,21 @@ def quant_agent_workspace_snapshot(*, workspace_id: str) -> dict[str, Any] | Non
         ],
         "limitations": [
             (
-                "Provider-retrieved bars retain a raw-response digest but were not "
-                "cross-validated against a second market source."
+                "Nasdaq bars, listing information, and dividend rows retain separate response "
+                "digests; dividends were not independently verified and splits were unavailable."
                 if dataset_record is not None
-                and dataset_record.source_metadata.kind == "provider_fetch"
+                and dataset_record.source_metadata.provider_id == "nasdaq_equity"
                 else (
-                    "Workspace-imported bars were not independently verified against a market "
-                    "data provider."
+                    "Provider-retrieved bars retain a raw-response digest but were not "
+                    "cross-validated against a second market source."
                     if dataset_record is not None
-                    else "The deterministic synthetic bars are not market observations."
+                    and dataset_record.source_metadata.kind == "provider_fetch"
+                    else (
+                        "Workspace-imported bars were not independently verified against a "
+                        "market data provider."
+                        if dataset_record is not None
+                        else "The deterministic synthetic bars are not market observations."
+                    )
                 )
             ),
             (
