@@ -162,17 +162,31 @@ export interface DatasetProviderFetchSource {
   sourceName: string;
   sourceReference: string | null;
   submittedCsvDigest: string | null;
-  marketCalendar: '24x7';
+  marketCalendar: 'unknown' | 'weekday' | '24x7' | 'XNYS' | 'XNAS' | 'XSHG' | 'XSHE';
   timeZone: string;
-  priceAdjustment: 'unadjusted';
+  priceAdjustment: 'unknown' | 'unadjusted' | 'split_adjusted' | 'total_return_adjusted';
   providerId: string;
-  providerResponseDigest: string;
+  providerResponseAttestations: Array<{
+    kind: string;
+    digest: string;
+    sourceReference: string;
+  }>;
   retrievedAt: string;
   requestedLimit: number;
   returnedBarCount: number;
   droppedIncompleteCount: number;
   normalizationNote: string;
   attestationStatus: string;
+  priceAdjustmentVerificationStatus?: string;
+  corporateActionsAttestation?: {
+    dividendsStatus: string;
+    splitsStatus: string;
+    coverageStart: string | null;
+    coverageEnd: string | null;
+    dividendEventCount: number | null;
+    splitEventCount: number | null;
+    note: string;
+  };
 }
 
 export type DatasetSource = DatasetCsvSource | DatasetProviderFetchSource;

@@ -53,6 +53,11 @@ required for recovery.
     normalize only closed UTC candles into the existing immutable dataset contract, apply 24×7
     calendar quality rules, retain provider attestation in API/Mac projections, and verify the full
     Binance-to-DeepSeek Run without exposing network access to the Agent tool registry.
+18. Add one fixed-host Nasdaq-listed equity adapter that separately attests instrument listing,
+    unadjusted daily bars, and dividend responses. Exclude regular XNAS/XNYS full-day holidays from
+    gap counts, retain warnings for special closures, and explicitly mark split history unavailable.
+    Verify a complete real AAPL-to-DeepSeek Run without claiming adjusted prices or independently
+    verified corporate actions.
 
 ## Bounded scope
 
@@ -63,8 +68,10 @@ pinned dataset. Missing model credentials select the product-supported Mock prov
 Manual imports accept daily OHLCV as CSV text through the authenticated Quant API and remain
 user-attested. The first real-provider adapter retrieves 252–1,000 public Binance Spot daily klines
 from one fixed host, drops an unfinished current candle, and retains distinct raw-response and
-normalized-dataset digests. Imports remain inspectable at any size, while autonomous runs require
-at least 252 ordered daily bars.
+normalized-dataset digests. The second retrieves Nasdaq-listed instrument information, unadjusted
+historical bars, and dividend rows as separate response evidence while marking split verification
+unavailable. Imports remain inspectable at any size, while autonomous runs require at least 252
+ordered daily bars.
 
 ## Reuse note
 

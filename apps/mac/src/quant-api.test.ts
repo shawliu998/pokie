@@ -79,6 +79,42 @@ describe('Quant fixture API adapter', () => {
         attestation_status: 'provider_retrieved',
       },
     } as const;
+    const nasdaqDto = {
+      ...dto,
+      dataset_id: 'provider-AAPL-1234',
+      name: 'AAPL Nasdaq Equity daily',
+      symbol: 'AAPL',
+      source_metadata: {
+        kind: 'provider_fetch',
+        source_name: 'Nasdaq Equity provider data',
+        source_reference: 'nasdaq-equity:AAPL',
+        market_calendar: 'XNAS',
+        time_zone: 'America/New_York',
+        price_adjustment: 'unadjusted',
+        provider_id: 'nasdaq_equity',
+        retrieved_at: '2026-07-18T00:00:00Z',
+        requested_limit: 5000,
+        returned_bar_count: 502,
+        dropped_incomplete_count: 0,
+        normalization_note: 'Normalized provider sessions to daily bars.',
+        attestation_status: 'provider_retrieved',
+        price_adjustment_verification_status: 'not_applicable',
+        provider_response_attestations: [
+          { kind: 'daily_bars', digest: `sha256:${'f'.repeat(64)}`, source_reference: 'nasdaq:AAPL:historical' },
+          { kind: 'instrument_info', digest: `sha256:${'e'.repeat(64)}`, source_reference: 'nasdaq:AAPL:info' },
+          { kind: 'dividends', digest: `sha256:${'g'.repeat(64)}`, source_reference: 'nasdaq:AAPL:dividends' },
+        ],
+        corporate_actions_attestation: {
+          dividends_status: 'retrieved_unverified',
+          splits_status: 'unavailable',
+          coverage_start: '2024-07-18',
+          coverage_end: '2026-07-18',
+          dividend_event_count: 82,
+          split_event_count: null,
+          note: 'Dividend coverage is retained; split coverage was unavailable.',
+        },
+      },
+    } as const;
     const calls: Array<{ path: string; init?: RequestInit }> = [];
     const glint = {
       workspaceId: 'workspace-1',
@@ -86,6 +122,7 @@ describe('Quant fixture API adapter', () => {
         calls.push({ path, init });
         if (path.endsWith('/import-csv')) return dto;
         if (path.endsWith('/fetch-binance-spot')) return providerDto;
+        if (path.endsWith('/fetch-nasdaq-equity')) return nasdaqDto;
         return [dto];
       },
     } as unknown as GlintApi;
@@ -127,6 +164,11 @@ describe('Quant fixture API adapter', () => {
     expect(fetched).toMatchObject({ id: providerDto.dataset_id, source: { kind: 'provider_fetch', marketCalendar: '24x7', timeZone: 'UTC', providerId: 'binance_spot', requestedLimit: 365, returnedBarCount: 364, droppedIncompleteCount: 1, attestationStatus: 'provider_retrieved' } });
     expect(calls[2]?.path).toBe('/quant/datasets/fetch-binance-spot');
     expect(JSON.parse(String(calls[2]?.init?.body))).toEqual({ symbol: 'BTCUSDT', interval: '1d', limit: 365 });
+
+    const nasdaq = await api.fetchNasdaqEquityDataset({ idempotencyKey: importKey });
+    expect(nasdaq).toMatchObject({ id: nasdaqDto.dataset_id, source: { kind: 'provider_fetch', providerId: 'nasdaq_equity', marketCalendar: 'XNAS', timeZone: 'America/New_York', priceAdjustment: 'unadjusted', priceAdjustmentVerificationStatus: 'not_applicable', providerResponseAttestations: [{ kind: 'daily_bars' }, { kind: 'instrument_info' }, { kind: 'dividends' }], corporateActionsAttestation: { dividendsStatus: 'retrieved_unverified', splitsStatus: 'unavailable', dividendEventCount: 82, splitEventCount: null } } });
+    expect(calls[3]?.path).toBe('/quant/datasets/fetch-nasdaq-equity');
+    expect(JSON.parse(String(calls[3]?.init?.body))).toEqual({ symbol: 'AAPL', lookback_days: 730 });
   });
 
   it('generates API-compatible UUID idempotency keys', () => {

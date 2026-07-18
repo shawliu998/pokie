@@ -41,6 +41,8 @@ export function QuantDataPage({ api, snapshot, selectedDataset, onSelect, onInsp
   const [priceAdjustment, setPriceAdjustment] = useState<'unknown' | 'unadjusted' | 'split_adjusted' | 'total_return_adjusted'>('unknown');
   const [binanceSymbol, setBinanceSymbol] = useState('BTCUSDT');
   const [binanceLimit, setBinanceLimit] = useState(365);
+  const [nasdaqSymbol, setNasdaqSymbol] = useState('AAPL');
+  const [nasdaqLookbackDays, setNasdaqLookbackDays] = useState(730);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -146,8 +148,30 @@ export function QuantDataPage({ api, snapshot, selectedDataset, onSelect, onInsp
     }
   };
 
+  const fetchNasdaqEquity = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const dataset = await api.fetchNasdaqEquityDataset({
+        symbol: nasdaqSymbol.trim().toUpperCase() || 'AAPL',
+        lookbackDays: Math.max(370, Math.min(3650, nasdaqLookbackDays || 730)),
+        idempotencyKey: quantIdempotencyKey(),
+      });
+      setDatasets((current) => uniqueDatasets(dataset, current));
+      onSelect(dataset);
+      setNotice(`${dataset.name} was fetched and stored as an immutable dataset.`);
+      await refresh();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Nasdaq equity data could not be fetched.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return <div className="quant-page quant-data-page">
-    <div className="quant-page-title"><p className="quant-eyebrow">Data</p><h1>Immutable datasets</h1><p>Import daily OHLCV CSV files, then select the version that a new research run must pin.</p></div>
+    <div className="quant-page-title"><p className="quant-eyebrow">Data</p><h1>Immutable datasets</h1><p>Import CSV or retrieve bounded provider data, then select the immutable version a new research run must pin.</p></div>
     <section className="quant-data-import" aria-labelledby="quant-data-import-title">
       <div><p className="quant-eyebrow">Import CSV</p><h2 id="quant-data-import-title">Daily OHLCV</h2><p>Accepted files are parsed by the server and stored as immutable, digest-addressed dataset versions.</p></div>
       <div className="quant-data-import-fields">
@@ -174,6 +198,15 @@ export function QuantDataPage({ api, snapshot, selectedDataset, onSelect, onInsp
       </div>
       <small>Default BTCUSDT · 365 daily bars. Provider provenance is retained with the dataset version.</small>
     </section>
+    <section className="quant-data-import" aria-labelledby="quant-nasdaq-fetch-title">
+      <div><p className="quant-eyebrow">Provider fetch</p><h2 id="quant-nasdaq-fetch-title">Nasdaq Equity daily OHLCV</h2><p>Fetches server-normalized equity data and retains corporate-action and provider-response attestations.</p></div>
+      <div className="quant-data-import-fields">
+        <label><span>Equity symbol</span><input aria-label="Nasdaq Equity symbol" value={nasdaqSymbol} disabled={busy} onChange={(event) => setNasdaqSymbol(event.target.value.toUpperCase())} /></label>
+        <label><span>Lookback days</span><input aria-label="Nasdaq Equity lookback days" type="number" min="370" max="3650" value={nasdaqLookbackDays} disabled={busy} onChange={(event) => setNasdaqLookbackDays(Number(event.target.value))} /></label>
+        <Button className="primary" disabled={busy} onClick={() => void fetchNasdaqEquity()}>{busy ? 'Fetching…' : 'Fetch immutable dataset'}</Button>
+      </div>
+      <small>Default AAPL · 730 days. Corporate-action coverage is shown with the retained provider evidence.</small>
+    </section>
     <section className="quant-dataset-list" aria-labelledby="quant-dataset-list-title">
       <header><div><p className="quant-eyebrow">Available versions</p><h2 id="quant-dataset-list-title">Select a dataset</h2></div><span>{allDatasets.length} version{allDatasets.length === 1 ? '' : 's'}</span></header>
       {allDatasets.map((dataset) => {
@@ -181,7 +214,7 @@ export function QuantDataPage({ api, snapshot, selectedDataset, onSelect, onInsp
         const canResearch = dataset.barCount >= MIN_AUTONOMOUS_RESEARCH_BARS && dataset.quality?.status !== 'blocked';
         return <article className={`quant-dataset-card${isSelected ? ' is-selected' : ''}`} key={dataset.id}>
           <header><div><p className="quant-eyebrow">{dataset.symbol} · {dataset.interval}</p><h3>{dataset.name}</h3></div><Badge tone={dataset.authenticity === 'synthetic_fixture' ? 'warning' : 'info'}>{quantAuthenticityLabel(dataset.authenticity)}</Badge></header>
-          <dl><div><dt>Date range</dt><dd>{dataset.dateRange.start} – {dataset.dateRange.end}</dd></div><div><dt>Bars</dt><dd>{dataset.barCount.toLocaleString()}</dd></div>{dataset.source?.kind === 'csv_upload' && <><div><dt>Source</dt><dd>{dataset.source.sourceName}</dd></div><div><dt>Calendar</dt><dd>{dataset.source.marketCalendar ?? 'unknown'} · {dataset.source.timeZone ?? 'timezone unavailable'}</dd></div><div><dt>Adjustment</dt><dd>{dataset.source.priceAdjustment.replaceAll('_', ' ')}</dd></div></>}{dataset.source?.kind === 'provider_fetch' && <><div><dt>Provider</dt><dd>{dataset.source.providerId} · {dataset.source.sourceName}</dd></div><div><dt>Calendar</dt><dd>{dataset.source.marketCalendar} · {dataset.source.timeZone}</dd></div><div><dt>Adjustment</dt><dd>{dataset.source.priceAdjustment.replaceAll('_', ' ')}</dd></div><div><dt>Provider evidence</dt><dd>{dataset.source.returnedBarCount} bars from {dataset.source.requestedLimit} requested · {dataset.source.droppedIncompleteCount} incomplete dropped · {dataset.source.attestationStatus}</dd></div><div><dt>Retrieved</dt><dd>{dataset.source.retrievedAt || 'timestamp unavailable'}</dd></div><div><dt>Response digest</dt><dd><code>{dataset.source.providerResponseDigest || 'digest unavailable'}</code></dd></div><div><dt>Normalization</dt><dd>{dataset.source.normalizationNote}</dd></div></>}<div><dt>Data quality</dt><dd>{qualitySummary(dataset)}</dd></div><div><dt>Research eligibility</dt><dd>{canResearch ? 'Ready for Auto Research' : dataset.quality?.status === 'blocked' ? 'Blocked by data quality checks' : `Needs ${MIN_AUTONOMOUS_RESEARCH_BARS - dataset.barCount} more daily bars`}</dd></div></dl>
+          <dl><div><dt>Date range</dt><dd>{dataset.dateRange.start} – {dataset.dateRange.end}</dd></div><div><dt>Bars</dt><dd>{dataset.barCount.toLocaleString()}</dd></div>{dataset.source?.kind === 'csv_upload' && <><div><dt>Source</dt><dd>{dataset.source.sourceName}</dd></div><div><dt>Calendar</dt><dd>{dataset.source.marketCalendar ?? 'unknown'} · {dataset.source.timeZone ?? 'timezone unavailable'}</dd></div><div><dt>Adjustment</dt><dd>{dataset.source.priceAdjustment.replaceAll('_', ' ')}</dd></div></>}{dataset.source?.kind === 'provider_fetch' && <><div><dt>Provider</dt><dd>{dataset.source.providerId} · {dataset.source.sourceName}</dd></div><div><dt>Calendar</dt><dd>{dataset.source.marketCalendar} · {dataset.source.timeZone}</dd></div><div><dt>Adjustment</dt><dd>{dataset.source.priceAdjustment.replaceAll('_', ' ')} · {(dataset.source.priceAdjustmentVerificationStatus ?? 'verification unavailable').replaceAll('_', ' ')}</dd></div><div><dt>Provider evidence</dt><dd>{dataset.source.returnedBarCount} bars from {dataset.source.requestedLimit} response limit · {dataset.source.droppedIncompleteCount} incomplete dropped · {dataset.source.attestationStatus}</dd></div><div><dt>Retrieved</dt><dd>{dataset.source.retrievedAt || 'timestamp unavailable'}</dd></div>{dataset.source.providerResponseAttestations.map((attestation) => <div key={`${attestation.kind}-${attestation.digest}`}><dt>{attestation.kind.replaceAll('_', ' ')} evidence</dt><dd><code>{attestation.digest}</code> · {attestation.sourceReference || 'reference unavailable'}</dd></div>)}<div><dt>Normalization</dt><dd>{dataset.source.normalizationNote}</dd></div>{dataset.source.corporateActionsAttestation && <><div><dt>Dividends</dt><dd>{dataset.source.corporateActionsAttestation.dividendsStatus.replaceAll('_', ' ')} · {dataset.source.corporateActionsAttestation.dividendEventCount ?? 'unknown'} events · {dataset.source.corporateActionsAttestation.coverageStart ?? 'start unavailable'} – {dataset.source.corporateActionsAttestation.coverageEnd ?? 'end unavailable'}</dd></div><div><dt>Splits</dt><dd>{dataset.source.corporateActionsAttestation.splitsStatus.replaceAll('_', ' ')}{dataset.source.corporateActionsAttestation.splitEventCount == null ? '' : ` · ${dataset.source.corporateActionsAttestation.splitEventCount} events`}{dataset.source.corporateActionsAttestation.splitsStatus === 'unavailable' ? ' · Warning: split coverage unavailable.' : ''}</dd></div><div><dt>Corporate actions note</dt><dd>{dataset.source.corporateActionsAttestation.note}</dd></div></>}</>}<div><dt>Data quality</dt><dd>{qualitySummary(dataset)}</dd></div><div><dt>Research eligibility</dt><dd>{canResearch ? 'Ready for Auto Research' : dataset.quality?.status === 'blocked' ? 'Blocked by data quality checks' : `Needs ${MIN_AUTONOMOUS_RESEARCH_BARS - dataset.barCount} more daily bars`}</dd></div></dl>
           <footer><code title={dataset.digest}>{dataset.digest.slice(0, 19)}…</code><div>{isSelected ? <span className="quant-dataset-selected">Selected</span> : <Button onClick={() => onSelect(dataset)}>Select dataset</Button>}{isSelected && <Button onClick={onInspect}>Inspect provenance</Button>}</div></footer>
         </article>;
       })}

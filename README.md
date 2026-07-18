@@ -6,8 +6,9 @@ Phase 1A adds an incremental autonomous research loop over the Phase 0 shell. Ru
 default **Synthetic Demo Fixture** or a workspace-imported, digest-pinned daily OHLCV CSV. Agent runs
 select dynamic strategy parameters and compute their metrics with the pure local daily-bar kernel.
 The model boundary can choose only one of seven registered tools; it cannot execute Python, shell,
-broker, or order actions. A separate server-owned adapter can retrieve bounded public Binance Spot
-daily candles before a Run, but this network capability is never exposed as an Agent tool.
+broker, or order actions. Separate server-owned adapters can retrieve bounded Binance Spot or
+Nasdaq-listed equity data before a Run, but this network capability is never exposed as an Agent
+tool.
 
 ## Phase 0 status
 
@@ -51,10 +52,14 @@ Implemented:
 - a fixed-host, credential-free Binance Spot daily-kline adapter for `BTCUSDT`-style symbols, with
   raw-response digest, retrieval timestamp, request/return/drop counts, UTC 24×7 quality checks,
   normalized immutable dataset digest, API route, Mac fetch controls, and retained provider proof.
+- a fixed-host Nasdaq equity adapter that retrieves provider-listed instrument information,
+  unadjusted historical OHLCV and dividend history as three separately hashed responses; XNAS
+  quality checks exclude regular full-day US exchange holidays while retaining special-closure
+  warnings, and unavailable split verification remains explicit in API and Mac evidence.
 
 Still intentionally not implemented:
 
-- provider adapters beyond public Binance Spot daily klines, or news data;
+- provider adapters beyond public Binance Spot and Nasdaq-listed US equities, or news data;
 - exchange-holiday/corporate-action reference verification, production backtest orchestration,
   broad parameter search, or optimization (manual CSV provenance remains user-supplied);
 - nested cross-validation, broad regime coverage, statistical significance testing, or production
@@ -157,6 +162,13 @@ Run the complete real-provider path (public Binance BTCUSDT daily data, then Dee
 ```bash
 set -a; source .env.local; set +a
 python scripts/verify_quant_binance_deepseek_run.py
+```
+
+Run the Nasdaq-listed equity path (AAPL history and dividends, then DeepSeek decisions):
+
+```bash
+set -a; source .env.local; set +a
+python scripts/verify_quant_nasdaq_deepseek_run.py
 ```
 
 ## Verification

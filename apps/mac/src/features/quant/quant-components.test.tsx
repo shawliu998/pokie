@@ -214,6 +214,9 @@ describe('Quant Workspace components', () => {
     expect(markup).toContain('Binance Spot daily OHLCV');
     expect(markup).toContain('Binance Spot symbol');
     expect(markup).toContain('Default BTCUSDT · 365 daily bars');
+    expect(markup).toContain('Nasdaq Equity daily OHLCV');
+    expect(markup).toContain('Nasdaq Equity symbol');
+    expect(markup).toContain('Default AAPL · 730 days');
     expect(markup).toContain('Dataset source provider');
     expect(markup).toContain('Dataset source reference');
     expect(markup).toContain('Dataset market calendar');
@@ -244,7 +247,7 @@ describe('Quant Workspace components', () => {
           timeZone: 'UTC',
           priceAdjustment: 'unadjusted' as const,
           providerId: 'binance_spot',
-          providerResponseDigest: 'sha256:provider-response',
+          providerResponseAttestations: [{ kind: 'daily_bars', digest: 'sha256:provider-response', sourceReference: 'binance-vision:/api/v3/klines' }],
           retrievedAt: '2026-07-18T00:00:00Z',
           requestedLimit: 365,
           returnedBarCount: 364,
@@ -256,7 +259,54 @@ describe('Quant Workspace components', () => {
     };
     const markup = renderToStaticMarkup(<QuantDataPage api={createFixtureQuantApi()} snapshot={snapshot} selectedDataset={snapshot.dataset} onSelect={vi.fn()} onInspect={vi.fn()} />);
     expect(markup).toContain('binance_spot');
-    expect(markup).toContain('364 bars from 365 requested · 1 incomplete dropped · provider_retrieved');
+    expect(markup).toContain('364 bars from 365 response limit · 1 incomplete dropped · provider_retrieved');
     expect(markup).toContain('Dropped the incomplete current daily candle.');
+  });
+
+  it('renders Nasdaq corporate-action attestations and an explicit split-coverage warning', () => {
+    const snapshot = {
+      ...quantFixtureSnapshot,
+      dataset: {
+        ...quantFixtureSnapshot.dataset,
+        source: {
+          kind: 'provider_fetch' as const,
+          sourceName: 'Nasdaq Equity provider data',
+          sourceReference: 'nasdaq-equity:AAPL',
+          submittedCsvDigest: null,
+          marketCalendar: 'XNAS' as const,
+          timeZone: 'America/New_York',
+          priceAdjustment: 'unadjusted' as const,
+          providerId: 'nasdaq_equity',
+          providerResponseAttestations: [
+            { kind: 'daily_bars', digest: 'sha256:ohlcv', sourceReference: 'nasdaq-equity:AAPL:ohlcv' },
+            { kind: 'instrument_info', digest: 'sha256:info', sourceReference: 'nasdaq-equity:AAPL:info' },
+            { kind: 'dividends', digest: 'sha256:dividends', sourceReference: 'nasdaq-equity:AAPL:dividends' },
+          ],
+          retrievedAt: '2026-07-18T00:00:00Z',
+          requestedLimit: 730,
+          returnedBarCount: 500,
+          droppedIncompleteCount: 0,
+          normalizationNote: 'Normalized provider sessions to daily bars.',
+          attestationStatus: 'provider_retrieved',
+          priceAdjustmentVerificationStatus: 'not_applicable',
+          corporateActionsAttestation: {
+            dividendsStatus: 'retrieved_unverified',
+            splitsStatus: 'unavailable',
+            coverageStart: '2024-07-18',
+            coverageEnd: '2026-07-18',
+            dividendEventCount: 82,
+            splitEventCount: null,
+            note: 'Dividend coverage is retained; split coverage was unavailable.',
+          },
+        },
+      },
+    };
+    const markup = renderToStaticMarkup(<QuantDataPage api={createFixtureQuantApi()} snapshot={snapshot} selectedDataset={snapshot.dataset} onSelect={vi.fn()} onInspect={vi.fn()} />);
+    expect(markup).toContain('XNAS · America/New_York');
+    expect(markup).toContain('not applicable');
+    expect(markup).toContain('sha256:ohlcv');
+    expect(markup).toContain('sha256:dividends');
+    expect(markup).toContain('retrieved unverified · 82 events · 2024-07-18 – 2026-07-18');
+    expect(markup).toContain('Warning: split coverage unavailable.');
   });
 });

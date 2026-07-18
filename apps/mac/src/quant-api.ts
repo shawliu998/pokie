@@ -41,12 +41,19 @@ export interface QuantBinanceSpotFetchRequest {
   idempotencyKey: string;
 }
 
+export interface QuantNasdaqEquityFetchRequest {
+  symbol?: string;
+  lookbackDays?: number;
+  idempotencyKey: string;
+}
+
 export interface QuantApi {
   getWorkspaceSnapshot(): Promise<QuantWorkspaceSnapshot>;
   sendCommand(request: QuantCommandRequest): Promise<QuantCommandReceipt>;
   listDatasets(): Promise<DatasetSnapshot[]>;
   importDatasetCsv(request: QuantDatasetImportRequest): Promise<DatasetSnapshot>;
   fetchBinanceSpotDataset(request: QuantBinanceSpotFetchRequest): Promise<DatasetSnapshot>;
+  fetchNasdaqEquityDataset(request: QuantNasdaqEquityFetchRequest): Promise<DatasetSnapshot>;
 }
 
 interface QuantDatasetDto {
@@ -71,12 +78,23 @@ interface QuantDatasetDto {
     price_adjustment?: 'unknown' | 'unadjusted' | 'split_adjusted' | 'total_return_adjusted';
     provider_id?: string;
     provider_response_digest?: string;
+    provider_response_attestations?: Array<{ kind: string; digest: string; source_reference: string }>;
     retrieved_at?: string;
     requested_limit?: number;
     returned_bar_count?: number;
     dropped_incomplete_count?: number;
     normalization_note?: string;
     attestation_status?: string;
+    corporate_actions_attestation?: {
+      dividends_status: string;
+      splits_status: string;
+      coverage_start: string | null;
+      coverage_end: string | null;
+      dividend_event_count: number | null;
+      split_event_count: number | null;
+      note: string;
+    };
+    price_adjustment_verification_status?: string;
   };
   data_quality?: QuantDatasetDataQualityDto;
 }
@@ -124,17 +142,31 @@ function mapDataset(dto: QuantDatasetDto): DatasetSnapshot {
       sourceName: dto.source_metadata.source_name ?? 'Provider market data',
       sourceReference: dto.source_metadata.source_reference ?? null,
       submittedCsvDigest: dto.source_metadata.submitted_csv_digest ?? null,
-      marketCalendar: '24x7' as const,
+      marketCalendar: dto.source_metadata.market_calendar ?? 'unknown',
       timeZone: dto.source_metadata.time_zone ?? 'UTC',
-      priceAdjustment: 'unadjusted' as const,
+      priceAdjustment: dto.source_metadata.price_adjustment ?? 'unknown',
       providerId: dto.source_metadata.provider_id ?? 'unknown_provider',
-      providerResponseDigest: dto.source_metadata.provider_response_digest ?? '',
+      providerResponseAttestations: (dto.source_metadata.provider_response_attestations
+        ?? (dto.source_metadata.provider_response_digest ? [{ kind: 'provider_response', digest: dto.source_metadata.provider_response_digest, source_reference: dto.source_metadata.source_reference ?? '' }] : [])
+      ).map((item) => ({ kind: item.kind, digest: item.digest, sourceReference: item.source_reference })),
       retrievedAt: dto.source_metadata.retrieved_at ?? '',
       requestedLimit: dto.source_metadata.requested_limit ?? 0,
       returnedBarCount: dto.source_metadata.returned_bar_count ?? dto.bar_count,
       droppedIncompleteCount: dto.source_metadata.dropped_incomplete_count ?? 0,
       normalizationNote: dto.source_metadata.normalization_note ?? 'No provider normalization note was retained.',
       attestationStatus: dto.source_metadata.attestation_status ?? 'unavailable',
+      priceAdjustmentVerificationStatus: dto.source_metadata.price_adjustment_verification_status,
+      corporateActionsAttestation: dto.source_metadata.corporate_actions_attestation
+        ? {
+          dividendsStatus: dto.source_metadata.corporate_actions_attestation.dividends_status,
+          splitsStatus: dto.source_metadata.corporate_actions_attestation.splits_status,
+          coverageStart: dto.source_metadata.corporate_actions_attestation.coverage_start,
+          coverageEnd: dto.source_metadata.corporate_actions_attestation.coverage_end,
+          dividendEventCount: dto.source_metadata.corporate_actions_attestation.dividend_event_count,
+          splitEventCount: dto.source_metadata.corporate_actions_attestation.split_event_count,
+          note: dto.source_metadata.corporate_actions_attestation.note,
+        }
+        : undefined,
     }
     : {
       kind: 'csv_upload' as const,
@@ -183,6 +215,9 @@ export function createFixtureQuantApi(): QuantApi {
     },
     async fetchBinanceSpotDataset() {
       throw new Error('Binance Spot fetch requires the authenticated Quant API.');
+    },
+    async fetchNasdaqEquityDataset() {
+      throw new Error('Nasdaq Equity fetch requires the authenticated Quant API.');
     },
   };
 }
@@ -235,6 +270,17 @@ export function createApiQuantApi(api: GlintApi): QuantApi {
           symbol: request.symbol?.trim().toUpperCase() || 'BTCUSDT',
           interval: '1d',
           limit: request.limit ?? 365,
+        }),
+      });
+      return mapDataset(row);
+    },
+    async fetchNasdaqEquityDataset(request) {
+      const row = await quantRequest<QuantDatasetDto>('/quant/datasets/fetch-nasdaq-equity', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': request.idempotencyKey },
+        body: JSON.stringify({
+          symbol: request.symbol?.trim().toUpperCase() || 'AAPL',
+          lookback_days: request.lookbackDays ?? 730,
         }),
       });
       return mapDataset(row);

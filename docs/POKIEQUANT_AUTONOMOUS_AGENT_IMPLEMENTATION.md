@@ -201,15 +201,15 @@ Result: **all functional layers passed in one full-gate invocation**.
 
 | Gate layer | Actual result |
 | --- | --- |
-| Quant contracts, daily-bar/CSV/quality/provider contracts, API, dataset lifecycle, fixture runtime, kernel, research evaluation, OpenAPI drift | 90 Python tests passed |
+| Quant contracts, daily-bar/CSV/quality/provider-client contracts, API, dataset lifecycle, fixture runtime, kernel, research evaluation, OpenAPI drift | 125 Python tests passed |
 | Shared registry/model primitives, autonomous Agent lifecycle, finish-selection gate, goal differentiation, revision lineage, cancellation, provider failure/fallback, comparison differences, transport, and inherited Model Research regression | 58 Python tests passed |
-| Mac API/presentation/component tests | 23 Vitest tests across 3 files passed |
+| Mac API/presentation/component tests | 24 Vitest tests across 3 files passed |
 | Mac lint | ESLint passed with zero warnings |
 | Mac typecheck | TypeScript compiler passed |
 | Mac production build | Vite built 55 modules successfully |
 | Completed-state browser E2E | 1 Playwright test passed; 2 conditionally skipped |
 | API-owned ready-command browser E2E | 2 Playwright tests passed; 1 screenshot-only test skipped |
-| Secret-gated DeepSeek verification | Retained/rejected a blocked-gap CSV and completed a passed manual import; separately fetched 364 closed Binance BTCUSDT bars and completed a 3-fold provider-attested Run with no provider failure or Mock fallback, retaining an honest holdout `fail` |
+| Secret-gated DeepSeek verification | Completed manual import, Binance BTCUSDT, and Nasdaq AAPL provider paths. The AAPL reproduction retained 502 bars and 82 dividend rows, completed three folds in six decisions with no provider failure or Mock fallback, and retained holdout `pass` without claiming split verification |
 | Reviewed workbench assets | Six required 1440×960 PNGs validated |
 | Dependency-license policy | 5 tests passed |
 | Truth/capability assertions, no active Glint product copy, dependency/notice drift, whitespace | All passed |
@@ -250,11 +250,24 @@ or Mock fallback. The selected candidate produced three completed training-only 
 the sealed holdout result was truthfully `fail`. This is successful pipeline evidence, not a claim
 that the tested strategy generalized or should be traded.
 
+Phase 1D added a second real-provider path with
+`scripts/verify_quant_nasdaq_deepseek_run.py`. A real AAPL request retained 502 closed daily bars
+from 2024-07-17 through 2026-07-17, 82 dividend rows covering 1988-11-21 through 2026-05-11, and
+three independently hashed responses for daily bars, provider-listed instrument information, and
+dividends. Prices remain explicitly `unadjusted`; dividend evidence is
+`retrieved_unverified`, and split history is explicitly `unavailable`. The XNAS calendar check
+excluded regular full-day holidays and retained one missing-session warning because special market
+closures are deliberately not inferred. DeepSeek (`deepseek-chat`) completed the reproduced Run in
+six decisions with no provider failure or Mock fallback, three training-only walk-forward folds,
+and a sealed holdout `pass`. This remains pipeline evidence rather than investment advice or
+independent certification of the data or strategy.
+
 ## Known Gaps
 
 - Manual CSV provenance remains user-supplied. Binance Spot provider fetches now retain a retrieval
-  timestamp and raw-response digest, but there is no exchange-holiday reference feed,
-  corporate-action reference feed, or news/web research.
+  timestamp and raw-response digest. Nasdaq equity fetches additionally retain listing and dividend
+  response evidence plus regular US exchange-holiday rules, but special closures, split history,
+  independent corporate-action verification, and news/web research remain unavailable.
 - The demonstration metrics above use the synthetic pinned fixture. Even an imported real OHLCV
   Run would remain a local deterministic backtest, not independently verified market evidence.
 - There is no arbitrary Python, shell, Jupyter, Spark runtime, uploaded-code execution, package
@@ -275,10 +288,10 @@ that the tested strategy generalized or should be traded.
 
 ## Next Slice
 
-The imported-data slice now includes manual and provider-retrieved source metadata, distinct raw and
-normalized digests, blocking correctness checks, 24×7 calendar handling, regime-labelled training
-windows, a sealed final holdout, Mac evidence, dirty-data rejection, and complete real Binance plus
-DeepSeek execution. The next bounded slice should add an exchange-listed equity adapter with an
-exchange-holiday reference calendar and split/dividend reference events, while preserving the
-seven-tool loop, local kernel, Store/lease/fencing boundaries, compact model context, and no-trading
-constraint.
+The imported-data slice now includes manual, crypto, and Nasdaq-listed equity sources; distinct raw
+and normalized digests; regular XNAS/XNYS and 24×7 calendar handling; partial dividend evidence;
+regime-labelled training windows; a sealed final holdout; Mac evidence; and complete real Binance,
+Nasdaq, and DeepSeek execution. The next bounded slice should add a dedicated split/corporate-action
+reference source and adjustment-factor reconciliation before enabling adjusted-price equity
+research. It should preserve the seven-tool loop, local kernel, Store/lease/fencing boundaries,
+compact model context, and no-trading constraint.
