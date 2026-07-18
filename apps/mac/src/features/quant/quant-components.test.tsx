@@ -177,7 +177,7 @@ describe('Quant Workspace components', () => {
     const report = renderToStaticMarkup(<QuantStrategyReport snapshot={importedSnapshot} candidates={presentation.candidates} selectedCandidateId="candidate-b" onSelectCandidate={vi.fn()} />);
     expect(market).toContain('ACME daily market chart');
     expect(market).toContain('workspace-imported dataset');
-    expect(report).toContain('Imported Demo Fixture');
+    expect(report).toContain('Imported Dataset');
     expect(report).not.toContain('Synthetic Demo Fixture');
   });
 
@@ -211,6 +211,9 @@ describe('Quant Workspace components', () => {
     const markup = renderToStaticMarkup(<QuantDataPage api={createFixtureQuantApi()} snapshot={quantFixtureSnapshot} selectedDataset={quantFixtureSnapshot.dataset} onSelect={vi.fn()} onInspect={vi.fn()} />);
     expect(markup).toContain('OHLCV CSV file');
     expect(markup).toContain('Import immutable dataset');
+    expect(markup).toContain('Binance Spot daily OHLCV');
+    expect(markup).toContain('Binance Spot symbol');
+    expect(markup).toContain('Default BTCUSDT · 365 daily bars');
     expect(markup).toContain('Dataset source provider');
     expect(markup).toContain('Dataset source reference');
     expect(markup).toContain('Dataset market calendar');
@@ -225,5 +228,35 @@ describe('Quant Workspace components', () => {
     const snapshot = { ...quantFixtureSnapshot, dataset: { ...quantFixtureSnapshot.dataset, quality: datasetQuality } };
     const markup = renderToStaticMarkup(<QuantDataPage api={createFixtureQuantApi()} snapshot={snapshot} selectedDataset={snapshot.dataset} onSelect={vi.fn()} onInspect={vi.fn()} />);
     expect(markup).toContain('warning · 1,564 checked bars · 2 zero-volume · 4 calendar gaps');
+  });
+
+  it('renders retained provider-fetch provenance without changing CSV compatibility', () => {
+    const snapshot = {
+      ...quantFixtureSnapshot,
+      dataset: {
+        ...quantFixtureSnapshot.dataset,
+        source: {
+          kind: 'provider_fetch' as const,
+          sourceName: 'Binance Spot public market data',
+          sourceReference: 'binance-vision:/api/v3/klines',
+          submittedCsvDigest: 'sha256:normalized-csv',
+          marketCalendar: '24x7' as const,
+          timeZone: 'UTC',
+          priceAdjustment: 'unadjusted' as const,
+          providerId: 'binance_spot',
+          providerResponseDigest: 'sha256:provider-response',
+          retrievedAt: '2026-07-18T00:00:00Z',
+          requestedLimit: 365,
+          returnedBarCount: 364,
+          droppedIncompleteCount: 1,
+          normalizationNote: 'Dropped the incomplete current daily candle.',
+          attestationStatus: 'provider_retrieved',
+        },
+      },
+    };
+    const markup = renderToStaticMarkup(<QuantDataPage api={createFixtureQuantApi()} snapshot={snapshot} selectedDataset={snapshot.dataset} onSelect={vi.fn()} onInspect={vi.fn()} />);
+    expect(markup).toContain('binance_spot');
+    expect(markup).toContain('364 bars from 365 requested · 1 incomplete dropped · provider_retrieved');
+    expect(markup).toContain('Dropped the incomplete current daily candle.');
   });
 });

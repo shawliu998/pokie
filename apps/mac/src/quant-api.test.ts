@@ -56,12 +56,37 @@ describe('Quant fixture API adapter', () => {
       data_authenticity: 'imported',
       created_at: '2026-07-17T00:00:00Z',
     } as const;
+    const providerDto = {
+      ...dto,
+      dataset_id: 'provider-BTCUSDT-1234',
+      name: 'BTCUSDT Binance Spot daily',
+      symbol: 'BTCUSDT',
+      source_metadata: {
+        kind: 'provider_fetch',
+        source_name: 'Binance Spot public market data',
+        source_reference: 'binance-vision:/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=365',
+        submitted_csv_digest: `sha256:${'e'.repeat(64)}`,
+        market_calendar: '24x7',
+        time_zone: 'UTC',
+        price_adjustment: 'unadjusted',
+        provider_id: 'binance_spot',
+        provider_response_digest: `sha256:${'d'.repeat(64)}`,
+        retrieved_at: '2026-07-18T00:00:00Z',
+        requested_limit: 365,
+        returned_bar_count: 364,
+        dropped_incomplete_count: 1,
+        normalization_note: 'Dropped the incomplete current daily candle.',
+        attestation_status: 'provider_retrieved',
+      },
+    } as const;
     const calls: Array<{ path: string; init?: RequestInit }> = [];
     const glint = {
       workspaceId: 'workspace-1',
       async quantRequest(path: string, init?: RequestInit) {
         calls.push({ path, init });
-        return path.endsWith('/import-csv') ? dto : [dto];
+        if (path.endsWith('/import-csv')) return dto;
+        if (path.endsWith('/fetch-binance-spot')) return providerDto;
+        return [dto];
       },
     } as unknown as GlintApi;
     const api = createApiQuantApi(glint);
@@ -97,6 +122,11 @@ describe('Quant fixture API adapter', () => {
       time_zone: 'America/New_York',
       price_adjustment: 'split_adjusted',
     });
+
+    const fetched = await api.fetchBinanceSpotDataset({ idempotencyKey: importKey });
+    expect(fetched).toMatchObject({ id: providerDto.dataset_id, source: { kind: 'provider_fetch', marketCalendar: '24x7', timeZone: 'UTC', providerId: 'binance_spot', requestedLimit: 365, returnedBarCount: 364, droppedIncompleteCount: 1, attestationStatus: 'provider_retrieved' } });
+    expect(calls[2]?.path).toBe('/quant/datasets/fetch-binance-spot');
+    expect(JSON.parse(String(calls[2]?.init?.body))).toEqual({ symbol: 'BTCUSDT', interval: '1d', limit: 365 });
   });
 
   it('generates API-compatible UUID idempotency keys', () => {

@@ -201,15 +201,15 @@ Result: **all functional layers passed in one full-gate invocation**.
 
 | Gate layer | Actual result |
 | --- | --- |
-| Quant contracts, daily-bar/CSV/quality contracts, API, dataset lifecycle, fixture runtime, kernel, research evaluation, OpenAPI drift | 87 Python tests passed |
-| Shared registry/model primitives, autonomous Agent lifecycle, goal differentiation, revision lineage, cancellation, provider failure/fallback, comparison differences, transport, and inherited Model Research regression | 56 Python tests passed |
-| Mac API/presentation/component tests | 22 Vitest tests across 3 files passed |
+| Quant contracts, daily-bar/CSV/quality/provider contracts, API, dataset lifecycle, fixture runtime, kernel, research evaluation, OpenAPI drift | 90 Python tests passed |
+| Shared registry/model primitives, autonomous Agent lifecycle, finish-selection gate, goal differentiation, revision lineage, cancellation, provider failure/fallback, comparison differences, transport, and inherited Model Research regression | 58 Python tests passed |
+| Mac API/presentation/component tests | 23 Vitest tests across 3 files passed |
 | Mac lint | ESLint passed with zero warnings |
 | Mac typecheck | TypeScript compiler passed |
 | Mac production build | Vite built 55 modules successfully |
 | Completed-state browser E2E | 1 Playwright test passed; 2 conditionally skipped |
 | API-owned ready-command browser E2E | 2 Playwright tests passed; 1 screenshot-only test skipped |
-| Secret-gated DeepSeek verification | Rejected a retained blocked-gap dataset, then completed a quality-passed imported Run with regime-labelled training folds, 336/84 train/holdout split, no provider failure, no Mock fallback, and `pass` status |
+| Secret-gated DeepSeek verification | Retained/rejected a blocked-gap CSV and completed a passed manual import; separately fetched 364 closed Binance BTCUSDT bars and completed a 3-fold provider-attested Run with no provider failure or Mock fallback, retaining an honest holdout `fail` |
 | Reviewed workbench assets | Six required 1440×960 PNGs validated |
 | Dependency-license policy | 5 tests passed |
 | Truth/capability assertions, no active Glint product copy, dependency/notice drift, whitespace | All passed |
@@ -240,11 +240,20 @@ holdout produced `6.0533%` total return and `-1.3777%` maximum drawdown versus b
 `5.3912%` and `-3.7909%`; the deterministic generalization status was `pass`. This demonstrates the
 complete transport/decision/tool/persistence/report path, not strategy quality or investment merit.
 
+A Phase 1C real-provider Run was then executed with
+`scripts/verify_quant_binance_deepseek_run.py`. The server requested 365 public `BTCUSDT` daily
+klines, discarded the one still-open UTC candle, and retained 364 contiguous closed bars with a
+distinct raw provider-response digest and normalized immutable dataset digest. The 24×7 quality
+report passed with no missing calendar days or unexpected sessions. DeepSeek (`deepseek-chat`)
+completed the Run in six decisions over two locally backtested candidates, without provider failure
+or Mock fallback. The selected candidate produced three completed training-only expanding folds;
+the sealed holdout result was truthfully `fail`. This is successful pipeline evidence, not a claim
+that the tested strategy generalized or should be traded.
+
 ## Known Gaps
 
-- Imported CSV provenance remains user-supplied. Deterministic quality checks now detect declared
-  calendar/timezone mismatches, weekday gaps, weekend sessions, price jumps and adjustment-policy
-  limitations, but there is no live provider attestation, exchange-holiday reference feed,
+- Manual CSV provenance remains user-supplied. Binance Spot provider fetches now retain a retrieval
+  timestamp and raw-response digest, but there is no exchange-holiday reference feed,
   corporate-action reference feed, or news/web research.
 - The demonstration metrics above use the synthetic pinned fixture. Even an imported real OHLCV
   Run would remain a local deterministic backtest, not independently verified market evidence.
@@ -266,10 +275,10 @@ complete transport/decision/tool/persistence/report path, not strategy quality o
 
 ## Next Slice
 
-The imported-data slice now includes declared source metadata, immutable source/dataset/quality
-digests, blocking correctness checks, regime-labelled training windows, a sealed final holdout, Mac
-evidence, dirty-data rejection, and a complete DeepSeek Run. The next bounded slice should add
-**independent source attestation**: one real historical market-data adapter, provider export IDs and
-timestamps, an exchange-holiday reference calendar, and split/dividend reference events. It should
-preserve the seven-tool loop, local kernel, Store/lease/fencing boundaries, compact model context,
-and no-trading constraint.
+The imported-data slice now includes manual and provider-retrieved source metadata, distinct raw and
+normalized digests, blocking correctness checks, 24×7 calendar handling, regime-labelled training
+windows, a sealed final holdout, Mac evidence, dirty-data rejection, and complete real Binance plus
+DeepSeek execution. The next bounded slice should add an exchange-listed equity adapter with an
+exchange-holiday reference calendar and split/dividend reference events, while preserving the
+seven-tool loop, local kernel, Store/lease/fencing boundaries, compact model context, and no-trading
+constraint.

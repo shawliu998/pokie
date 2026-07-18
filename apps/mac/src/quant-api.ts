@@ -35,11 +35,18 @@ export interface QuantDatasetImportRequest {
   idempotencyKey: string;
 }
 
+export interface QuantBinanceSpotFetchRequest {
+  symbol?: string;
+  limit?: number;
+  idempotencyKey: string;
+}
+
 export interface QuantApi {
   getWorkspaceSnapshot(): Promise<QuantWorkspaceSnapshot>;
   sendCommand(request: QuantCommandRequest): Promise<QuantCommandReceipt>;
   listDatasets(): Promise<DatasetSnapshot[]>;
   importDatasetCsv(request: QuantDatasetImportRequest): Promise<DatasetSnapshot>;
+  fetchBinanceSpotDataset(request: QuantBinanceSpotFetchRequest): Promise<DatasetSnapshot>;
 }
 
 interface QuantDatasetDto {
@@ -54,14 +61,22 @@ interface QuantDatasetDto {
   parser_version: string;
   digest: string;
   source_metadata: {
-    kind: 'csv_upload';
-    file_name: string | null;
-    source_name: string;
-    source_reference: string | null;
-    submitted_csv_digest: string | null;
-    market_calendar: 'unknown' | 'weekday' | 'XNYS' | 'XNAS' | 'XSHG' | 'XSHE';
-    time_zone: string;
-    price_adjustment: 'unknown' | 'unadjusted' | 'split_adjusted' | 'total_return_adjusted';
+    kind: 'csv_upload' | 'provider_fetch';
+    file_name?: string | null;
+    source_name?: string;
+    source_reference?: string | null;
+    submitted_csv_digest?: string | null;
+    market_calendar?: 'unknown' | 'weekday' | '24x7' | 'XNYS' | 'XNAS' | 'XSHG' | 'XSHE';
+    time_zone?: string;
+    price_adjustment?: 'unknown' | 'unadjusted' | 'split_adjusted' | 'total_return_adjusted';
+    provider_id?: string;
+    provider_response_digest?: string;
+    retrieved_at?: string;
+    requested_limit?: number;
+    returned_bar_count?: number;
+    dropped_incomplete_count?: number;
+    normalization_note?: string;
+    attestation_status?: string;
   };
   data_quality?: QuantDatasetDataQualityDto;
 }
@@ -103,6 +118,34 @@ function mapDatasetQuality(dto: QuantDatasetDataQualityDto): DatasetDataQuality 
 }
 
 function mapDataset(dto: QuantDatasetDto): DatasetSnapshot {
+  const source = dto.source_metadata.kind === 'provider_fetch'
+    ? {
+      kind: 'provider_fetch' as const,
+      sourceName: dto.source_metadata.source_name ?? 'Provider market data',
+      sourceReference: dto.source_metadata.source_reference ?? null,
+      submittedCsvDigest: dto.source_metadata.submitted_csv_digest ?? null,
+      marketCalendar: '24x7' as const,
+      timeZone: dto.source_metadata.time_zone ?? 'UTC',
+      priceAdjustment: 'unadjusted' as const,
+      providerId: dto.source_metadata.provider_id ?? 'unknown_provider',
+      providerResponseDigest: dto.source_metadata.provider_response_digest ?? '',
+      retrievedAt: dto.source_metadata.retrieved_at ?? '',
+      requestedLimit: dto.source_metadata.requested_limit ?? 0,
+      returnedBarCount: dto.source_metadata.returned_bar_count ?? dto.bar_count,
+      droppedIncompleteCount: dto.source_metadata.dropped_incomplete_count ?? 0,
+      normalizationNote: dto.source_metadata.normalization_note ?? 'No provider normalization note was retained.',
+      attestationStatus: dto.source_metadata.attestation_status ?? 'unavailable',
+    }
+    : {
+      kind: 'csv_upload' as const,
+      fileName: dto.source_metadata.file_name ?? null,
+      sourceName: dto.source_metadata.source_name ?? 'User-provided CSV',
+      sourceReference: dto.source_metadata.source_reference ?? null,
+      submittedCsvDigest: dto.source_metadata.submitted_csv_digest ?? null,
+      marketCalendar: dto.source_metadata.market_calendar,
+      timeZone: dto.source_metadata.time_zone,
+      priceAdjustment: dto.source_metadata.price_adjustment ?? 'unknown',
+    };
   return {
     id: dto.dataset_id,
     name: dto.name,
@@ -114,16 +157,7 @@ function mapDataset(dto: QuantDatasetDto): DatasetSnapshot {
     parserVersion: dto.parser_version,
     digest: dto.digest,
     authenticity: 'imported_fixture',
-    source: {
-      kind: dto.source_metadata.kind,
-      fileName: dto.source_metadata.file_name,
-      sourceName: dto.source_metadata.source_name,
-      sourceReference: dto.source_metadata.source_reference,
-      submittedCsvDigest: dto.source_metadata.submitted_csv_digest,
-      marketCalendar: dto.source_metadata.market_calendar,
-      timeZone: dto.source_metadata.time_zone,
-      priceAdjustment: dto.source_metadata.price_adjustment,
-    },
+    source,
     ...(dto.data_quality ? { quality: mapDatasetQuality(dto.data_quality) } : {}),
   };
 }
@@ -146,6 +180,9 @@ export function createFixtureQuantApi(): QuantApi {
     async listDatasets() { return []; },
     async importDatasetCsv() {
       throw new Error('CSV import requires the authenticated Quant API.');
+    },
+    async fetchBinanceSpotDataset() {
+      throw new Error('Binance Spot fetch requires the authenticated Quant API.');
     },
   };
 }
@@ -186,6 +223,18 @@ export function createApiQuantApi(api: GlintApi): QuantApi {
           market_calendar: request.marketCalendar ?? 'unknown',
           time_zone: request.timeZone ?? 'UTC',
           price_adjustment: request.priceAdjustment ?? 'unknown',
+        }),
+      });
+      return mapDataset(row);
+    },
+    async fetchBinanceSpotDataset(request) {
+      const row = await quantRequest<QuantDatasetDto>('/quant/datasets/fetch-binance-spot', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': request.idempotencyKey },
+        body: JSON.stringify({
+          symbol: request.symbol?.trim().toUpperCase() || 'BTCUSDT',
+          interval: '1d',
+          limit: request.limit ?? 365,
         }),
       });
       return mapDataset(row);

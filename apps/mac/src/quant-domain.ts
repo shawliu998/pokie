@@ -142,18 +142,40 @@ export interface DatasetSnapshot {
   parserVersion: string;
   digest: string;
   authenticity: QuantAuthenticity;
-  source?: {
-    kind: 'csv_upload';
-    fileName: string | null;
-    sourceName: string;
-    sourceReference: string | null;
-    submittedCsvDigest: string | null;
-    marketCalendar?: 'unknown' | 'weekday' | 'XNYS' | 'XNAS' | 'XSHG' | 'XSHE';
-    timeZone?: string;
-    priceAdjustment: 'unknown' | 'unadjusted' | 'split_adjusted' | 'total_return_adjusted';
-  };
+  source?: DatasetSource;
   quality?: DatasetDataQuality;
 }
+
+export interface DatasetCsvSource {
+  kind: 'csv_upload';
+  fileName: string | null;
+  sourceName: string;
+  sourceReference: string | null;
+  submittedCsvDigest: string | null;
+  marketCalendar?: 'unknown' | 'weekday' | '24x7' | 'XNYS' | 'XNAS' | 'XSHG' | 'XSHE';
+  timeZone?: string;
+  priceAdjustment: 'unknown' | 'unadjusted' | 'split_adjusted' | 'total_return_adjusted';
+}
+
+export interface DatasetProviderFetchSource {
+  kind: 'provider_fetch';
+  sourceName: string;
+  sourceReference: string | null;
+  submittedCsvDigest: string | null;
+  marketCalendar: '24x7';
+  timeZone: string;
+  priceAdjustment: 'unadjusted';
+  providerId: string;
+  providerResponseDigest: string;
+  retrievedAt: string;
+  requestedLimit: number;
+  returnedBarCount: number;
+  droppedIncompleteCount: number;
+  normalizationNote: string;
+  attestationStatus: string;
+}
+
+export type DatasetSource = DatasetCsvSource | DatasetProviderFetchSource;
 
 export interface DatasetDataQuality {
   schemaVersion: string;
@@ -337,6 +359,6 @@ export interface QuantWorkspaceSnapshot {
   composerLegalCommands: QuantCommand[];
 }
 
-export function quantAuthenticityLabel(authenticity: QuantAuthenticity): 'Synthetic Demo Fixture' | 'Imported Demo Fixture' {
-  return authenticity === 'synthetic_fixture' ? 'Synthetic Demo Fixture' : 'Imported Demo Fixture';
+export function quantAuthenticityLabel(authenticity: QuantAuthenticity): 'Synthetic Demo Fixture' | 'Imported Dataset' {
+  return authenticity === 'synthetic_fixture' ? 'Synthetic Demo Fixture' : 'Imported Dataset';
 }

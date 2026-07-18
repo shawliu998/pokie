@@ -49,6 +49,10 @@ required for recovery.
     coverage that the data does not contain.
 16. Verify a blocked dirty import and a completed quality-passed import in one real DeepSeek run,
     with Mock fallback disabled and quality/regime evidence retained in the Mac report.
+17. Add one fixed-host public Binance Spot daily-kline adapter. Hash the raw provider response,
+    normalize only closed UTC candles into the existing immutable dataset contract, apply 24×7
+    calendar quality rules, retain provider attestation in API/Mac projections, and verify the full
+    Binance-to-DeepSeek Run without exposing network access to the Agent tool registry.
 
 ## Bounded scope
 
@@ -56,9 +60,11 @@ Only SMA crossover, RSI mean reversion and trailing breakout templates are execu
 access the network or execute user/model code. Metrics always come from the local kernel over the
 pinned dataset. Missing model credentials select the product-supported Mock provider.
 
-The first external-data adapter accepts daily OHLCV as CSV text through the authenticated Quant API.
-It performs no market-network retrieval and does not claim the imported rows are provider-verified.
-Imports remain inspectable at any size, while autonomous runs require at least 252 ordered daily bars.
+Manual imports accept daily OHLCV as CSV text through the authenticated Quant API and remain
+user-attested. The first real-provider adapter retrieves 252–1,000 public Binance Spot daily klines
+from one fixed host, drops an unfinished current candle, and retains distinct raw-response and
+normalized-dataset digests. Imports remain inspectable at any size, while autonomous runs require
+at least 252 ordered daily bars.
 
 ## Reuse note
 

@@ -6,7 +6,8 @@ Phase 1A adds an incremental autonomous research loop over the Phase 0 shell. Ru
 default **Synthetic Demo Fixture** or a workspace-imported, digest-pinned daily OHLCV CSV. Agent runs
 select dynamic strategy parameters and compute their metrics with the pure local daily-bar kernel.
 The model boundary can choose only one of seven registered tools; it cannot execute Python, shell,
-market-network, broker, or order actions.
+broker, or order actions. A separate server-owned adapter can retrieve bounded public Binance Spot
+daily candles before a Run, but this network capability is never exposed as an Agent tool.
 
 ## Phase 0 status
 
@@ -47,12 +48,15 @@ Implemented:
   and adjustment-policy limitations; blocking findings retain the import but prevent Auto Research.
 - training-only market-regime labels for every walk-forward fold, computed strictly from history
   before that fold's evaluation window and summarized without opening the final holdout.
+- a fixed-host, credential-free Binance Spot daily-kline adapter for `BTCUSDT`-style symbols, with
+  raw-response digest, retrieval timestamp, request/return/drop counts, UTC 24×7 quality checks,
+  normalized immutable dataset digest, API route, Mac fetch controls, and retained provider proof.
 
 Still intentionally not implemented:
 
-- live/historical market-provider retrieval or news data;
-- independently verified market evidence, production backtest orchestration, broad parameter search,
-  or optimization (imported CSV provenance is user-supplied and is not provider-verified);
+- provider adapters beyond public Binance Spot daily klines, or news data;
+- exchange-holiday/corporate-action reference verification, production backtest orchestration,
+  broad parameter search, or optimization (manual CSV provenance remains user-supplied);
 - nested cross-validation, broad regime coverage, statistical significance testing, or production
   strategy certification; regime diversity is reported truthfully and may be insufficient;
 - Spark/Jupyter/sandbox or uploaded-code execution;
@@ -133,7 +137,7 @@ Use DeepSeek for one-action decisions (tool execution remains local and determin
 ```bash
 POKIEQUANT_AGENT_PROVIDER=deepseek \
 DEEPSEEK_API_KEY=<key> \
-DEEPSEEK_MODEL=deepseek-v4-flash \
+POKIEQUANT_AGENT_MODEL=deepseek-v4-flash \
 GLINT_WORKSPACE_ID=<workspace-uuid> \
 python -m services.worker.app.main poll --kind quant-agent --interval-seconds 1
 ```
@@ -146,6 +150,13 @@ GLINT_ENVIRONMENT=test \
 GLINT_DATABASE_URL=sqlite:////tmp/pokiequant-deepseek.db \
 POKIEQUANT_AGENT_MODEL=deepseek-v4-flash \
 python scripts/verify_quant_deepseek_run.py
+```
+
+Run the complete real-provider path (public Binance BTCUSDT daily data, then DeepSeek decisions):
+
+```bash
+set -a; source .env.local; set +a
+python scripts/verify_quant_binance_deepseek_run.py
 ```
 
 ## Verification
