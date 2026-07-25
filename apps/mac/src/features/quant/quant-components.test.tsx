@@ -13,6 +13,8 @@ import { QuantPlanRail } from './QuantPlanRail';
 import { presentQuantWorkspace, type QuantEvidenceFocusIntent } from './quant-presentation';
 import { QuantRunsPage } from './QuantRunsPage';
 import { QuantWorkspace, QuantWorkspaceLoading } from './QuantWorkspace';
+import { QuantRuntimeSettings } from './QuantRuntimeSettings';
+import { SessionRecovery } from '../session/SessionBoundary';
 import { QuantGeneralizationPanel, QuantStrategyReport } from './QuantStrategyReport';
 import { QuantTerminalDecision } from './QuantTerminalDecision';
 import { QuantStrategyLab, StrategyPerformanceChart } from './QuantStrategyLab';
@@ -72,6 +74,28 @@ function robustnessReportSnapshot() {
 }
 
 describe('Quant Workspace components', () => {
+  it('keeps managed runtime controls inside the native settings destination and locks them for an active run', () => {
+    const active = structuredClone(quantFixtureSnapshot);
+    active.run.state = 'running_experiments';
+    const native = renderToStaticMarkup(<QuantRuntimeSettings snapshot={active} nativeRuntime />);
+    const browser = renderToStaticMarkup(<QuantRuntimeSettings snapshot={active} nativeRuntime={false} />);
+    expect(native).toContain('Current run');
+    expect(native).toContain(active.run.provider);
+    expect(native).toContain('Managed local runtime');
+    expect(native).toContain('Finish, cancel, or open a terminal run');
+    expect(native).toContain('disabled=""');
+    expect(browser).not.toContain('Managed local runtime');
+  });
+
+  it('shows local startup only in the native session recovery path', () => {
+    const reconnect = vi.fn(async () => undefined);
+    const native = renderToStaticMarkup(<SessionRecovery failure={null} native onReconnect={reconnect} />);
+    const browser = renderToStaticMarkup(<SessionRecovery failure={null} native={false} onReconnect={reconnect} />);
+    expect(native).toContain('Start local runtime');
+    expect(native).toContain('Start &amp; connect');
+    expect(browser).not.toContain('Start local runtime');
+  });
+
   it('keeps the workspace geometry stable during initial and slow API loading', () => {
     const initial = renderToStaticMarkup(<QuantWorkspaceLoading onRetry={vi.fn()} />);
     const slow = renderToStaticMarkup(<QuantWorkspaceLoading slow onRetry={vi.fn()} />);
