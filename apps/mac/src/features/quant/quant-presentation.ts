@@ -786,7 +786,7 @@ const verdictCopy: Record<CandidateVerdict, [string, QuantTone]> = {
 };
 
 const commandLabels: Partial<Record<QuantCommand, string>> = {
-  approve_plan: 'Approve Plan',
+  approve_plan: 'Approve & Run',
   run_fixture: 'Run Synthetic Agent',
   request_plan_changes: 'Request Changes',
   approve_execution: 'Approve Once',
@@ -1031,9 +1031,9 @@ export function presentResearchCopilot(
     nextDetail = 'This retained run is read-only. Return to the latest run before issuing a command.';
     add('return_latest', 'Return to latest', 'primary');
     if (snapshot.candidates.length > 0) add('open_analysis', 'Open analysis');
-    if (snapshot.report) add('open_report', 'Open report');
+    if (snapshot.report) add('open_report', 'Open decision');
   } else if (snapshot.run.state === 'waiting_plan_approval') {
-    legalAction('approve_plan', 'Approve plan', 'primary');
+    legalAction('approve_plan', 'Approve & run', 'primary');
     legalAction('request_plan_changes', 'Request changes', actions.length ? 'default' : 'primary');
     legalAction('cancel_run', 'Cancel run');
     if (snapshot.researchPlan) {
@@ -1041,33 +1041,31 @@ export function presentResearchCopilot(
       if (scope.blocksApproval) {
         nextDetail = 'Revise the request to a supported strategy or an explicit bounded proxy before research can start.';
       } else if (scope.requiresConfirmation) {
-        nextDetail = snapshot.run.mode === 'auto_research'
-          ? 'Auto Research is paused. Confirm the proxy and omissions before experiments begin.'
-          : 'Confirm the proxy and omissions before experiments begin.';
+        nextDetail = 'Confirm the proxy and omissions before Qurio runs experiments.';
       }
     }
   } else if (snapshot.run.state === 'waiting_for_review') {
     legalAction('complete_review', 'Complete review', 'primary');
-    if (!actions.length && snapshot.report) add('open_report', 'Open report', 'primary');
-    else if (snapshot.report) add('open_report', 'Open report');
+    if (!actions.length && snapshot.report) add('open_report', 'Open decision', 'primary');
+    else if (snapshot.report) add('open_report', 'Open decision');
     if (snapshot.candidates.length > 0) add('open_analysis', 'Open analysis');
     legalAction('request_plan_changes', 'Request changes');
   } else if (snapshot.run.state === 'completed') {
-    if (snapshot.report) add('open_report', 'Open report', 'primary');
+    if (snapshot.report) add('open_report', 'Open decision', 'primary');
     else if (snapshot.candidates.length > 0) add('open_analysis', 'Open analysis', 'primary');
     else add('new_research', 'New research', 'primary');
     if (snapshot.candidates.length > 0 && !actions.some((action) => action.kind === 'open_analysis')) add('open_analysis', 'Open analysis');
     add('new_research', 'New research');
-    nextDetail = 'Open the retained Report to review the final decision and evidence.';
+    nextDetail = 'Open the retained decision to review the final evidence.';
   } else if (snapshot.run.state === 'failed' || snapshot.run.state === 'cancelled') {
     legalAction('retry_run', 'Retry run', 'primary');
     if (!actions.length) add('new_research', 'New research', 'primary');
     if (snapshot.candidates.length > 0) add('open_analysis', 'Open analysis');
-    if (snapshot.report) add('open_report', 'Open report');
+    if (snapshot.report) add('open_report', 'Open decision');
     add('new_research', 'New research');
   } else if (snapshot.run.state === 'draft') {
     legalAction('generate_plan', 'Generate plan', 'primary');
-    legalAction('start_auto_research', 'Start auto research', actions.length ? 'default' : 'primary');
+    legalAction('start_auto_research', 'Generate plan first', actions.length ? 'default' : 'primary');
     legalAction('run_fixture', 'Run research', actions.length ? 'default' : 'primary');
     legalAction('cancel_run', 'Cancel run');
     if (!actions.length) add('new_research', 'New research', 'primary');
@@ -1118,11 +1116,11 @@ function presentActivity(event: QuantRunEvent): QuantActivityPresentation {
 function presentActions(snapshot: QuantWorkspaceSnapshot): QuantActionPresentation[] {
   const actions: QuantActionPresentation[] = [];
   if (snapshot.run.state === 'waiting_for_review') {
-    actions.push({ kind: 'open_report', label: 'Open Report Draft', tone: 'primary' });
+    actions.push({ kind: 'open_report', label: 'Open Decision Draft', tone: 'primary' });
     actions.push({ kind: 'compare_candidates', label: 'Review Validation Findings', tone: 'default' });
   }
   if (snapshot.run.state === 'completed') {
-    actions.push({ kind: 'open_report', label: 'Open Report', tone: 'primary' });
+    actions.push({ kind: 'open_report', label: 'Open Decision', tone: 'primary' });
     actions.push({ kind: 'compare_candidates', label: 'Compare Candidates', tone: 'default' });
   }
   if (snapshot.run.state === 'failed') actions.push({ kind: 'open_diagnostics', label: 'Open Diagnostics', tone: 'default' });

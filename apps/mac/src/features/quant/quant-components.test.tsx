@@ -90,8 +90,8 @@ describe('Quant Workspace components', () => {
     expect(markup).toContain('Selected candidate');
     expect(markup).toContain('Run audit record');
     expect(markup).toContain('New research');
-    expect(markup).toContain('Open report');
-    expect(markup.indexOf('Open report')).toBeLessThan(markup.indexOf('New research'));
+    expect(markup).toContain('Open decision');
+    expect(markup.indexOf('Open decision')).toBeLessThan(markup.indexOf('New research'));
     expect(markup).not.toContain('quant-run-state');
     expect(markup).not.toContain('text-transform:uppercase');
   });
@@ -133,7 +133,7 @@ describe('Quant Workspace components', () => {
     expect(markup).not.toContain('pq-user-prompt');
   });
 
-  it('shows the flat Research Contract before plan-approval actions', () => {
+  it('shows the approved plan in the Overview before rail approval actions', () => {
     const snapshot = structuredClone(quantFixtureSnapshot);
     snapshot.researchPlan = {
       candidateFamilies: ['sma_crossover', 'breakout'],
@@ -147,7 +147,8 @@ describe('Quant Workspace components', () => {
       legalCommands: ['approve_plan', 'request_plan_changes', 'cancel_run'],
     };
     const markup = renderToStaticMarkup(<QuantOverviewWorkbench snapshot={snapshot} activeTab="overview" onTabChange={vi.fn()} onRunResearch={vi.fn()} onOpenAnalysis={vi.fn()} onOpenReport={vi.fn()} selectedCandidateId="candidate-b" onSelectCandidate={vi.fn()} onCommand={vi.fn()} />);
-    expect(markup).toContain('Research contract');
+    expect(markup).toContain('Research plan awaiting approval');
+    expect(markup).toContain('Plan for approval');
     expect(markup).toContain('Supported · Legacy plan');
     expect(markup).toContain('Legacy retained plan predates strategy-scope classification');
     expect(markup).toContain('Compare bounded trend candidates while controlling drawdown.');
@@ -160,11 +161,11 @@ describe('Quant Workspace components', () => {
     expect(markup).toContain(`${snapshot.run.maxAgentIterations} Agent actions`);
     expect(markup).toContain(`${snapshot.limits.maxExperiments} experiments`);
     expect(markup).toContain(`${snapshot.limits.maxRepairAttempts} repairs per experiment`);
-    expect(markup.indexOf('Research contract')).toBeLessThan(markup.indexOf('>Approve plan<'));
-    expect(markup.indexOf('Research contract')).toBeLessThan(markup.indexOf('>Request changes<'));
+    expect(markup.indexOf('Research plan awaiting approval')).toBeLessThan(markup.indexOf('>Approve &amp; run<'));
+    expect(markup.indexOf('Research plan awaiting approval')).toBeLessThan(markup.indexOf('>Request changes<'));
   });
 
-  it('makes a bounded proxy explicit and pauses Auto Research for confirmation', () => {
+  it('makes a bounded proxy explicit and requires confirmation before Qurio runs experiments', () => {
     const snapshot = structuredClone(quantFixtureSnapshot);
     snapshot.researchPlan = {
       candidateFamilies: ['rsi_mean_reversion'],
@@ -191,9 +192,9 @@ describe('Quant Workspace components', () => {
     expect(markup).toContain('Use RSI mean reversion as a bounded momentum proxy');
     expect(markup).toContain('Exact MACD signal parity');
     expect(markup).toContain('ATR-sized positions');
-    expect(markup).toContain('Auto Research is paused for explicit confirmation.');
-    expect(markup).toContain('>Approve plan<');
-    expect(markup.indexOf('Bounded proxy')).toBeLessThan(markup.indexOf('>Approve plan<'));
+    expect(markup).toContain('Review this plan before Qurio runs experiments.');
+    expect(markup).toContain('>Approve &amp; run<');
+    expect(markup.indexOf('Bounded proxy')).toBeLessThan(markup.indexOf('>Approve &amp; run<'));
   });
 
   it('shows unsupported scope without exposing Approve or Ask even when a malformed command list includes them', () => {
@@ -256,7 +257,7 @@ describe('Quant Workspace components', () => {
     snapshot.report = null;
     snapshot.run = { ...snapshot.run, state: 'waiting_plan_approval', legalCommands: ['approve_plan', 'request_plan_changes', 'cancel_run', 'ask'] };
     await act(async () => { root.render(<QuantOverviewWorkbench snapshot={snapshot} activeTab="overview" onTabChange={vi.fn()} onRunResearch={vi.fn()} onOpenAnalysis={vi.fn()} onOpenReport={vi.fn()} selectedCandidateId="candidate-b" onSelectCandidate={vi.fn()} onCommand={onCommand} />); });
-    await act(async () => { [...container.querySelectorAll<HTMLButtonElement>('.pq-copilot-actions button')].find((button) => button.textContent === 'Approve plan')?.click(); });
+    await act(async () => { [...container.querySelectorAll<HTMLButtonElement>('.pq-copilot-actions button')].find((button) => button.textContent === 'Approve & run')?.click(); });
     expect(onCommand).toHaveBeenCalledWith('approve_plan');
     const ask = container.querySelector<HTMLTextAreaElement>('textarea[aria-label="Ask about this run"]')!;
     await act(async () => {
@@ -679,7 +680,7 @@ describe('Quant Workspace components', () => {
     const research = renderToStaticMarkup(<QuantUtilityFrame destination="new_research" snapshot={quantFixtureSnapshot}><div>Research body</div></QuantUtilityFrame>);
     const data = renderToStaticMarkup(<QuantUtilityFrame destination="data" snapshot={quantFixtureSnapshot}><div>Data body</div></QuantUtilityFrame>);
     expect(settings).not.toContain('complementary');
-    expect(settings).toContain('Runtime &amp; policy');
+    expect(settings).toContain('Settings');
     expect(settings).not.toContain('<textarea');
     expect(research).toContain('Research preflight');
     expect(research).toContain('aria-label="Research boundary"');
@@ -710,7 +711,7 @@ describe('Quant Workspace components', () => {
     const markup = renderToStaticMarkup(<QuantGoalComposer snapshot={quantFixtureSnapshot} large onSubmit={vi.fn()} />);
     expect(markup).not.toContain('>Ask<');
     expect(markup).toContain('Plan first');
-    expect(markup).toContain('Auto Research');
+    expect(markup).not.toContain('Auto Research');
     expect(markup).toContain('Execution limits');
     expect(markup).toContain('Minimum history met');
     expect(markup).toContain('Research data');
@@ -727,7 +728,7 @@ describe('Quant Workspace components', () => {
   it('locks the goal composer while a command is pending', () => {
     const markup = renderToStaticMarkup(<QuantGoalComposer snapshot={quantFixtureSnapshot} large busy onSubmit={vi.fn()} />);
     expect(markup).toContain('aria-busy="true"');
-    expect(markup).toContain('Creating plan…');
+    expect(markup).toContain('Generating plan…');
     expect(markup).toContain('disabled=""');
   });
 
@@ -751,8 +752,8 @@ describe('Quant Workspace components', () => {
   it('starts terminal research through a new API-owned Run and honors the requested mode', () => {
     const selected = { ...legacyFixtureDataset, id: 'selected-dataset', name: 'Selected Dataset' };
     const markup = renderToStaticMarkup(<QuantGoalComposer snapshot={quantFixtureSnapshot} selectedDataset={selected} initialMode="auto_research" large onSubmit={vi.fn()} onStartNewRun={vi.fn()} />);
-    expect(markup).toContain('aria-pressed="true" title="Run the approved, bounded workflow without waiting at each step"');
-    expect(markup).toContain('Start research');
+    expect(markup).toContain('aria-pressed="true" title="Prepare a reviewable plan before any experiment runs"');
+    expect(markup).toContain('Generate plan');
     expect(markup).toContain(`${selected.symbol} · ${selected.dateRange.start} to ${selected.dateRange.end}`);
   });
 
@@ -787,10 +788,10 @@ describe('Quant Workspace components', () => {
       start.dispatchEvent(new Event('input', { bubbles: true }));
     });
     await act(async () => {
-      [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Start research')?.click();
+      [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Generate plan')?.click();
     });
     expect(onStartNewRun).toHaveBeenCalledWith(
-      'auto_research',
+      'plan',
       expect.any(String),
       marketDataset,
       { start: '2024-03-01T00:00:00Z', end: marketDataset.dateRange.end },
@@ -801,7 +802,7 @@ describe('Quant Workspace components', () => {
     container.remove();
   });
 
-  it('opts a root market Auto Research run into one bounded follow-up', async () => {
+  it('keeps a root market plan bounded to one reviewed run', async () => {
     const marketDataset: DatasetSnapshot = {
       contract: 'market-v2', id: 'market-loop-v2', name: 'BTCUSDT 4 hour', symbol: 'BTCUSDT', interval: '4h',
       dateRange: { start: '2024-01-01T00:00:00Z', end: '2024-04-09T20:00:00Z' }, barCount: 600,
@@ -817,17 +818,13 @@ describe('Quant Workspace components', () => {
     await act(async () => {
       root.render(<QuantGoalComposer snapshot={quantFixtureSnapshot} selectedDataset={marketDataset} initialMode="auto_research" large onSubmit={vi.fn()} onStartNewRun={onStartNewRun} />);
     });
-    expect(container.textContent).toContain('After this run');
+    expect(container.textContent).not.toContain('After this run');
     await act(async () => {
-      [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Allow one follow-up')?.click();
-    });
-    expect(container.textContent).toContain('precommit one independent refinement');
-    await act(async () => {
-      [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Start research')?.click();
+      [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Generate plan')?.click();
     });
     expect(onStartNewRun).toHaveBeenCalledWith(
-      'auto_research', expect.any(String), marketDataset, marketDataset.dateRange,
-      undefined, undefined, 'one_train_only_follow_up',
+      'plan', expect.any(String), marketDataset, marketDataset.dateRange,
+      undefined, undefined,
     );
     await act(async () => { root.unmount(); });
     container.remove();
@@ -1111,7 +1108,7 @@ describe('Quant Workspace components', () => {
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     });
     expect(snapshotCalls).toEqual([source.run.id]);
-    expect(container.textContent).toContain('Compare research runs');
+    expect(container.textContent).toContain('Compare research history');
     expect(container.textContent).toContain('Not directly comparable');
     expect(container.textContent).toContain('Different research range');
     expect(container.textContent).toContain('Test a lower drawdown objective.');
@@ -1212,7 +1209,7 @@ describe('Quant Workspace components', () => {
       root.render(<StrictMode><QuantRunsPage api={api} snapshot={current} onOpenRun={onOpenRun} onOpenReport={onOpenReport} onStartNewResearch={onStartNewResearch} evidenceFocus={focus} onEvidenceFocusResolved={resolved} /></StrictMode>);
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     });
-    expect(container.textContent).toContain('Compare research runs');
+    expect(container.textContent).toContain('Compare research history');
     expect(getRunWorkspaceSnapshot).toHaveBeenCalledTimes(1);
     expect(getRunWorkspaceSnapshot).toHaveBeenCalledWith(source.run.id);
     expect(resolved).toHaveBeenCalledTimes(1);
@@ -1239,7 +1236,7 @@ describe('Quant Workspace components', () => {
       forgedRoot.render(<StrictMode><QuantRunsPage api={api} snapshot={current} onOpenRun={onOpenRun} onOpenReport={onOpenReport} onStartNewResearch={onStartNewResearch} evidenceFocus={forgedFocus} onEvidenceFocusResolved={forgedResolved} /></StrictMode>);
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     });
-    expect(container.textContent).not.toContain('Compare research runs');
+    expect(container.textContent).not.toContain('Compare research history');
     expect(getRunWorkspaceSnapshot).toHaveBeenCalledTimes(1);
     expect(forgedResolved).toHaveBeenCalledTimes(1);
     expect(forgedResolved).toHaveBeenCalledWith('focus-source-forged', expect.objectContaining({ status: 'unavailable' }));
@@ -1814,8 +1811,8 @@ describe('Quant Workspace components', () => {
     const failed = liveFixtures['quant-failed-safe'] as unknown as QuantWorkspaceSnapshot;
     const failedPresentation = presentQuantWorkspace(failed);
     const markup = renderToStaticMarkup(<QuantStrategyReport api={createFixtureQuantApi()} snapshot={failed} candidates={failedPresentation.candidates} decision={failedPresentation.decision} selectedCandidateId="" onSelectCandidate={vi.fn()} onOpenAnalysis={vi.fn()} onOpenHistory={vi.fn()} onStartNewResearch={vi.fn()} />);
-    expect(markup).toContain('Report was not produced');
-    expect(markup).toContain('run stopped before a strategy report was generated');
+    expect(markup).toContain('Decision was not produced');
+    expect(markup).toContain('run stopped before a decision could be produced');
     expect(markup).toContain('>New research<');
     expect(markup).not.toContain('Selected strategy key metrics');
     expect(markup).not.toContain('pq-strategy-line is-candidate');
@@ -2317,7 +2314,7 @@ describe('Quant Workspace components', () => {
       [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'New research')?.click();
     });
     const goal = container.querySelector<HTMLTextAreaElement>('textarea[aria-label="Research goal"]');
-    const submit = [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Start research');
+    const submit = [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Generate plan');
     expect(goal).toBeTruthy();
     expect(submit).toBeTruthy();
     await act(async () => {
@@ -2404,7 +2401,7 @@ describe('Quant Workspace components', () => {
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))));
     });
     await act(async () => {
-      [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Runs')?.click();
+      [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'History')?.click();
     });
     await act(async () => {
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))));
@@ -2519,7 +2516,7 @@ describe('Quant Workspace components', () => {
     expect(snapshotCalls.filter((id) => id === 'run-2')).toHaveLength(2);
     expect(container.textContent).toContain('Comparison context differs.');
     expect(container.textContent).toContain('Differs: dataset, symbol, research range');
-    expect(container.textContent).toContain('Back to runs');
+    expect(container.textContent).toContain('Back to history');
     await act(async () => { root.unmount(); });
     container.remove();
   });

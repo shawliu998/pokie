@@ -20,7 +20,7 @@ export type QuantResearchFollowUp = 'stop_after_run' | 'one_train_only_follow_up
 const modeCopy: Array<[QuantResearchMode, string, string]> = [
   ['ask', 'Ask', 'Read-only research answer'],
   ['plan', 'Plan first', 'Prepare a reviewable plan before any experiment runs'],
-  ['auto_research', 'Auto Research', 'Run the approved, bounded workflow without waiting at each step'],
+  ['auto_research', 'Approved workflow', 'Run the bounded workflow after the plan has been approved'],
 ];
 
 const modeCommand: Record<QuantResearchMode, QuantCommand> = {
@@ -106,7 +106,7 @@ export function QuantGoalComposer({ api, snapshot, selectedDataset = snapshot.da
   onSubmit: (command: QuantCommand, payload: Record<string, unknown>) => void;
   onStartNewRun?: (mode: QuantResearchMode, goal: string, dataset: DatasetSnapshot, dateRange: { start: string; end: string }, refinement?: QuantRefinementContext, refinementReason?: string, followUp?: QuantResearchFollowUp) => void;
 }) {
-  const normalizedInitialMode = large && initialMode === 'ask' ? 'plan' : initialMode;
+  const normalizedInitialMode = large ? 'plan' : initialMode;
   const [mode, setMode] = useState<QuantResearchMode>(normalizedInitialMode);
   const [goal, setGoal] = useState(initialGoal);
   const [catalog, setCatalog] = useState<DatasetSnapshot[]>([]);
@@ -114,7 +114,7 @@ export function QuantGoalComposer({ api, snapshot, selectedDataset = snapshot.da
   const [dateRange, setDateRange] = useState(refinement?.sourceDateRange ?? selectedDataset.dateRange);
   const [refinementReason, setRefinementReason] = useState(refinement?.initialReason ?? '');
   const [followUp, setFollowUp] = useState<QuantResearchFollowUp>('stop_after_run');
-  useEffect(() => { setMode(large && initialMode === 'ask' ? 'plan' : initialMode); }, [initialMode, large]);
+  useEffect(() => { setMode(large ? 'plan' : initialMode); }, [initialMode, large]);
   useEffect(() => { setGoal(initialGoal); }, [initialGoal]);
   useEffect(() => {
     setDateRange(refinement?.sourceDateRange ?? selectedDataset.dateRange);
@@ -139,7 +139,7 @@ export function QuantGoalComposer({ api, snapshot, selectedDataset = snapshot.da
   const legal = snapshot.composerLegalCommands.includes(command) || snapshot.run.legalCommands.includes(command);
   const createsNewRun = large && Boolean(onStartNewRun);
   const datasetReady = quantDatasetReadyForAutoResearch(selectedDataset);
-  const availableModes = large ? modeCopy.filter(([id]) => id !== 'ask') : modeCopy;
+  const availableModes = large ? modeCopy.filter(([id]) => id === 'plan') : modeCopy;
   const selectedModeDescription = modeCopy.find(([id]) => id === mode)?.[2] ?? '';
   const rangeError = marketRangeError(selectedDataset, dateRange);
   const rangeValid = rangeError === null;
@@ -172,9 +172,9 @@ export function QuantGoalComposer({ api, snapshot, selectedDataset = snapshot.da
         ? refinement
           ? 'Submitting creates an independent run in the source project with this dataset.'
           : 'Submitting creates a new API-owned Project and immutable Run with this dataset.'
-        : 'Auto Research is available only before a run starts or after creating a new attempt.'
+        : 'The approved workflow becomes available after the plan is reviewed.'
     : snapshot.run.state === 'running_experiments'
-      ? 'This run already has an approved plan. Use Action Center or choose Auto Research to start the Agent.'
+      ? 'This run already has an approved plan. Review the plan before Qurio runs experiments.'
       : snapshot.run.state === 'completed'
         ? 'This attempt is complete and immutable. Start a new run to investigate another goal.'
         : `${mode === 'ask' ? 'Ask' : 'Plan'} is not legal in the current API-owned run state.`;
@@ -219,7 +219,7 @@ export function QuantGoalComposer({ api, snapshot, selectedDataset = snapshot.da
         {selectedDataset.contract === 'market-v2' && mode === 'auto_research' && !refinement && <fieldset className="quant-composer-mode-field" disabled={busy}><legend>After this run</legend><div className="quant-mode-switch" role="group" aria-label="Research follow-up"><button type="button" aria-pressed={followUp === 'stop_after_run'} onClick={() => setFollowUp('stop_after_run')}>Stop for review</button><button type="button" aria-pressed={followUp === 'one_train_only_follow_up'} onClick={() => setFollowUp('one_train_only_follow_up')}>Allow one follow-up</button></div><p>{followUp === 'one_train_only_follow_up' ? 'The Agent may precommit one independent refinement from the final training comparison, then stops.' : 'Finish this run and return for review before creating another version.'}</p></fieldset>}
         <fieldset className="quant-research-range" disabled={busy}><legend>Research range</legend>{selectedDataset.contract === 'market-v2' ? <div><label><span>Start UTC</span><input type="datetime-local" step={selectedDataset.interval === '1h' ? 3600 : selectedDataset.interval === '4h' ? 14400 : 86400} aria-label="Research start UTC" min={utcDatetimeLocalValue(selectedDataset.dateRange.start)} max={utcDatetimeLocalValue(dateRange.end)} value={utcDatetimeLocalValue(dateRange.start)} onChange={(event) => { const value = datetimeLocalUtcValue(event.target.value); if (value) setDateRange((current) => ({ ...current, start: value })); }} /></label><label><span>End UTC</span><input type="datetime-local" step={selectedDataset.interval === '1h' ? 3600 : selectedDataset.interval === '4h' ? 14400 : 86400} aria-label="Research end UTC" min={utcDatetimeLocalValue(dateRange.start)} max={utcDatetimeLocalValue(selectedDataset.dateRange.end)} value={utcDatetimeLocalValue(dateRange.end)} onChange={(event) => { const value = datetimeLocalUtcValue(event.target.value); if (value) setDateRange((current) => ({ ...current, end: value })); }} /></label></div> : <div><label><span>Start</span><input type="date" aria-label="Research start date" min={selectedDataset.dateRange.start} max={dateRange.end} value={dateRange.start} onChange={(event) => setDateRange((current) => ({ ...current, start: event.target.value }))} /></label><label><span>End</span><input type="date" aria-label="Research end date" min={dateRange.start} max={selectedDataset.dateRange.end} value={dateRange.end} onChange={(event) => setDateRange((current) => ({ ...current, end: event.target.value }))} /></label></div>}<p className={rangeValid ? undefined : 'quant-field-error'}>{rangeValid ? selectedDataset.contract === 'market-v2' ? `UTC bounds are pinned to stored ${selectedDataset.interval} bars; the server requires at least ${marketRequirementLabel}.` : 'The API will pin this range and verify that it contains at least 252 daily bars.' : rangeError}</p></fieldset>
         <details className="quant-composer-advanced"><summary>Execution limits</summary><dl><div><dt>Agent iterations</dt><dd>{snapshot.run.maxAgentIterations}</dd></div><div><dt>Experiment budget</dt><dd>{snapshot.limits.maxExperiments}</dd></div><div><dt>Repair attempts</dt><dd>{snapshot.limits.maxRepairAttempts}</dd></div><div><dt>Validation</dt><dd>Sealed holdout</dd></div></dl></details>
-        <div className="quant-composer-actions"><span className={datasetReady && rangeValid ? 'is-ready' : 'is-blocked'}>{busy ? mode === 'plan' ? 'Creating plan…' : 'Starting research…' : !effectiveGoal.trim() ? 'Enter a research objective to continue.' : refinement && !refinementReason.trim() ? 'Explain what should change before continuing.' : !rangeValid ? 'Choose a valid research range.' : datasetReady ? `${selectedDataset.symbol} · ${dateRange.start} to ${dateRange.end}` : unavailableCopy}</span><div><Button disabled={busy || (!goal && dateRange.start === selectedDataset.dateRange.start && dateRange.end === selectedDataset.dateRange.end)} onClick={() => { setGoal(initialGoal); setDateRange(selectedDataset.dateRange); setRefinementReason(refinement?.initialReason ?? ''); }}>Reset</Button><Button className="primary quant-submit" disabled={!canSubmit} onClick={submit}>{busy ? mode === 'plan' ? 'Creating plan…' : 'Starting research…' : mode === 'plan' ? 'Create plan' : 'Start research'}</Button></div></div>
+        <div className="quant-composer-actions"><span className={datasetReady && rangeValid ? 'is-ready' : 'is-blocked'}>{busy ? 'Generating plan…' : !effectiveGoal.trim() ? 'Enter a research objective to continue.' : refinement && !refinementReason.trim() ? 'Explain what should change before continuing.' : !rangeValid ? 'Choose a valid research range.' : datasetReady ? `${selectedDataset.symbol} · ${dateRange.start} to ${dateRange.end}` : unavailableCopy}</span><div><Button disabled={busy || (!goal && dateRange.start === selectedDataset.dateRange.start && dateRange.end === selectedDataset.dateRange.end)} onClick={() => { setGoal(initialGoal); setDateRange(selectedDataset.dateRange); setRefinementReason(refinement?.initialReason ?? ''); }}>Reset</Button><Button className="primary quant-submit" disabled={!canSubmit} onClick={submit}>{busy ? 'Generating plan…' : 'Generate plan'}</Button></div></div>
       </> : <>
         <label className="quant-goal-field"><span>Research goal</span><textarea aria-label="Research goal" value={effectiveGoal} maxLength={2000} disabled={busy} onChange={(event) => setGoal(event.target.value)} onKeyDown={onKeyDown} rows={2} /></label>
         <label><span>Asset</span><select value={selectedDataset.symbol} disabled aria-label="Asset"><option>{selectedDataset.symbol}</option></select></label>

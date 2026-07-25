@@ -2,13 +2,13 @@ import { expect, test } from './fixture-test';
 
 declare const process: { env: Record<string, string | undefined> };
 
-test('PokieQuant keeps the workbench contiguous and stacks evidence at compact width', async ({ page }) => {
-  test.skip(process.env.GLINT_E2E_API_MODE !== 'fixture', 'Layout coverage uses the deterministic PokieQuant fixture.');
+test('Qurio keeps the workbench contiguous and stacks evidence at compact width', async ({ page }) => {
+  test.skip(process.env.GLINT_E2E_API_MODE !== 'fixture', 'Layout coverage uses the deterministic Qurio fixture.');
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
 
   const overview = page.locator('.pq-overview-main');
-  const copilot = page.getByRole('complementary', { name: 'Research Copilot' });
+  const copilot = page.getByRole('complementary', { name: 'Qurio', exact: true });
   await expect(overview).toBeVisible();
   await expect(copilot).toBeVisible();
   await expect(copilot.getByText('Current', { exact: true })).toBeVisible();
@@ -55,7 +55,7 @@ test('utility pages use intentional width classes without split-column gaps', as
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
 
-  await page.getByRole('button', { name: 'Runs', exact: true }).click();
+  await page.getByRole('button', { name: 'History', exact: true }).click();
   const runsFrame = page.locator('.pq-utility-frame.is-runs');
   const runsCenter = runsFrame.locator('.pq-utility-center');
   await expect(runsFrame).toBeVisible();
@@ -87,7 +87,7 @@ test('utility pages use intentional width classes without split-column gaps', as
   }
   await expect(page.locator('.pq-utility-card').first()).toHaveCSS('border-left-width', '0px');
 
-  await page.getByRole('button', { name: 'Runtime & policy', exact: true }).click();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
   const settingsGrid = page.locator('.pq-utility-frame.is-settings .pq-utility-grid');
   const settingsContent = page.locator('.quant-settings-content');
   const [settingsGridBox, settingsContentBox] = await Promise.all([

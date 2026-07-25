@@ -55,14 +55,14 @@ test('P1-C golden visual proof: deterministic BTCUSDT 4h data to approved plan, 
   await capture(page, 'p1c-01-data-1440x960.png');
 
   await preview.getByRole('button', { name: 'Use for research' }).click();
-  await expect(page.getByRole('heading', { name: 'Research setup' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'New research' })).toBeVisible();
   await expect(page.getByLabel('Research dataset')).toHaveValue('66666666-6666-4666-8666-666666666604');
   await expect(page.getByText('2,190 periods/year', { exact: true })).toBeVisible();
   await page.getByLabel('Research start UTC').fill('2024-03-01T00:00');
   await page.getByRole('group', { name: 'Research mode' }).getByRole('button', { name: /Plan first/i }).click();
   await page.getByLabel('Research goal').fill(question);
   const createRun = page.waitForResponse((response) => response.url().endsWith('/v1/quant/market-runs') && response.request().method() === 'POST');
-  await page.getByRole('button', { name: 'Create plan' }).click();
+  await page.getByRole('button', { name: 'Generate plan' }).click();
   const created = await createRun;
   expect(created.ok()).toBe(true);
   expect(created.request().postDataJSON()).toMatchObject({
@@ -72,13 +72,14 @@ test('P1-C golden visual proof: deterministic BTCUSDT 4h data to approved plan, 
     research_end_utc: '2025-12-31T20:00:00+00:00',
   });
   await expect(page.getByText(question, { exact: true })).toBeVisible();
-  const planSurface = page.getByRole('complementary', { name: 'Research Copilot' });
-  await expect(planSurface).toContainText('Research contract');
+  const planSurface = page.locator('.pq-overview-main').getByLabel('Research plan awaiting approval');
+  await expect(planSurface).toContainText('Plan for approval');
   await expect(planSurface).toContainText('Moving-average trend');
   await expect(planSurface).toContainText('Price breakout');
   await expect(planSurface).toContainText('Drawdown control');
   await expect(planSurface).toContainText('Backtest all approved candidates and retain one final training comparison.');
-  const approvePlan = page.getByRole('button', { name: 'Approve plan' });
+  await expect(page.getByRole('complementary', { name: 'Qurio', exact: true })).not.toContainText('Plan for approval');
+  const approvePlan = page.getByRole('button', { name: 'Approve & run' });
   await expect(approvePlan).toBeVisible();
   await noHorizontalOverflow(page);
   await capture(page, 'p1c-02-plan-approval-1440x960.png');
@@ -87,7 +88,7 @@ test('P1-C golden visual proof: deterministic BTCUSDT 4h data to approved plan, 
   await approvePlan.click();
   expect((await approveResponse).ok()).toBe(true);
   await page.getByRole('tab', { name: 'Experiments', exact: true }).click();
-  const liveDecision = page.locator('[aria-label="Live Agent decision"]');
+  const liveDecision = page.locator('[aria-label="Qurio research decision"]');
   await expect(liveDecision).toBeVisible();
   await expect(liveDecision.locator('.pq-copilot-section > span')).toHaveText(['Current', 'Observation', 'Next']);
   await expect(liveDecision).toContainText('Initial hypothesis B · SMA 50/200');
@@ -108,7 +109,7 @@ test('P1-C golden visual proof: deterministic BTCUSDT 4h data to approved plan, 
   await noHorizontalOverflow(page);
   await capture(page, 'p1c-04-observation-to-c-1440x960.png');
 
-  await page.getByRole('tab', { name: 'Report', exact: true }).click();
+  await page.getByRole('tab', { name: 'Decision', exact: true }).click();
   const terminal = page.locator('.quant-terminal-decision');
   await expect(terminal).toContainText('Final choice');
   await expect(terminal).toContainText('Why');
@@ -144,12 +145,12 @@ test('P1-C golden visual proof: deterministic BTCUSDT 4h data to approved plan, 
   const childQuestion = 'Refine the retained BTCUSDT 4h final choice with one bounded drawdown change.';
   const refinementReason = 'Retain the authoritative SMA 50/200 final choice and test one bounded drawdown refinement.';
   await terminal.getByRole('button', { name: 'Review & refine research' }).click();
-  await expect(page.getByRole('heading', { name: 'Research setup' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'New research' })).toBeVisible();
   await expect(page.getByLabel('Research dataset')).toBeDisabled();
   await page.getByLabel('Research goal').fill(childQuestion);
   await page.getByLabel('Refinement reason').fill(refinementReason);
   const createChild = page.waitForResponse((response) => response.url().endsWith('/v1/quant/market-runs') && response.request().method() === 'POST');
-  await page.getByRole('button', { name: 'Start research' }).click();
+  await page.getByRole('button', { name: 'Generate plan' }).click();
   const child = await createChild;
   expect(child.ok()).toBe(true);
   expect(child.request().postDataJSON()).toMatchObject({
@@ -157,16 +158,16 @@ test('P1-C golden visual proof: deterministic BTCUSDT 4h data to approved plan, 
     seed_candidate_id: 'candidate-b',
     refinement_reason: refinementReason,
   });
-  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'Runs', exact: true }).click();
+  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'History', exact: true }).click();
   const history = page.getByRole('table', { name: 'Searchable and filterable research run history' });
   const runRow = history.getByRole('row').filter({ hasText: question }).filter({ hasText: 'Root version' });
   await expect(runRow).toContainText('BTCUSDT · 4h');
   await runRow.getByRole('button', { name: 'Open run' }).click();
   await expect(page.getByRole('heading', { name: 'BTCUSDT 4h Research' })).toBeVisible();
   await expect(page.getByText('Historical run', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Approve plan' })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Open report', exact: true }).click();
-  await expect(page.getByRole('tab', { name: 'Report', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('button', { name: 'Approve & run' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Open decision', exact: true }).click();
+  await expect(page.getByRole('tab', { name: 'Decision', exact: true })).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('.quant-terminal-decision')).toContainText('SMA 50/200');
   await expect(page.locator('.quant-terminal-decision')).toContainText('Failed');
   await noHorizontalOverflow(page);

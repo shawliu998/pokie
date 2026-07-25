@@ -61,8 +61,26 @@ function StrategyScopeContract({ snapshot }: { snapshot: QuantWorkspaceSnapshot 
       <ul>{scope.excludedBehaviors.map((behavior) => <li key={behavior}>{behavior}</li>)}</ul>
     </div>}
     {scope.requiresConfirmation && <p className="pq-strategy-scope-confirmation">
-      {snapshot.run.mode === 'auto_research' ? 'Auto Research is paused for explicit confirmation.' : 'Explicit confirmation is required before experiments begin.'}
+      {'Review this plan before Qurio runs experiments.'}
     </p>}
+  </section>;
+}
+
+function ResearchPlanForApproval({ snapshot }: { snapshot: QuantWorkspaceSnapshot }) {
+  if (snapshot.run.state !== 'waiting_plan_approval' || !snapshot.researchPlan) return null;
+  return <section className="pq-plan-review" aria-label="Research plan awaiting approval">
+    <header><div><span>Plan review</span><h2>Plan for approval</h2></div><span>{snapshot.dataset.symbol} · {snapshot.scope.interval}</span></header>
+    {snapshot.researchPlan.objectiveSummary && <p className="pq-plan-review-objective">{snapshot.researchPlan.objectiveSummary}</p>}
+    <StrategyScopeContract snapshot={snapshot} />
+    <dl className="quant-report-decision-path">
+      <div><dt>Dataset</dt><dd>{snapshot.dataset.symbol} · {snapshot.scope.interval}</dd></div>
+      <div><dt>Range</dt><dd>{snapshot.scope.dateRange.start} — {snapshot.scope.dateRange.end}</dd></div>
+      <div><dt>Execution costs</dt><dd>{snapshot.kernelCheck.feeRateBps} bps fee + {snapshot.kernelCheck.slippageRateBps} bps slippage per fill</dd></div>
+      <div><dt>Candidate families</dt><dd>{candidateFamilySummary(snapshot)}</dd></div>
+      <div><dt>Comparison objective</dt><dd>{selectionObjectiveLabels[snapshot.researchPlan.selectionObjective]}</dd></div>
+      <div><dt>Completion criteria</dt><dd>{snapshot.researchPlan.completionCriteria.join(' ')}</dd></div>
+      <div><dt>Budgets</dt><dd>{snapshot.run.maxAgentIterations} Agent actions · {snapshot.limits.maxExperiments} experiments · {snapshot.limits.maxRepairAttempts} repairs per experiment</dd></div>
+    </dl>
   </section>;
 }
 
@@ -176,20 +194,6 @@ export function ResearchCopilotContent({ projection, snapshot, recentEvents, evi
       <section className="pq-copilot-section is-next" aria-labelledby={`${idPrefix}-next`}>
         <span id={`${idPrefix}-next`}>Next</span>
         {liveDecision && <h2>{nextTitle}</h2>}
-        {!liveDecision && snapshot.run.state === 'waiting_plan_approval' && snapshot.researchPlan && <>
-          <h2>Research contract</h2>
-          {snapshot.researchPlan.objectiveSummary && <p>{snapshot.researchPlan.objectiveSummary}</p>}
-          <StrategyScopeContract snapshot={snapshot} />
-          <dl className="quant-report-decision-path">
-            <div><dt>Dataset</dt><dd>{snapshot.dataset.symbol} · {snapshot.scope.interval}</dd></div>
-            <div><dt>Range</dt><dd>{snapshot.scope.dateRange.start} — {snapshot.scope.dateRange.end}</dd></div>
-            <div><dt>Execution costs</dt><dd>{snapshot.kernelCheck.feeRateBps} bps fee + {snapshot.kernelCheck.slippageRateBps} bps slippage per fill</dd></div>
-            <div><dt>Candidate families</dt><dd>{candidateFamilySummary(snapshot)}</dd></div>
-            <div><dt>Comparison objective</dt><dd>{selectionObjectiveLabels[snapshot.researchPlan.selectionObjective]}</dd></div>
-            <div><dt>Completion criteria</dt><dd>{snapshot.researchPlan.completionCriteria.join(' ')}</dd></div>
-            <div><dt>Budgets</dt><dd>{snapshot.run.maxAgentIterations} Agent actions · {snapshot.limits.maxExperiments} experiments · {snapshot.limits.maxRepairAttempts} repairs per experiment</dd></div>
-          </dl>
-        </>}
         <p>{nextDetail}</p>
         {projection.next.actions.length > 0 && <div className="pq-copilot-actions">{projection.next.actions.map((action) => <button key={action.kind} className={action.tone === 'primary' ? 'is-primary' : undefined} disabled={busy} onClick={() => action.kind === 'request_plan_changes' ? setShowPlanChange(true) : onAction(action.kind)}>{busy ? 'Working…' : action.label}</button>)}</div>}
         {!liveDecision && evidenceFocusActions.length > 0 && <><p><strong>Retained evidence</strong></p><div className="pq-copilot-actions">{evidenceFocusActions.map((action) => <button key={`${action.destination}-${action.target}-${'tradeId' in action ? action.tradeId ?? '' : ''}`} onClick={() => onEvidenceFocus(action)}>{action.label}</button>)}</div></>}
@@ -202,7 +206,7 @@ export function ResearchCopilotContent({ projection, snapshot, recentEvents, evi
     </div>
     {!liveDecision && <details className="pq-copilot-details">
       <summary>Run details</summary>
-      <dl><div><dt>State</dt><dd>{runStateLabel(snapshot.run.state)}</dd></div><div><dt>Plan</dt><dd>{snapshot.plan.filter((step) => step.status === 'completed').length} / {snapshot.plan.length} complete</dd></div>{snapshot.researchPlan && <><div><dt>Scope</dt><dd>{presentStrategyScopeDecision(snapshot.researchPlan).label}</dd></div><div><dt>Strategies</dt><dd>{candidateFamilySummary(snapshot)}</dd></div><div><dt>Comparison priority</dt><dd>{selectionObjectiveLabels[snapshot.researchPlan.selectionObjective]}</dd></div><div><dt>Done when</dt><dd>{snapshot.researchPlan.completionCriteria.join(' ')}</dd></div></>}<div><dt>Dataset</dt><dd>{snapshot.dataset.symbol} · {snapshot.scope.interval}</dd></div><div><dt>Cadence</dt><dd>{snapshot.scope.interval} · {snapshot.kernelCheck.periodsPerYear?.toLocaleString() ?? 'PPY unavailable'} PPY</dd></div><div><dt>Range</dt><dd>{snapshot.scope.dateRange.start} — {snapshot.scope.dateRange.end}{snapshot.scope.interval === '1D' ? '' : ' UTC'}</dd></div></dl>
+      <dl><div><dt>State</dt><dd>{runStateLabel(snapshot.run.state)}</dd></div><div><dt>Plan</dt><dd>{snapshot.plan.filter((step) => step.status === 'completed').length} / {snapshot.plan.length} complete</dd></div><div><dt>Dataset</dt><dd>{snapshot.dataset.symbol} · {snapshot.scope.interval}</dd></div><div><dt>Cadence</dt><dd>{snapshot.scope.interval} · {snapshot.kernelCheck.periodsPerYear?.toLocaleString() ?? 'PPY unavailable'} PPY</dd></div><div><dt>Range</dt><dd>{snapshot.scope.dateRange.start} — {snapshot.scope.dateRange.end}{snapshot.scope.interval === '1D' ? '' : ' UTC'}</dd></div></dl>
       {recentEvents.length > 0 && <div className="pq-copilot-events"><strong>Recent activity</strong><ol>{recentEvents.map((event) => <li key={event.id}><time dateTime={event.timestamp}>{formatEventTime(event.timestamp)}</time><span>{event.safeSummary}</span></li>)}</ol></div>}
     </details>}
     {!liveDecision && projection.readOnly && <p className="pq-copilot-readonly">Historical evidence is read-only.</p>}
@@ -303,11 +307,12 @@ export function QuantOverviewWorkbench({
     requestAnimationFrame(() => document.getElementById(`pq-workspace-tab-${nextTab}`)?.focus());
   };
 
-  return <section className={`pq-workbench${terminal ? ' is-terminal' : ''}${canAsk ? ' has-interactive-copilot' : ' is-context'}`} aria-label="Research workspace">
+  const tabLabel: Record<WorkspaceTab, string> = { overview: 'Overview', experiments: 'Experiments', analysis: 'Analysis', report: 'Decision' };
+  return <section className={`pq-workbench${terminal ? ' is-terminal' : ''}${canAsk ? ' has-interactive-copilot' : ' is-context'}`} aria-label="Qurio research workspace">
     <header className="pq-workbench-header">
       <h1>{snapshot.scope.symbol} Research</h1>
       <nav aria-label="Research views" role="tablist" onKeyDown={onTabKeyDown}>
-        {workspaceTabs.map((tab) => <button key={tab} role="tab" id={`pq-workspace-tab-${tab}`} aria-controls={`pq-workspace-panel-${tab}`} aria-selected={activeTab === tab} tabIndex={activeTab === tab ? 0 : -1} onClick={() => onTabChange(tab)}>{(tab[0] ?? '').toUpperCase() + tab.slice(1)}</button>)}
+        {workspaceTabs.map((tab) => <button key={tab} role="tab" id={`pq-workspace-tab-${tab}`} aria-controls={`pq-workspace-panel-${tab}`} aria-selected={activeTab === tab} tabIndex={activeTab === tab ? 0 : -1} onClick={() => onTabChange(tab)}>{tabLabel[tab]}</button>)}
       </nav>
     </header>
     {activeTab === 'overview' ? <div className="pq-overview-grid" role="tabpanel" id="pq-workspace-panel-overview" aria-labelledby="pq-workspace-tab-overview">
@@ -321,6 +326,7 @@ export function QuantOverviewWorkbench({
         </div>
         <div className="pq-overview-content">
           {compactLayout && <ResearchCopilotContent compact projection={copilot} snapshot={snapshot} recentEvents={recentEvents} evidenceFocusActions={evidenceFocusActions} busy={busy} onAction={handleCopilotAction} onAsk={(value) => onCommand('ask', { question: value })} onEvidenceFocus={onEvidenceFocus ?? (() => undefined)} />}
+          <ResearchPlanForApproval snapshot={snapshot} />
           <QuantDecisionGate decision={overviewDecision} className="is-overview" />
           {transientRows && <section className="pq-transient-phase" aria-label="Current run progress" aria-live="polite">
             <header><strong>Run progress</strong><span>Live</span></header>
@@ -352,8 +358,8 @@ export function QuantOverviewWorkbench({
           </div>}
         </div>
       </main>
-      {!compactLayout && <aside className={`pq-copilot ${canAsk ? 'is-interactive' : 'is-context'}`} aria-label="Research Copilot">
-        <header><strong>Research Copilot</strong><span>{snapshot.scope.symbol} · Overview</span></header>
+      {!compactLayout && <aside className={`pq-copilot ${canAsk ? 'is-interactive' : 'is-context'}`} aria-label="Qurio">
+        <header><strong>Qurio</strong><span>{snapshot.scope.symbol} · Overview</span></header>
         <ResearchCopilotContent projection={copilot} snapshot={snapshot} recentEvents={recentEvents} evidenceFocusActions={evidenceFocusActions} busy={busy} onAction={handleCopilotAction} onAsk={(value) => onCommand('ask', { question: value })} onEvidenceFocus={onEvidenceFocus ?? (() => undefined)} />
       </aside>}
     </div> : <div className="pq-existing-view" role="tabpanel" id={`pq-workspace-panel-${activeTab}`} aria-labelledby={`pq-workspace-tab-${activeTab}`}>{children}</div>}
@@ -371,7 +377,7 @@ export function QuantUtilityFrame({ destination, snapshot, dataset = snapshot.da
   dataPreviewing?: boolean;
   onInspectDataset?: () => void;
 }) {
-  const title = destination === 'new_research' ? 'New research' : destination === 'runs' ? 'Runs' : destination === 'data' ? 'Data directory' : 'Runtime & policy';
+  const title = destination === 'new_research' ? 'New research' : destination === 'runs' ? 'History' : destination === 'data' ? 'Data directory' : 'Settings';
   const singleColumn = destination === 'settings' || destination === 'runs';
   const hideCopilot = singleColumn || (destination === 'data' && dataPreviewing);
   return <section className={`pq-utility-frame is-${destination}${singleColumn ? ' is-single' : ''}${destination === 'data' && dataPreviewing ? ' is-data-preview' : ''}`} aria-label={title}>

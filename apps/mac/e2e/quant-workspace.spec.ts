@@ -89,8 +89,8 @@ const expectedLiveDecision: Record<string, {
 
 async function expectLiveAgentDecision(page: Page, state = fixtureState) {
   const expected = expectedLiveDecision[state];
-  if (!expected) throw new Error(`No Live Agent decision expectation is registered for ${state}.`);
-  const surface = page.locator('[aria-label="Live Agent decision"]');
+  if (!expected) throw new Error(`No Qurio research decision expectation is registered for ${state}.`);
+  const surface = page.locator('[aria-label="Qurio research decision"]');
   await expect(surface).toBeVisible();
   const current = surface.locator('.pq-copilot-section.is-current');
   const observation = surface.locator('.pq-copilot-section.is-observation');
@@ -108,7 +108,7 @@ async function expectLiveAgentDecision(page: Page, state = fixtureState) {
 async function expectWorkspaceTabsInsideHeader(page: Page) {
   const headerBox = await page.locator('.pq-workbench-header').boundingBox();
   if (!headerBox) throw new Error('Workspace header is not measurable.');
-  for (const name of ['Overview', 'Experiments', 'Analysis', 'Report']) {
+  for (const name of ['Overview', 'Experiments', 'Analysis', 'Decision']) {
     const tabBox = await page.getByRole('tab', { name, exact: true }).boundingBox();
     if (!tabBox) throw new Error(`${name} tab is not measurable.`);
     expect(tabBox.x).toBeGreaterThanOrEqual(headerBox.x);
@@ -119,7 +119,7 @@ async function expectWorkspaceTabsInsideHeader(page: Page) {
 }
 
 async function expectLiveDecisionBeforeCandidateProgress(page: Page) {
-  const decisionBox = await page.locator('[aria-label="Live Agent decision"]').boundingBox();
+  const decisionBox = await page.locator('[aria-label="Qurio research decision"]').boundingBox();
   const candidateBox = await page.getByRole('heading', { name: 'Candidate progress' }).boundingBox();
   if (!decisionBox || !candidateBox) throw new Error('Live decision and candidate progress must both be measurable.');
   expect(decisionBox.y).toBeLessThan(candidateBox.y);
@@ -254,7 +254,7 @@ test('renders the server-owned Quant fixture without active Glint product copy',
   await expect(page.getByRole('complementary', { name: 'Qurio navigation' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'SPY Research' })).toBeVisible();
   if (!activeResearchStates.includes(fixtureState)) {
-    await expect(page.getByRole('complementary', { name: 'Research Copilot' })).toBeVisible();
+    await expect(page.getByRole('complementary', { name: 'Qurio', exact: true })).toBeVisible();
     await expect(page.locator('.pq-copilot-details')).toContainText(fixtureStatus);
     if (['quant-completed', 'quant-no-viable-candidate', 'quant-waiting-review'].includes(fixtureState)) {
       await expect(page.getByRole('heading', { name: 'Strategy vs benchmark' })).toBeVisible();
@@ -309,7 +309,7 @@ test('renders the server-owned Quant fixture without active Glint product copy',
   }
   if (fixtureState === 'quant-no-viable-candidate') {
     await expect(page.locator('.quant-decision-gate').getByText(/No candidate passed validation/)).toBeVisible();
-    await expect(page.getByRole('complementary', { name: 'Research Copilot' })).not.toContainText('Failed safely');
+    await expect(page.getByRole('complementary', { name: 'Qurio', exact: true })).not.toContainText('Failed safely');
   }
 
   await page.locator('.quant-sidebar-settings').click();
@@ -318,7 +318,7 @@ test('renders the server-owned Quant fixture without active Glint product copy',
   await expect(page.getByText('No broker connection or order action')).toBeVisible();
 });
 
-test('shares Overview candidate selection with Experiments, Analysis, and Report', async ({ page }) => {
+test('shares Overview candidate selection with Experiments, Analysis, and Decision', async ({ page }) => {
   test.skip(process.env.GLINT_E2E_API_MODE !== 'fixture' || fixtureState !== 'quant-completed', 'Shared selection uses the completed deterministic fixture.');
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.goto('/');
@@ -333,7 +333,7 @@ test('shares Overview candidate selection with Experiments, Analysis, and Report
   await expect(researchPath).toContainText('Rank 1 of 3');
   await page.getByRole('tab', { name: 'Analysis', exact: true }).click();
   await expect(page.locator('.pq-strategy-analysis')).toContainText('SMA 20/100');
-  await page.getByRole('tab', { name: 'Report', exact: true }).click();
+  await page.getByRole('tab', { name: 'Decision', exact: true }).click();
   await expect(page.locator('.quant-report')).toContainText('SMA 20/100');
 });
 
@@ -348,20 +348,20 @@ test('Continue research stays hidden in the fixture snapshot and on waiting revi
     }
   });
   await page.goto('/');
-  for (const tabName of ['Report', 'Experiments', 'Analysis'] as const) {
+  for (const tabName of ['Decision', 'Experiments', 'Analysis'] as const) {
     await page.getByRole('tab', { name: tabName, exact: true }).click();
     await expect(page.getByRole('button', { name: 'Continue research' })).toHaveCount(0);
   }
   waitingReview = true;
   await page.reload();
-  for (const tabName of ['Report', 'Experiments', 'Analysis'] as const) {
+  for (const tabName of ['Decision', 'Experiments', 'Analysis'] as const) {
     await page.getByRole('tab', { name: tabName, exact: true }).click();
     await expect(page.getByRole('button', { name: 'Continue research' })).toHaveCount(0);
   }
 });
 
-test('completed Copilot opens Report instead of continuing the selected candidate', async ({ page }) => {
-  test.skip(process.env.GLINT_E2E_API_MODE !== 'fixture' || fixtureState !== 'quant-completed', 'Completed Copilot uses the retained Report as its terminal entry point.');
+test('completed Qurio opens Decision instead of continuing the selected candidate', async ({ page }) => {
+  test.skip(process.env.GLINT_E2E_API_MODE !== 'fixture' || fixtureState !== 'quant-completed', 'Completed Qurio uses the retained decision as its terminal entry point.');
   await page.setViewportSize({ width: 1440, height: 960 });
   await rewriteWorkspaceSnapshot(page, (snapshot) => {
     setSeedability(snapshot, true);
@@ -369,8 +369,8 @@ test('completed Copilot opens Report instead of continuing the selected candidat
   });
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Continue research' })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Open report', exact: true }).click();
-  await expect(page.getByRole('tab', { name: 'Report', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await page.getByRole('button', { name: 'Open decision', exact: true }).click();
+  await expect(page.getByRole('tab', { name: 'Decision', exact: true })).toHaveAttribute('aria-selected', 'true');
 });
 
 test('reopened historical evidence stays read-only and retains its own source context', async ({ page }) => {
@@ -378,11 +378,11 @@ test('reopened historical evidence stays read-only and retains its own source co
   await page.setViewportSize({ width: 1440, height: 960 });
   await rewriteWorkspaceSnapshot(page, (snapshot) => setSeedability(snapshot, true), '**/v1/quant/runs/*/workspace-snapshot');
   await page.goto('/');
-  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'Runs', exact: true }).click();
+  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'History', exact: true }).click();
   const history = page.getByRole('table', { name: 'Searchable and filterable research run history' });
   await history.getByRole('row', { name: /Compare slower SPY trend filters/ }).last().getByRole('button', { name: 'Open run' }).click();
   await page.getByTestId('quant-sidebar').getByRole('button', { name: 'Workspace', exact: true }).click();
-  await page.getByRole('tab', { name: 'Report', exact: true }).click();
+  await page.getByRole('tab', { name: 'Decision', exact: true }).click();
   await expect(page.locator('.quant-report')).toContainText('Compare slower trend filters while retaining the original SPY research evidence.');
   await expect(page.locator('.quant-report')).toContainText('Establish the SPY trend-filter baseline before a focused continuation.');
   await expect(page.locator('.quant-report')).toContainText('Continued from source version');
@@ -398,13 +398,13 @@ test('Review and refine research keeps 1024-width layout dense with long source 
     setTerminalFailure(snapshot);
   });
   await page.goto('/');
-  await page.getByRole('tab', { name: 'Report', exact: true }).click();
+  await page.getByRole('tab', { name: 'Decision', exact: true }).click();
   await page.getByRole('button', { name: 'Review & refine research' }).click();
-  await expect(page.getByRole('heading', { name: 'Research setup' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'New research' })).toBeVisible();
   await expect(page.getByText('Continuing from ContinuationLayoutStressTestWithoutSpaces')).toBeVisible();
   await expect(page.locator('.quant-refinement-context header p')).toHaveText('RefineThisContinuationWithALongNoSpaceResearchQuestionToStressTheLayout');
   await expect(page.getByRole('button', { name: 'Cancel continuation' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Start research' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Generate plan' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });
 
@@ -455,7 +455,7 @@ test('inspects persisted strategy performance by pointer and keyboard across res
   await expectTradesToFitInitialViewport(page);
   if (process.env.POKIEQUANT_CAPTURE_SCREENSHOTS === '1') await page.screenshot({ path: '../../docs/assets/pokiequant/strategy-inspection-analysis-1024x960.png', animations: 'disabled' });
 
-  await page.getByRole('tab', { name: 'Report', exact: true }).click();
+  await page.getByRole('tab', { name: 'Decision', exact: true }).click();
   const reportPlot = page.locator('.quant-report-performance .pq-strategy-plot');
   await expect(reportPlot).toHaveAttribute('aria-label', /Inspect .* equity performance/);
   await reportPlot.focus();
@@ -468,7 +468,7 @@ test('finds, compares, and reopens server-owned historical research runs', async
   await page.setViewportSize({ width: 1440, height: 960 });
   await rewriteWorkspaceSnapshot(page, (snapshot) => setSeedability(snapshot, true), '**/v1/quant/runs/*/workspace-snapshot');
   await page.goto('/');
-  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'Runs', exact: true }).click();
+  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'History', exact: true }).click();
 
   const history = page.getByRole('table', { name: 'Searchable and filterable research run history' });
   await expect(history.getByRole('row')).toHaveCount(9);
@@ -504,11 +504,11 @@ test('finds, compares, and reopens server-owned historical research runs', async
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   if (process.env.POKIEQUANT_CAPTURE_SCREENSHOTS === '1') await page.screenshot({ path: '../../docs/assets/pokiequant/runs-compare-1024x960.png', animations: 'disabled' });
 
-  await page.getByRole('button', { name: 'Back to runs' }).click();
+  await page.getByRole('button', { name: 'Back to history' }).click();
   const historicalRow = history.getByRole('row', { name: /Compare slower SPY trend filters/ }).last();
   await historicalRow.getByRole('button', { name: 'Open run' }).click();
   await expect(page.getByRole('heading', { name: 'SPY Regime Study' })).toBeVisible();
-  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'Runs', exact: true }).click();
+  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'History', exact: true }).click();
   await page.getByRole('button', { name: 'Compare with source' }).click();
   const seriesComparison = page.getByRole('table', { name: 'Stored strategy results for selected historical research runs' });
   await expect(seriesComparison).toContainText('Comparable context');
@@ -517,7 +517,7 @@ test('finds, compares, and reopens server-owned historical research runs', async
   await expect(page.getByRole('region', { name: 'Research version change' })).toContainText('Change vs source');
   await expect(page.getByText('2 selected · Metrics are shown from each run’s stored result.')).toBeVisible();
   await page.getByRole('button', { name: 'Refine from this result' }).click();
-  await expect(page.getByRole('heading', { name: 'Research setup' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'New research' })).toBeVisible();
   await expect(page.getByLabel('Research goal')).toHaveValue(/Continue research from SMA 50\/200/);
   await expect(page.getByLabel('Refinement reason')).toHaveValue(/Retain Candidate B · SMA 50\/200.*as the seed/);
 });
@@ -528,7 +528,7 @@ test('projects legacy and public market research series while reopened evidence 
 
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.goto('/');
-  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'Runs', exact: true }).click();
+  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'History', exact: true }).click();
   const history = page.getByRole('table', { name: 'Searchable and filterable research run history' });
   await expect(history).toContainText('Root version');
   await expect(history).toContainText('Continued version');
@@ -550,44 +550,44 @@ test('projects legacy and public market research series while reopened evidence 
 
   await continuedRetry.getByRole('button', { name: 'Open run' }).click();
   await page.getByTestId('quant-sidebar').getByRole('button', { name: 'Workspace', exact: true }).click();
-  await page.getByRole('tab', { name: 'Report', exact: true }).click();
+  await page.getByRole('tab', { name: 'Decision', exact: true }).click();
   await expect(page.locator('.quant-report')).toContainText('Continued from source version');
   await expect(page.locator('.quant-report')).toContainText('Retry attempt 2');
   await expect(page.getByRole('button', { name: 'Open source version' })).toBeVisible();
   await page.getByRole('button', { name: 'Open source version' }).click();
   await expect(page.getByText('Historical run', { exact: true })).toBeVisible();
-  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'Runs', exact: true }).click();
+  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'History', exact: true }).click();
   await expect(history.locator('tr.is-current')).toContainText('Establish the SPY trend-filter baseline');
   await noPageOverflow();
 
   const marketRetry = history.getByRole('row').filter({ hasText: 'Continued version · Retry attempt 2' }).filter({ hasText: 'BTCUSDT · 4h' });
   await marketRetry.getByRole('button', { name: 'Open run' }).click();
   await page.getByTestId('quant-sidebar').getByRole('button', { name: 'Workspace', exact: true }).click();
-  await page.getByRole('tab', { name: 'Report', exact: true }).click();
+  await page.getByRole('tab', { name: 'Decision', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Open source version' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Open prior attempt' })).toBeVisible();
   await page.getByRole('button', { name: 'Open source version' }).click();
-  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'Runs', exact: true }).click();
+  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'History', exact: true }).click();
   await expect(history.locator('tr.is-current')).toContainText('Root version');
   await expect(history.locator('tr.is-current')).toContainText('BTCUSDT · 4h');
 
   await marketRetry.getByRole('button', { name: 'Open run' }).click();
   await page.getByTestId('quant-sidebar').getByRole('button', { name: 'Workspace', exact: true }).click();
-  await page.getByRole('tab', { name: 'Report', exact: true }).click();
+  await page.getByRole('tab', { name: 'Decision', exact: true }).click();
   await page.getByRole('button', { name: 'Open prior attempt' }).click();
-  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'Runs', exact: true }).click();
+  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'History', exact: true }).click();
   await expect(history.locator('tr.is-current')).toContainText('Continued version');
   await expect(history.locator('tr.is-current')).not.toContainText('Retry attempt');
 
   await marketRetry.getByRole('button', { name: 'Open run' }).click();
   await page.getByTestId('quant-sidebar').getByRole('button', { name: 'Workspace', exact: true }).click();
   await page.getByRole('tab', { name: 'Overview', exact: true }).click();
-  const historicalCopilot = page.getByRole('complementary', { name: 'Research Copilot' });
+  const historicalCopilot = page.getByRole('complementary', { name: 'Qurio', exact: true });
   await expect(historicalCopilot.getByText('Historical evidence is read-only.', { exact: true })).toBeVisible();
   await expect(historicalCopilot.getByRole('button', { name: 'Return to latest', exact: true })).toBeVisible();
   await expect(historicalCopilot.getByLabel('Ask about this run')).toHaveCount(0);
   await expect(historicalCopilot.getByRole('button', { name: /Approve|Cancel|Retry|Continue/ })).toHaveCount(0);
-  for (const tabName of ['Report', 'Experiments', 'Analysis'] as const) {
+  for (const tabName of ['Decision', 'Experiments', 'Analysis'] as const) {
     await page.getByRole('tab', { name: tabName, exact: true }).click();
     await expect(page.getByRole('button', { name: 'Continue research' })).toHaveCount(0);
   }
@@ -620,17 +620,15 @@ test('polling failure retains verified data and recovers in place', async ({ pag
   await expect(warning).toHaveCount(0);
 });
 
-test('New Research exposes only modes that can create an immutable run', async ({ page }) => {
+test('New Research defaults to a reviewable plan before any experiments run', async ({ page }) => {
   test.skip(process.env.GLINT_E2E_API_MODE !== 'fixture', 'Mode selection uses the deterministic loopback fixture API.');
   await page.goto('/');
   await page.getByTestId('quant-sidebar').getByRole('button', { name: 'New research', exact: true }).click();
   const modes = page.getByRole('group', { name: 'Research mode' });
   await expect(modes.getByRole('button', { name: 'Ask' })).toHaveCount(0);
-  await modes.getByRole('button', { name: 'Plan first' }).click();
   await expect(page.locator('.quant-mode-switch button[aria-pressed="true"]')).toHaveText('Plan first');
-  await modes.getByRole('button', { name: 'Auto Research' }).click();
-  await expect(page.locator('.quant-mode-switch button[aria-pressed="true"]')).toHaveText('Auto Research');
-  await expect(page.getByRole('button', { name: 'Start research' })).toBeDisabled();
+  await expect(modes.getByRole('button', { name: 'Auto Research' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Generate plan' })).toBeDisabled();
 });
 
 test('Research Setup switches catalog data and stays dense at desktop widths', async ({ page }) => {
@@ -650,7 +648,7 @@ test('Research Setup switches catalog data and stays dense at desktop widths', a
   await expect(page.getByLabel('Research goal')).toHaveValue(/BTCUSDT trend strategy/);
   await expect(page.getByLabel('Research start date')).toHaveAttribute('min', '2023-01-03');
   await expect(page.getByLabel('Research end date')).toHaveAttribute('max', '2024-12-31');
-  await expect(page.getByRole('button', { name: 'Start research' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Generate plan' })).toBeEnabled();
   const assertNoOverflow = async () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   };
@@ -658,8 +656,8 @@ test('Research Setup switches catalog data and stays dense at desktop widths', a
   if (process.env.POKIEQUANT_CAPTURE_SCREENSHOTS === '1') await page.screenshot({ path: '../../docs/assets/pokiequant/new-research-1440x960.png', animations: 'disabled' });
   await page.setViewportSize({ width: 1024, height: 960 });
   await assertNoOverflow();
-  await expect(page.getByRole('heading', { name: 'Research setup' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Start research' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'New research' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Generate plan' })).toBeVisible();
   if (process.env.POKIEQUANT_CAPTURE_SCREENSHOTS === '1') await page.screenshot({ path: '../../docs/assets/pokiequant/new-research-1024x960.png', animations: 'disabled' });
 });
 
@@ -672,12 +670,11 @@ test('write operations expose pending state and ignore synchronous duplicate cli
 
   await page.goto('/');
   await page.getByTestId('quant-sidebar').getByRole('button', { name: 'New research', exact: true }).click();
-  await page.getByRole('group', { name: 'Research mode' }).getByRole('button', { name: 'Auto Research' }).click();
   await page.getByLabel('Research goal').fill('Test duplicate-safe bounded research creation.');
-  const start = page.getByRole('button', { name: 'Start research' });
+  const start = page.getByRole('button', { name: 'Generate plan' });
   await start.evaluate((element) => { (element as HTMLButtonElement).click(); (element as HTMLButtonElement).click(); });
-  await expect(page.getByRole('button', { name: 'Starting research…' })).toBeDisabled();
-  await expect(page.getByText('Research started', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Generating plan…' })).toBeDisabled();
+  await expect(page.getByText('Plan created', { exact: true })).toBeVisible();
   await expect.poll(mutationCount).toBe(2);
 
   await page.getByTestId('quant-sidebar').getByRole('button', { name: 'Data', exact: true }).click();
@@ -702,7 +699,7 @@ test('successful new research returns focus to the project workbench', async ({ 
   await page.goto('/');
   await page.getByRole('complementary', { name: 'Qurio navigation' }).getByRole('button', { name: 'New research', exact: true }).click();
   await page.getByLabel('Research goal').fill('Compare a bounded SPY trend hypothesis with synthetic evidence.');
-  await page.getByRole('button', { name: 'Start research' }).click();
+  await page.getByRole('button', { name: 'Generate plan' }).click();
   await expect(page.locator('#pq-workspace-tab-overview')).toBeVisible();
   await expect(page.locator('#pq-workspace-tab-overview')).toBeFocused();
 });
@@ -722,7 +719,7 @@ test('Research Copilot Ask submits the legal command once and locks while pendin
   });
 
   await page.goto('/');
-  const copilot = page.getByRole('complementary', { name: 'Research Copilot' });
+  const copilot = page.getByRole('complementary', { name: 'Qurio', exact: true });
   const question = copilot.getByLabel('Ask about this run');
   await question.fill('What evidence should the first experiment produce?');
   const responsePromise = page.waitForResponse((response) => response.url().endsWith('/v1/quant/workspace-snapshot/commands') && response.request().method() === 'POST');
@@ -947,7 +944,7 @@ test('provider timeouts keep the research goal and make the failed command recov
 test('Strategy Report tabs support keyboard navigation', async ({ page }) => {
   test.skip(process.env.GLINT_E2E_API_MODE !== 'fixture' || fixtureState !== 'quant-completed', 'Report evidence is available in the completed fixture.');
   await page.goto('/');
-  await page.getByRole('tab', { name: 'Report', exact: true }).click();
+  await page.getByRole('tab', { name: 'Decision', exact: true }).click();
   const summary = page.getByRole('tab', { name: 'summary', exact: true });
   await summary.focus();
   await page.keyboard.press('ArrowRight');
@@ -960,7 +957,7 @@ test('Strategy Report summary reuses persisted performance and keeps candidate t
   test.skip(process.env.GLINT_E2E_API_MODE !== 'fixture' || fixtureState !== 'quant-completed', 'Report linkage uses the completed deterministic fixture.');
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.goto('/');
-  await page.getByRole('tab', { name: 'Report', exact: true }).click();
+  await page.getByRole('tab', { name: 'Decision', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Strategy vs benchmark' })).toBeVisible();
   await expect(page.locator('.quant-report-decision-path')).toContainText('Research hypothesis');
   await expect(page.locator('.quant-report-decision-path')).toContainText('Selection basis');
@@ -999,7 +996,7 @@ test('completed Report keeps one authoritative final decision, export, and histo
   });
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.goto('/');
-  await page.getByRole('tab', { name: 'Report', exact: true }).click();
+  await page.getByRole('tab', { name: 'Decision', exact: true }).click();
   const terminal = page.locator('.quant-terminal-decision').filter({ hasText: 'Final decision' });
   await expect(terminal).toContainText('Final choice');
   await expect(terminal).toContainText('SMA 50/200');
@@ -1033,7 +1030,7 @@ test('exports the selected Strategy Report as server-rendered Markdown', async (
     setTerminalFailure(snapshot);
   });
   await page.goto('/');
-  await page.getByRole('tab', { name: 'Report', exact: true }).click();
+  await page.getByRole('tab', { name: 'Decision', exact: true }).click();
   await page.locator('.quant-report>header select').selectOption('candidate-a');
   await page.getByRole('button', { name: 'Export selected candidate report' }).click();
   const dialog = page.getByRole('dialog', { name: 'Strategy Report preview' });
@@ -1063,13 +1060,13 @@ test('exports the selected Strategy Report as server-rendered Markdown', async (
 test('exports the opened historical run instead of the latest run', async ({ page }) => {
   test.skip(process.env.GLINT_E2E_API_MODE !== 'fixture' || fixtureState !== 'quant-completed', 'Historical report export uses retained fixture runs.');
   await page.goto('/');
-  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'Runs', exact: true }).click();
+  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'History', exact: true }).click();
   const history = page.getByRole('table', { name: 'Searchable and filterable research run history' });
   const historicalRow = history.getByRole('row', { name: /Compare slower SPY trend filters/ })
     .filter({ hasText: 'Continued version', hasNotText: 'Retry attempt' });
   await historicalRow.getByRole('button', { name: 'Open run' }).click();
   await page.getByTestId('quant-sidebar').getByRole('button', { name: 'Workspace', exact: true }).click();
-  await page.getByRole('tab', { name: 'Report', exact: true }).click();
+  await page.getByRole('tab', { name: 'Decision', exact: true }).click();
   await page.getByRole('button', { name: 'Export report' }).click();
   const preview = page.getByLabel('Rendered Strategy Report Markdown');
   await expect(preview).toContainText('Compare slower SPY trend filters across the same research range.');
@@ -1085,7 +1082,7 @@ test('exports the selected and historical Strategy Report as server-rendered Mar
     setTerminalFailure(snapshot);
   });
   await page.goto('/');
-  await page.getByRole('tab', { name: 'Report', exact: true }).click();
+  await page.getByRole('tab', { name: 'Decision', exact: true }).click();
   await page.locator('.quant-report>header select').selectOption('candidate-a');
   await page.getByRole('button', { name: 'Export selected candidate report' }).click();
   const dialog = page.getByRole('dialog', { name: 'Strategy Report preview' });
@@ -1108,13 +1105,13 @@ test('exports the selected and historical Strategy Report as server-rendered Mar
   expect(downloadedMarkdown).toContain('Candidate A · SMA 20/100');
 
   await dialog.getByRole('button', { name: 'Close' }).click();
-  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'Runs', exact: true }).click();
+  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'History', exact: true }).click();
   const history = page.getByRole('table', { name: 'Searchable and filterable research run history' });
   const historicalRow = history.getByRole('row', { name: /Compare slower SPY trend filters/ })
     .filter({ hasText: 'Continued version', hasNotText: 'Retry attempt' });
   await historicalRow.getByRole('button', { name: 'Open run' }).click();
   await page.getByTestId('quant-sidebar').getByRole('button', { name: 'Workspace', exact: true }).click();
-  await page.getByRole('tab', { name: 'Report', exact: true }).click();
+  await page.getByRole('tab', { name: 'Decision', exact: true }).click();
   await page.getByRole('button', { name: 'Export report' }).click();
   const historicalDialog = page.getByRole('dialog', { name: 'Strategy Report preview' });
   await expect(historicalDialog.getByLabel('Rendered Strategy Report Markdown')).toContainText('Compare slower SPY trend filters');
@@ -1132,12 +1129,12 @@ test('ready fixture completes the API-owned synthetic Agent workflow', async ({ 
   const goal = 'Compare a bounded SPY trend hypothesis with synthetic evidence.';
   await page.getByRole('group', { name: 'Research mode' }).getByRole('button', { name: 'Plan first' }).click();
   await page.getByLabel('Research goal').fill(goal);
-  await page.getByRole('button', { name: 'Create plan' }).click();
+  await page.getByRole('button', { name: 'Generate plan' }).click();
   const recent = page.getByTestId('quant-sidebar').getByRole('region', { name: 'Recent', exact: true });
   await expect(recent).toContainText('Plan review');
-  await expect(page.getByRole('complementary', { name: 'Research Copilot' })).toContainText(goal);
+  await expect(page.getByRole('complementary', { name: 'Qurio', exact: true })).toContainText(goal);
   await page.getByRole('tab', { name: 'Analysis' }).click();
-  await page.getByRole('button', { name: 'Approve Plan' }).click();
+  await page.getByRole('button', { name: 'Approve & run' }).click();
   await expect(page.getByRole('button', { name: 'Run Synthetic Agent' })).toBeVisible();
   await page.getByRole('button', { name: 'Run Synthetic Agent' }).click();
   await expect(recent).toContainText('Review required');
@@ -1146,7 +1143,7 @@ test('ready fixture completes the API-owned synthetic Agent workflow', async ({ 
   await expect(recent).toContainText('Completed');
   await page.reload();
   await expect(page.getByTestId('quant-sidebar').getByRole('region', { name: 'Recent', exact: true })).toContainText('Completed');
-  await expect(page.getByRole('complementary', { name: 'Research Copilot' })).toContainText(goal);
+  await expect(page.getByRole('complementary', { name: 'Qurio', exact: true })).toContainText(goal);
 });
 
 test('Run Monitor shows live polling and legal cancel control while running', async ({ page }) => {
@@ -1177,12 +1174,12 @@ test('Run Monitor shows live polling and legal cancel control while running', as
 test('review gate exposes only human-review actions without active polling', async ({ page }) => {
   test.skip(process.env.GLINT_E2E_API_MODE !== 'fixture' || fixtureState !== 'quant-waiting-review', 'Review-state assertions use the waiting-review fixture.');
   await page.goto('/');
-  await expect(page.getByRole('complementary', { name: 'Research Copilot' })).not.toContainText('Questions become available');
+  await expect(page.getByRole('complementary', { name: 'Qurio', exact: true })).not.toContainText('Questions become available');
   await page.getByRole('tab', { name: 'Analysis', exact: true }).click();
   const monitor = page.locator('.quant-run-monitor');
   await expect(monitor.getByText('Awaiting review', { exact: true })).toBeVisible();
   await expect(monitor.getByText('Live · polling')).toHaveCount(0);
-  await expect(monitor.getByRole('button', { name: 'Open Report Draft' })).toBeVisible();
+  await expect(monitor.getByRole('button', { name: 'Open Decision Draft' })).toBeVisible();
   await expect(monitor.getByRole('button', { name: 'Review Validation Findings' })).toBeVisible();
   await expect(monitor.getByRole('button', { name: 'Complete Review' })).toBeVisible();
   await expect(monitor.getByRole('button', { name: 'Cancel Run' })).toHaveCount(0);
@@ -1250,7 +1247,7 @@ test('negative and cancelled terminal outcomes expose only relevant next actions
   await expect(monitor.getByText('Immutable', { exact: true })).toBeVisible();
   await expect(monitor.getByRole('button', { name: 'Cancel Run' })).toHaveCount(0);
   if (fixtureState === 'quant-no-viable-candidate') {
-    await expect(monitor.getByRole('button', { name: 'Open Report' })).toBeVisible();
+    await expect(monitor.getByRole('button', { name: 'Open Decision' })).toBeVisible();
     await expect(monitor.getByRole('button', { name: 'Compare Candidates' })).toBeVisible();
     await expect(monitor.getByRole('button', { name: 'Retry as New Attempt' })).toHaveCount(0);
   } else {
@@ -1284,13 +1281,10 @@ test('a terminal attempt creates a new API-owned Project and Run', async ({ page
   test.skip(process.env.GLINT_E2E_API_MODE !== 'fixture' || fixtureState !== 'quant-completed' || Boolean(quantFailure), 'New Run creation requires the completed success fixture.');
   await page.goto('/');
   await page.getByTestId('quant-sidebar').getByRole('button', { name: 'New research', exact: true }).click();
-  await page.getByRole('group', { name: 'Research mode' }).getByRole('button', { name: 'Auto Research' }).click();
   const goal = 'Start a fresh API-owned SPY trend research run.';
   await page.getByLabel('Research goal').fill(goal);
-  await page.getByRole('button', { name: 'Start research' }).click();
-  await expectLiveAgentDecision(page, 'quant-running');
-  await expect(page.locator('.pq-live-research')).toContainText(goal);
-  await expect(page.getByTestId('quant-sidebar').getByRole('region', { name: 'Recent', exact: true })).toContainText('Running experiments');
+  await page.getByRole('button', { name: 'Generate plan' }).click();
+  await expect(page.getByTestId('quant-sidebar').getByRole('region', { name: 'Recent', exact: true })).toContainText('Plan review');
 });
 
 test('captures a real workbench screenshot when explicitly enabled', async ({ page }) => {
@@ -1326,7 +1320,7 @@ test('captures a real workbench screenshot when explicitly enabled', async ({ pa
     fullPage: false,
     animations: 'disabled',
   });
-  await page.getByRole('tab', { name: 'Report', exact: true }).click();
+  await page.getByRole('tab', { name: 'Decision', exact: true }).click();
   await page.screenshot({
     path: `../../docs/assets/pokiequant/${fixtureState}-report.png`,
     fullPage: false,
@@ -1407,7 +1401,7 @@ test('public 4h market data completes the existing Data to Research to History w
   await noPageOverflow();
   await expect(preview.getByRole('button', { name: 'Use for research' })).toBeVisible();
   await preview.getByRole('button', { name: 'Use for research' }).click();
-  await expect(page.getByRole('heading', { name: 'Research setup' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'New research' })).toBeVisible();
   await expect(page.getByLabel('Research dataset')).toHaveValue('66666666-6666-4666-8666-666666666604');
   await expect(page.getByLabel('Research start UTC')).toHaveValue('2024-01-01T00:00');
   await expect(page.getByLabel('Research end UTC')).toHaveValue('2025-12-31T20:00');
@@ -1415,15 +1409,14 @@ test('public 4h market data completes the existing Data to Research to History w
   await noPageOverflow();
   await page.getByLabel('Research start UTC').fill('2024-03-01T00:00');
   await page.setViewportSize({ width: 1440, height: 960 });
-  await page.getByRole('group', { name: 'Research mode' }).getByRole('button', { name: 'Auto Research' }).click();
   const question = 'Research simple interpretable BTCUSDT 4h strategies that improve drawdown while retaining positive return.';
   await page.getByLabel('Research goal').fill(question);
   const createResponse = page.waitForResponse((response) => response.url().endsWith('/v1/quant/market-runs') && response.request().method() === 'POST');
-  await page.getByRole('button', { name: 'Start research' }).click();
+  await page.getByRole('button', { name: 'Generate plan' }).click();
   const created = await createResponse;
   expect(created.ok()).toBe(true);
   const rootPayload = created.request().postDataJSON();
-  expect(rootPayload).toMatchObject({ dataset_id: '66666666-6666-4666-8666-666666666604', mode: 'auto', research_start_utc: '2024-03-01T00:00:00Z', research_end_utc: '2025-12-31T20:00:00+00:00' });
+  expect(rootPayload).toMatchObject({ dataset_id: '66666666-6666-4666-8666-666666666604', mode: 'plan', research_start_utc: '2024-03-01T00:00:00Z', research_end_utc: '2025-12-31T20:00:00+00:00' });
   expect(rootPayload.research_loop).toBeUndefined();
   expect(await created.json()).toMatchObject({ id: '77777777-7777-4777-8777-777777777704', parent_run_id: null, seed_candidate_id: null, retry_of_run_id: null });
   await page.getByRole('tab', { name: 'Experiments', exact: true }).click();
@@ -1445,7 +1438,7 @@ test('public 4h market data completes the existing Data to Research to History w
   await page.getByRole('tab', { name: 'Overview', exact: true }).click();
   const completionNotice = page.getByRole('button', { name: 'Dismiss notification' });
   if (await completionNotice.isVisible()) await completionNotice.click();
-  const marketCopilot = page.getByRole('complementary', { name: 'Research Copilot' });
+  const marketCopilot = page.getByRole('complementary', { name: 'Qurio', exact: true });
   await marketCopilot.getByText('Run details', { exact: true }).click();
   await expect(marketCopilot).toContainText('Moving-average trend · Price breakout');
   await expect(marketCopilot).toContainText('Drawdown control');
@@ -1466,7 +1459,7 @@ test('public 4h market data completes the existing Data to Research to History w
   await expect(page.getByText('2 bars · 8h').first()).toBeVisible();
   await page.setViewportSize({ width: 1440, height: 960 });
 
-  await page.getByRole('tab', { name: 'Report', exact: true }).click();
+  await page.getByRole('tab', { name: 'Decision', exact: true }).click();
   await expect(page.getByText(/persisted 4h performance/)).toBeVisible();
   await expect(page.getByText(/4h · 2,190 periods\/year/)).toBeVisible();
   await page.getByRole('button', { name: 'Export final evidence' }).click();
@@ -1488,7 +1481,7 @@ test('public 4h market data completes the existing Data to Research to History w
   const refinementReason = 'Retain candidate-b and test one slower drawdown-controlled follow-up.';
   const childQuestion = 'Continue BTCUSDT 4h research from candidate-b with one slower trend adaptation.';
   await page.getByRole('button', { name: 'Review & refine research' }).click();
-  await expect(page.getByRole('heading', { name: 'Research setup' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'New research' })).toBeVisible();
   await expect(page.getByLabel('Research dataset')).toBeDisabled();
   await expect(page.getByLabel('Research dataset')).toHaveValue('66666666-6666-4666-8666-666666666604');
   await expect(page.getByLabel('Research start UTC')).toHaveValue('2024-03-01T00:00');
@@ -1516,7 +1509,7 @@ test('public 4h market data completes the existing Data to Research to History w
     retry_of_run_id: null,
   });
   await expect.poll(async () => page.locator('.quant-run-monitor-state strong').textContent(), { timeout: 12_000 }).toContain('Completed');
-  await page.getByRole('tab', { name: 'Report', exact: true }).click();
+  await page.getByRole('tab', { name: 'Decision', exact: true }).click();
   await expect(page.locator('.quant-report')).toContainText('Continued from source version');
   await expect(page.locator('.quant-report')).toContainText('Source candidate: Candidate B · SMA 50/200');
   await expect(page.locator('.quant-report')).toContainText(`Reason: ${refinementReason}`);
@@ -1535,12 +1528,12 @@ test('public 4h market data completes the existing Data to Research to History w
     retry_of_run_id: '77777777-7777-4777-8777-777777777708',
   });
   await expect.poll(async () => page.locator('.quant-run-monitor-state strong').textContent(), { timeout: 12_000 }).toContain('Completed');
-  await page.getByRole('tab', { name: 'Report', exact: true }).click();
+  await page.getByRole('tab', { name: 'Decision', exact: true }).click();
   await expect(page.locator('.quant-report')).toContainText('Continued from source version');
   await expect(page.locator('.quant-report')).toContainText('Retry attempt 2');
   await expect(page.locator('.quant-report')).toContainText('Sealed holdout pending');
 
-  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'Runs', exact: true }).click();
+  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'History', exact: true }).click();
   const history = page.getByRole('table', { name: 'Searchable and filterable research run history' });
   const rootRow = history.getByRole('row').filter({ hasText: question }).filter({ hasText: 'Root version' });
   const childRow = history.getByRole('row').filter({ hasText: childQuestion }).filter({ hasText: 'Continued version', hasNotText: 'Retry attempt' });
@@ -1555,7 +1548,7 @@ test('public 4h market data completes the existing Data to Research to History w
   await rootSnapshotRequest;
   await expect(page.getByRole('heading', { name: 'BTCUSDT 4h Research' })).toBeVisible();
   await expect(page.getByText('Historical run', { exact: true })).toBeVisible();
-  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'Runs', exact: true }).click();
+  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'History', exact: true }).click();
   await expect(history.locator('tr.is-current')).toContainText('Root version');
 
   const childSnapshotResponsePromise = page.waitForResponse((response) => response.url().endsWith('/v1/quant/runs/77777777-7777-4777-8777-777777777708/workspace-snapshot'));
@@ -1575,15 +1568,15 @@ test('public 4h market data completes the existing Data to Research to History w
   expect(childGeneralization.split.holdoutBarCount).toBeGreaterThan(0);
   expect(childGeneralization.split.trainBarCount + childGeneralization.split.holdoutBarCount).toBe(childSnapshot.dataset.barCount);
   expect(childGeneralization.holdout ?? null).toBeNull();
-  await page.getByRole('button', { name: 'Open report' }).click();
+  await page.getByRole('button', { name: 'Open decision' }).click();
   await expect(page.locator('.quant-report')).toContainText('Continued from source version');
   await expect(page.locator('.quant-report')).not.toContainText('Retry attempt 2');
-  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'Runs', exact: true }).click();
+  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'History', exact: true }).click();
 
   const retryCurrentRequest = page.waitForRequest((request) => request.url().endsWith('/v1/quant/workspace-snapshot'));
   await retryRow.getByRole('button', { name: 'Open run' }).click();
   await retryCurrentRequest;
-  await page.getByRole('button', { name: 'Open report' }).click();
+  await page.getByRole('button', { name: 'Open decision' }).click();
   await expect(page.locator('.quant-report')).toContainText('Continued from source version');
   await expect(page.locator('.quant-report')).toContainText('Retry attempt 2');
   const fixtureApiPort = process.env.GLINT_FIXTURE_PORT ?? '4174';
@@ -1624,7 +1617,7 @@ test('public 4h market data completes the existing Data to Research to History w
 
   await page.setViewportSize({ width: 1024, height: 960 });
   await noPageOverflow();
-  await expect(page.getByRole('tab', { name: 'Report', exact: true })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Decision', exact: true })).toBeVisible();
   if (process.env.POKIEQUANT_CAPTURE_SCREENSHOTS === '1') await page.screenshot({ path: '../../docs/assets/pokiequant/c4-market-report-1024x960.png', animations: 'disabled' });
   expect(browserErrors).toEqual([]);
 });
@@ -1651,17 +1644,16 @@ test('public 1h market data preserves intraday points through Analysis, Report, 
   await expect(page.getByLabel('Research end UTC')).toHaveValue('2024-07-27T07:00');
   await expect(page.getByText('8,760 periods/year', { exact: true })).toBeVisible();
 
-  await page.getByRole('group', { name: 'Research mode' }).getByRole('button', { name: 'Auto Research' }).click();
   const question = 'Research interpretable BTCUSDT 1h strategies without collapsing intraday observations.';
   await page.getByLabel('Research goal').fill(question);
   const createResponse = page.waitForResponse((response) => response.url().endsWith('/v1/quant/market-runs') && response.request().method() === 'POST');
-  await page.getByRole('button', { name: 'Start research' }).click();
+  await page.getByRole('button', { name: 'Generate plan' }).click();
   const created = await createResponse;
   expect(created.ok()).toBe(true);
   const createPayload = created.request().postDataJSON();
   expect(createPayload).toMatchObject({
     dataset_id: '66666666-6666-4666-8666-666666666601',
-    mode: 'auto',
+    mode: 'plan',
     research_start_utc: '2024-01-01T00:00:00+00:00',
     research_end_utc: '2024-07-27T07:00:00+00:00',
   });
@@ -1672,7 +1664,7 @@ test('public 1h market data preserves intraday points through Analysis, Report, 
   await page.getByRole('tab', { name: 'Overview', exact: true }).click();
   const completionNotice = page.getByRole('button', { name: 'Dismiss notification' });
   if (await completionNotice.isVisible()) await completionNotice.click();
-  const hourlyCopilot = page.getByRole('complementary', { name: 'Research Copilot' });
+  const hourlyCopilot = page.getByRole('complementary', { name: 'Qurio', exact: true });
   await hourlyCopilot.getByText('Run details', { exact: true }).click();
   await expect(hourlyCopilot).toContainText('1h · 8,760 PPY');
   await expect(hourlyCopilot).toContainText('2024-01-01T00:00:00+00:00');
@@ -1689,17 +1681,17 @@ test('public 1h market data preserves intraday points through Analysis, Report, 
   await noPageOverflow();
   if (process.env.POKIEQUANT_CAPTURE_SCREENSHOTS === '1') await page.screenshot({ path: '../../docs/assets/pokiequant/c4-market-1h-analysis-1440x960.png', animations: 'disabled' });
 
-  await page.getByRole('tab', { name: 'Report', exact: true }).click();
+  await page.getByRole('tab', { name: 'Decision', exact: true }).click();
   await expect(page.getByText(/persisted 1h performance/)).toBeVisible();
   await expect(page.getByText(/1h · 8,760 periods\/year/)).toBeVisible();
   await expect(page.getByText(/2024-01-01T00:00:00\+00:00/).first()).toBeVisible();
 
-  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'Runs', exact: true }).click();
+  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'History', exact: true }).click();
   const activeRow = page.getByRole('row', { name: new RegExp(question) }).filter({ hasText: 'BTCUSDT · 1h' });
   await expect(activeRow).toContainText('BTCUSDT · 1h');
   await activeRow.getByRole('button', { name: 'Open run' }).click();
   await expect(page.getByRole('heading', { name: 'BTCUSDT 1h Research' })).toBeVisible();
-  await page.getByRole('button', { name: 'Open report' }).click();
+  await page.getByRole('button', { name: 'Open decision' }).click();
   await page.getByRole('tab', { name: 'Analysis', exact: true }).click();
   await expect(page.getByRole('tab', { name: 'Analysis', exact: true })).toHaveAttribute('aria-selected', 'true');
 
@@ -1769,7 +1761,7 @@ test('public 4h market CSV reaches the exact G1 eligibility threshold and can be
   await expect(preview.getByRole('heading', { name: 'BTCUSDT · 4h' }).first()).toBeVisible();
   await expect(preview).toContainText('2,190 periods/year');
   await preview.getByRole('button', { name: 'Use for research' }).click();
-  await expect(page.getByRole('heading', { name: 'Research setup' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'New research' })).toBeVisible();
   await expect(page.getByLabel('Research dataset')).toHaveValue(importedDatasetId);
   await expect(page.getByLabel('Research start UTC')).toHaveValue('2024-01-01T00:00');
   await expect(page.getByLabel('Research end UTC')).toHaveValue('2024-04-01T04:00');
@@ -1789,7 +1781,7 @@ test('public 4h PLAN mutations use the dedicated Market Run endpoints', async ({
   await page.getByRole('group', { name: 'Research mode' }).getByRole('button', { name: 'Plan first' }).click();
   await page.getByLabel('Research goal').fill('Plan a bounded BTCUSDT 4h trend comparison.');
   const create = page.waitForRequest((request) => request.url().endsWith('/v1/quant/market-runs') && request.method() === 'POST');
-  await page.getByRole('button', { name: 'Create plan' }).click();
+  await page.getByRole('button', { name: 'Generate plan' }).click();
   expect((await create).postDataJSON()).toMatchObject({ mode: 'plan', dataset_id: '66666666-6666-4666-8666-666666666604' });
   await page.getByRole('tab', { name: 'Analysis', exact: true }).click();
   const monitor = page.locator('.quant-run-monitor');
@@ -1800,7 +1792,7 @@ test('public 4h PLAN mutations use the dedicated Market Run endpoints', async ({
   await monitor.getByRole('button', { name: 'Generate revised plan' }).click();
   expect((await change).postDataJSON()).toMatchObject({ expected_row_version: expect.any(Number), plan_revision: 1, change_request: 'Focus the revised plan on mean reversion.' });
   const approve = page.waitForRequest((request) => request.url().includes('/approve-plan'));
-  await monitor.getByRole('button', { name: 'Approve Plan' }).click();
+  await monitor.getByRole('button', { name: 'Approve & Run' }).click();
   expect((await approve).postDataJSON()).toMatchObject({ plan_revision: 2 });
   const cancel = page.waitForRequest((request) => request.url().endsWith('/cancel'));
   await expect(monitor.getByRole('button', { name: 'Cancel Run' })).toBeVisible();

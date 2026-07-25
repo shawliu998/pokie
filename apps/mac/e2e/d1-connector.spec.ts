@@ -42,7 +42,7 @@ test('D1 Connector Directory fetches Kraken data into Catalog, Preview, and rese
   await expect(preview).toContainText('240 of 548 stored bars shown');
   await preview.getByRole('button', { name: 'Use for research' }).click();
 
-  await expect(page.getByRole('heading', { name: 'Research setup' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'New research' })).toBeVisible();
   await expect(page.getByText('BTCUSD · 4h', { exact: true })).toBeVisible();
   await expect(page.getByLabel('Research dataset')).toHaveValue('fixture-connector-kraken-btcusd-4h-548');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);

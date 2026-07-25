@@ -93,11 +93,11 @@ export function QuantWorkspaceLoading({ slow = false, error = null, onRetry }: {
     <div className="quant-boot-layout">
       <aside className="quant-boot-sidebar" aria-hidden="true">
         <div className="quant-brand"><img className="quant-brand-wordmark" src="/brand/qurio-wordmark-inverse.svg" alt="Qurio" /></div>
-        <span>Research workspace</span>
-        <nav><span>Workspace</span><span>New research</span><span>Runs</span><span>Data</span><span>Runtime &amp; policy</span></nav>
+        <span>Qurio workspace</span>
+        <nav><span>Workspace</span><span>New research</span><span>History</span><span>Data</span><span>Settings</span></nav>
       </aside>
       <section className="quant-boot-main" aria-live="polite">
-        <header><strong>Research workspace</strong></header>
+        <header><strong>Qurio workspace</strong></header>
         <div className="quant-boot-state">
           {error
             ? <QuantInlineProblem problem={error} action={error.retryable ? <Button onClick={onRetry}>Retry connection</Button> : undefined} />
@@ -135,7 +135,7 @@ function OverviewPage({ api, destination, snapshot, selectedDataset, composerMod
   onStartNewRun: (mode: QuantResearchMode, goal: string, dataset: DatasetSnapshot, dateRange: { start: string; end: string }, refinement?: QuantRefinementContext, refinementReason?: string, followUp?: QuantResearchFollowUp) => void;
   onOpenRun: (runId: string) => Promise<void>;
 }) {
-  if (destination === 'new_research') return <div className="quant-page quant-new-page"><div className="quant-page-title"><h1>Research setup</h1><p>{refinement ? 'Build an independent run from a retained strategy and a revised objective.' : 'Select the market evidence, define a measurable objective and choose how research should begin.'}</p></div>{refinementLoading ? <p className="quant-inline-note" role="status">Loading continuation source…</p> : refinementError ? <QuantInlineProblem problem={{ kind: 'validation', title: 'Continuation unavailable', detail: refinementError, retryable: false }} action={<Button onClick={onCancelRefinement}>Start new research</Button>} /> : <QuantGoalComposer api={api} snapshot={snapshot} selectedDataset={selectedDataset} initialMode={composerMode} initialGoal={refinement ? `Continue research from ${refinement.candidateName}: ${refinement.sourceQuestion}` : ''} large busy={commandPending} refinement={refinement} onCancelRefinement={onCancelRefinement} onSelectDataset={onSelectDataset} onAddData={onAddData} onSubmit={onComposer} onStartNewRun={onStartNewRun} />}</div>;
+  if (destination === 'new_research') return <div className="quant-page quant-new-page"><div className="quant-page-title"><h1>New research</h1><p>{refinement ? 'Set the next objective from retained evidence, then generate a plan for review.' : 'Select market evidence, define a measurable objective, and generate a plan before Qurio runs experiments.'}</p></div>{refinementLoading ? <p className="quant-inline-note" role="status">Loading continuation source…</p> : refinementError ? <QuantInlineProblem problem={{ kind: 'validation', title: 'Continuation unavailable', detail: refinementError, retryable: false }} action={<Button onClick={onCancelRefinement}>Start new research</Button>} /> : <QuantGoalComposer api={api} snapshot={snapshot} selectedDataset={selectedDataset} initialMode={composerMode} initialGoal={refinement ? `Continue research from ${refinement.candidateName}: ${refinement.sourceQuestion}` : ''} large busy={commandPending} refinement={refinement} onCancelRefinement={onCancelRefinement} onSelectDataset={onSelectDataset} onAddData={onAddData} onSubmit={onComposer} onStartNewRun={onStartNewRun} />}</div>;
   if (destination === 'runs') return <QuantRunsPage api={api} snapshot={snapshot} openingRunId={openingRunId} openRunError={openRunError} onOpenRun={onOpenRun} onOpenReport={onOpenWorkspace} onStartNewResearch={onStartNewResearch} onRefineFromComparison={onRefineFromComparison} evidenceFocus={evidenceFocus} onEvidenceFocusResolved={onEvidenceFocusResolved} />;
   if (destination === 'data') return <QuantDataPage api={api} snapshot={snapshot} selectedDataset={selectedDataset} onSelect={onSelectDataset} onUseForResearch={onUseDatasetForResearch} onImportViewChange={onDataImportViewChange} onPreviewViewChange={onDataPreviewViewChange} />;
   return <div className="quant-settings-page">
@@ -159,7 +159,7 @@ function QuantWorkspaceView({ api, snapshot, isHistorical, refreshError, refresh
     ?? '';
   const [destination, setDestination] = useState<QuantNavDestination>(initialDestination);
   const [projectTab, setProjectTab] = useState<WorkspaceTab>(experimentWorkspaceStates.has(snapshot.run.state) ? 'experiments' : 'overview');
-  const [composerMode, setComposerMode] = useState<QuantResearchMode>('auto_research');
+  const [composerMode, setComposerMode] = useState<QuantResearchMode>('plan');
   const [selectedCandidateId, setSelectedCandidateId] = useState(preferredCandidateId);
   const [selectedDataset, setSelectedDataset] = useState<DatasetSnapshot>(snapshot.dataset);
   const [refinement, setRefinement] = useState<QuantRefinementContext | null>(null);
@@ -192,7 +192,7 @@ function QuantWorkspaceView({ api, snapshot, isHistorical, refreshError, refresh
   const beginNewResearch = useCallback(() => {
     clearContinuation();
     setEvidenceFocus(null);
-    setComposerMode('auto_research');
+    setComposerMode('plan');
     setSelectedDataset(snapshot.dataset);
     setDestination('new_research');
   }, [clearContinuation, snapshot.dataset]);
@@ -362,7 +362,7 @@ function QuantWorkspaceView({ api, snapshot, isHistorical, refreshError, refresh
     setSelectedDataset(snapshot.dataset);
     setRefinementError(null);
     setRefinement({ ...source, ...(typeof initialReason === 'string' && initialReason.trim() ? { initialReason } : {}) });
-    setComposerMode('auto_research');
+    setComposerMode('plan');
     setDestination('new_research');
   };
   const beginComparisonRefinement = (sourceSnapshot: QuantWorkspaceSnapshot, candidateId: string, reason: string) => {
@@ -378,7 +378,7 @@ function QuantWorkspaceView({ api, snapshot, isHistorical, refreshError, refresh
     setSelectedDataset(sourceSnapshot.dataset);
     setRefinementError(null);
     setRefinement({ ...source, initialReason: reason });
-    setComposerMode('auto_research');
+    setComposerMode('plan');
     setDestination('new_research');
   };
   const runCampaignRefinement = (candidateId: string, reason: string) => {
@@ -388,7 +388,7 @@ function QuantWorkspaceView({ api, snapshot, isHistorical, refreshError, refresh
     }
     const source = continuationContext(snapshot, candidateId);
     if (!source || !reason.trim()) {
-      setNotice({ tone: 'danger', title: 'Autopilot unavailable', detail: 'The retained candidate or next-research proposal is incomplete.' });
+      setNotice({ tone: 'danger', title: 'Suggested refinement unavailable', detail: 'The retained candidate or next-research proposal is incomplete.' });
       return;
     }
     const goal = `Continue research from ${source.candidateName}: ${source.sourceQuestion}`;
@@ -471,8 +471,8 @@ function QuantWorkspaceView({ api, snapshot, isHistorical, refreshError, refresh
   const isPolling = ['planning', 'queued', 'loading_data', 'generating_candidates', 'running_experiments', 'repairing', 'validating', 'generating_report'].includes(snapshot.run.state);
   const activityCanvas = <div className="quant-activity-pane"><QuantRunMonitor snapshot={snapshot} presentation={presentation} onAction={act} isPolling={isPolling} busy={commandPending} /><details className="quant-secondary-disclosure"><summary>Activity &amp; artifacts · {snapshot.events.length} events</summary><QuantKernelCheckCard snapshot={snapshot} /><QuantActivityFeed snapshot={snapshot} presentation={presentation} onInspect={(event) => openInspector({ kind: 'event', event })} /><QuantArtifactCards artifacts={presentation.primaryArtifacts} onInspect={(artifact) => openInspector({ kind: 'artifact', artifact })} /></details></div>;
   const showLiveDecisionSurface = agentDecisionSurfaceStates.has(snapshot.run.state);
-  const liveDecisionSurface = showLiveDecisionSurface ? <aside className="pq-live-decision-column" aria-label="Live Agent decision">
-    <header><strong>Live Agent decision</strong><span>{snapshot.scope.symbol} · Experiments</span></header>
+  const liveDecisionSurface = showLiveDecisionSurface ? <aside className="pq-live-decision-column" aria-label="Qurio research decision">
+    <header><strong>Qurio research decision</strong><span>{snapshot.scope.symbol} · Experiments</span></header>
     <ResearchCopilotContent mode="live-decision" projection={liveDecisionProjection} snapshot={snapshot} recentEvents={[]} evidenceFocusActions={[]} busy={commandPending} onAction={actFromLiveDecision} onAsk={() => undefined} onEvidenceFocus={() => undefined} />
     <div className="quant-widget-frame">{activityCanvas}</div>
   </aside> : null;
@@ -491,7 +491,7 @@ function QuantWorkspaceView({ api, snapshot, isHistorical, refreshError, refresh
     : projectTab === 'experiments' ? <div className={`pq-strategy-workspace${showLiveDecisionSurface ? ' is-live-run' : ''}`}>{experiments}{liveDecisionSurface ?? <div className="quant-widget-frame">{activityCanvas}</div>}</div> : projectTab === 'analysis' ? <div className="pq-strategy-workspace">{analysis}<div className="quant-widget-frame">{activityCanvas}</div></div> : <div className="quant-widget-frame pq-report-frame">{report}</div>;
 
   const projectWorkspace = <QuantOverviewWorkbench snapshot={snapshot} activeTab={projectTab} onTabChange={openProjectTab} onRunResearch={beginNewResearch} onOpenAnalysis={() => openProjectTab('analysis')} onOpenReport={() => openProjectTab('report')} onContinueResearch={continueFromSecondaryEvidence} onReturnLatest={() => void onRefresh(true)} selectedCandidateId={selectedCandidateId} onSelectCandidate={selectCandidate} busy={commandPending} isHistorical={isHistorical} compactLayout={compactCopilot} onCommand={(kind, payload) => void command(kind, payload)} onEvidenceFocus={focusEvidence}>{projectDetails}</QuantOverviewWorkbench>;
-  const utilityContent = destination === 'projects' ? null : <OverviewPage api={api} destination={destination} snapshot={snapshot} selectedDataset={selectedDataset} composerMode={composerMode} commandPending={commandPending} openingRunId={openingRunId} openRunError={openRunError} refinement={refinement} refinementLoading={refinementLoading} refinementError={refinementError} evidenceFocus={evidenceFocus?.destination === 'runs' ? evidenceFocus : null} onEvidenceFocusResolved={resolveRunsEvidenceFocus} onCancelRefinement={beginNewResearch} onSelectDataset={setSelectedDataset} onUseDatasetForResearch={(dataset) => { clearContinuation(); setEvidenceFocus(null); setSelectedDataset(dataset); setComposerMode('auto_research'); setDataPreviewing(false); setDestination('new_research'); }} onDataImportViewChange={setDataImporting} onDataPreviewViewChange={setDataPreviewing} onOpenWorkspace={() => { setEvidenceFocus(null); setProjectTab('report'); setDestination('projects'); }} onStartNewResearch={beginNewResearch} onRefineFromComparison={beginComparisonRefinement} onAddData={() => { setEvidenceFocus(null); setDataImporting(true); setDataPreviewing(false); setDestination('data'); }} onComposer={(kind, payload) => void command(kind, payload)} onStartNewRun={(mode, goal, dataset, dateRange, source, reason, followUp) => void startNewRun(mode, goal, dataset, dateRange, source, reason, followUp)} onOpenRun={(runId) => onOpenRun(runId, { historical: true })} />;
+  const utilityContent = destination === 'projects' ? null : <OverviewPage api={api} destination={destination} snapshot={snapshot} selectedDataset={selectedDataset} composerMode={composerMode} commandPending={commandPending} openingRunId={openingRunId} openRunError={openRunError} refinement={refinement} refinementLoading={refinementLoading} refinementError={refinementError} evidenceFocus={evidenceFocus?.destination === 'runs' ? evidenceFocus : null} onEvidenceFocusResolved={resolveRunsEvidenceFocus} onCancelRefinement={beginNewResearch} onSelectDataset={setSelectedDataset} onUseDatasetForResearch={(dataset) => { clearContinuation(); setEvidenceFocus(null); setSelectedDataset(dataset); setComposerMode('plan'); setDataPreviewing(false); setDestination('new_research'); }} onDataImportViewChange={setDataImporting} onDataPreviewViewChange={setDataPreviewing} onOpenWorkspace={() => { setEvidenceFocus(null); setProjectTab('report'); setDestination('projects'); }} onStartNewResearch={beginNewResearch} onRefineFromComparison={beginComparisonRefinement} onAddData={() => { setEvidenceFocus(null); setDataImporting(true); setDataPreviewing(false); setDestination('data'); }} onComposer={(kind, payload) => void command(kind, payload)} onStartNewRun={(mode, goal, dataset, dateRange, source, reason, followUp) => void startNewRun(mode, goal, dataset, dateRange, source, reason, followUp)} onOpenRun={(runId) => onOpenRun(runId, { historical: true })} />;
 
   return <main className="quant-shell">
     {refreshError && <div className="quant-refresh-warning" role="status" title={refreshError}><strong>Live updates paused</strong><span>Showing snapshot verified at {verifiedTime(lastVerifiedAt)}</span><button disabled={refreshing} onClick={() => void onRefresh()}>{refreshing ? 'Refreshing…' : 'Refresh now'}</button></div>}

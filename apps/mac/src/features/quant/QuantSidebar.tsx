@@ -4,9 +4,9 @@ import type { QuantNavDestination, QuantWorkspaceSnapshot } from '../../quant-do
 const destinations = [
   { id: 'projects', label: 'Workspace' },
   { id: 'new_research', label: 'New research' },
-  { id: 'runs', label: 'Runs' },
+  { id: 'runs', label: 'History' },
   { id: 'data', label: 'Data' },
-  { id: 'settings', label: 'Runtime & policy' },
+  { id: 'settings', label: 'Settings' },
 ] satisfies Array<{ id: QuantNavDestination; label: string }>;
 
 const runStateLabels: Record<QuantWorkspaceSnapshot['run']['state'], string> = {

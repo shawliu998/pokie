@@ -154,8 +154,8 @@ function RunsComparison({ selectedIds, runs, projectNames, records, onClose, onR
 
   return <section className="quant-runs-compare" aria-labelledby="quant-runs-compare-title">
     <header>
-      <div><h2 id="quant-runs-compare-title">Compare research runs</h2><p>{selectedIds.length} selected · Metrics are shown from each run’s stored result.</p></div>
-      <Button onClick={onClose}>Back to runs</Button>
+      <div><h2 id="quant-runs-compare-title">Compare research history</h2><p>{selectedIds.length} selected · Metrics are shown from each run’s stored result.</p></div>
+      <Button onClick={onClose}>Back to history</Button>
     </header>
     {versionSummary && <section className="quant-version-comparison" aria-label="Research version change"><div><span>Version change</span><strong>{versionSummary.verdict}</strong><p>{versionSummary.detail}</p></div><dl><div><dt>Refinement reason</dt><dd>{versionSummary.reason}</dd></div><div><dt>Selected strategy</dt><dd>{versionSummary.strategy}</dd></div>{versionSummary.metrics && <div><dt>Change vs source</dt><dd>{versionSummary.metrics}</dd></div>}</dl>{onRefine && canRefine && versionSummary.proposal && <div className="quant-version-actions"><Button className="primary" onClick={() => onRefine(versionSummary.refinementSource, versionSummary.candidateId, versionSummary.proposal!.refinementReason)}>Refine from this result</Button><span>Uses the retained candidate and evidence as editable context for a new independent run.</span></div>}</section>}
     {hasDifferences && <p className="quant-compare-notice" role="status"><strong>Comparison context differs.</strong> Dataset, symbol, interval, or research-range differences are identified per row; interpret performance metrics independently.</p>}
@@ -252,7 +252,7 @@ export function QuantRunsPage({ api, snapshot, openingRunId = null, openRunError
   const reportAvailable = Boolean(snapshot.report);
   const shouldStartAgain = presentation.decision.tone === 'danger' || snapshot.run.state === 'cancelled';
   const decisionAction = reportAvailable
-    ? <div className="quant-run-decision-actions">{shouldStartAgain && <Button className="primary" onClick={onStartNewResearch}>New research</Button>}<Button className={shouldStartAgain ? '' : 'primary'} onClick={onOpenReport}>Open report</Button>{!shouldStartAgain && snapshot.run.state === 'completed' && <Button onClick={onStartNewResearch}>New research</Button>}</div>
+    ? <div className="quant-run-decision-actions">{shouldStartAgain && <Button className="primary" onClick={onStartNewResearch}>New research</Button>}<Button className={shouldStartAgain ? '' : 'primary'} onClick={onOpenReport}>Open decision</Button>{!shouldStartAgain && snapshot.run.state === 'completed' && <Button onClick={onStartNewResearch}>New research</Button>}</div>
     : shouldStartAgain ? <Button className="primary" onClick={onStartNewResearch}>New research</Button> : undefined;
 
   function toggleComparison(runId: string) {
@@ -322,7 +322,7 @@ export function QuantRunsPage({ api, snapshot, openingRunId = null, openRunError
   if (view === 'compare') return <div className="quant-runs-page"><RunsComparison selectedIds={selectedIds} runs={runs} projectNames={projectNames} records={compareRecords} onClose={() => setView('list')} onRetry={loadComparisonRun} onRefine={onRefineFromComparison} /></div>;
 
   return <div className="quant-runs-page">
-    <header className="quant-runs-heading"><div><h1>Research runs</h1><p>Find prior research, compare stored outcomes, or reopen the full result.</p></div></header>
+    <header className="quant-runs-heading"><div><h1>Research history</h1><p>Find prior research, compare stored outcomes, or reopen the full result.</p></div></header>
     <section className="quant-runs-tools" aria-label="Run history filters">
       <label className="quant-run-search"><span>Search</span><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Question or project" /></label>
       <label><span>Project</span><select value={projectId} onChange={(event) => setProjectId(event.target.value)}><option value="all">All projects</option>{projects.map((project) => <option key={project.id} value={project.id}>{projectLabel(project.name)}</option>)}</select></label>
@@ -350,7 +350,7 @@ export function QuantRunsPage({ api, snapshot, openingRunId = null, openRunError
                 <th scope="row"><button className="quant-run-question" aria-busy={isOpening} disabled={isPending} onClick={() => void onOpenRun(run.id)}>{run.question}</button>{run.contract === 'market-v2-public' && <small>{run.symbol} · {run.interval} · {run.researchStartUtc} – {run.researchEndUtc}</small>}</th>
                 <td>{projectLabel(projectNames.get(run.projectId) ?? 'Research project')}</td>
                 <td><strong className={`is-${runStateTone(run.state)}`}>{isOpening ? 'Opening…' : runStateLabel(run.state)}</strong></td>
-                <td>{run.mode === 'auto' ? 'Auto Research' : 'Plan'}{run.contract === 'market-v2-public' && <small>{run.periodsPerYear?.toLocaleString()} periods/year</small>}</td>
+                <td>{run.mode === 'auto' ? 'Agent run' : 'Plan first'}{run.contract === 'market-v2-public' && <small>{run.periodsPerYear?.toLocaleString()} periods/year</small>}</td>
                 <td className="quant-series-cell">{relationshipLabel}</td>
                 <td><time dateTime={run.updatedAt}>{shortDate(run.updatedAt || run.createdAt)}</time></td>
                 <td className="is-action"><Button disabled={isPending} aria-busy={isOpening} onClick={() => void onOpenRun(run.id)}>{isOpening ? 'Opening…' : 'Open run'}</Button></td>

@@ -292,7 +292,7 @@ describe('presentQuantWorkspace', () => {
     const cases: Array<[QuantWorkspaceSnapshot['run']['state'], QuantWorkspaceSnapshot['run']['legalCommands'], string]> = [
       ['draft', ['generate_plan', 'start_auto_research'], 'Generate plan'],
       ['planning', ['cancel_run'], 'Cancel run'],
-      ['waiting_plan_approval', ['approve_plan', 'request_plan_changes', 'cancel_run'], 'Approve plan'],
+      ['waiting_plan_approval', ['approve_plan', 'request_plan_changes', 'cancel_run'], 'Approve & run'],
       ['queued', ['approve_execution', 'cancel_run'], 'Approve execution'],
       ['loading_data', ['cancel_run'], 'Cancel run'],
       ['generating_candidates', ['cancel_run'], 'Cancel run'],
@@ -330,7 +330,7 @@ describe('presentQuantWorkspace', () => {
     };
     const completedCopilot = presentResearchCopilot(completed, { selectedCandidateId: 'candidate-a' });
     expect(completedCopilot.next.actions.filter((action) => action.tone === 'primary')).toEqual([
-      expect.objectContaining({ kind: 'open_report', label: 'Open report' }),
+      expect.objectContaining({ kind: 'open_report', label: 'Open decision' }),
     ]);
     expect(completedCopilot.next.actions.map((action) => action.kind)).not.toContain('continue_research');
   });
@@ -408,7 +408,7 @@ describe('presentQuantWorkspace', () => {
       legalCommands: ['approve_plan', 'request_plan_changes', 'cancel_run'],
     };
     const boundedCopilot = presentResearchCopilot(bounded);
-    expect(boundedCopilot.next.detail).toContain('Auto Research is paused');
+    expect(boundedCopilot.next.detail).toContain('before Qurio runs experiments');
     expect(boundedCopilot.next.actions.map((action) => action.kind)).toEqual([
       'approve_plan',
       'request_plan_changes',
