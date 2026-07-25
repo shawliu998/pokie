@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "qurio-sdk"
+version = "0.1.0"
+description = "Typed Python, CLI and MCP access to retained Qurio research evidence"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "httpx>=0.28,<1",
+  "pydantic>=2.11,<3",
+]
+
+[project.optional-dependencies]
+mcp = [
+  "mcp>=1.28,<2",
+]
+test = [
+  "pyright>=1.1.403,<2",
+  "pytest>=9.0.3,<10",
+  "ruff>=0.12,<1",
+]
+
+[project.scripts]
+qurio = "qurio.cli:main"
+qurio-mcp = "qurio.mcp_server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/qurio"]
+
+[tool.pytest.ini_options]
+addopts = "-q --strict-markers"
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "strict"
+venvPath = "."
+venv = ".venv"
+include = ["src/qurio", "tests"]
+reportMissingTypeStubs = "none"
+reportUnknownMemberType = "none"
+reportUnknownVariableType = "none"
+reportUnknownArgumentType = "none"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
