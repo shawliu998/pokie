@@ -121,6 +121,7 @@ export interface GlintApi {
   readonly workspaceId: string;
   /** Authenticated workspace-scoped transport for the parallel Quant API. */
   quantRequest?<T = unknown>(path: string, init?: RequestInit): Promise<T>;
+  paperRequest?<T = unknown>(path: string, init?: RequestInit): Promise<T>;
   bootstrap(): Promise<WorkspaceState>;
   navigation(): Promise<NavigationSummary>;
   setupImportedDataset(): Promise<void>;
@@ -246,6 +247,13 @@ export class RestAdapter implements GlintApi {
   async quantRequest<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
     if (!path.startsWith("/quant/") || path.includes("..")) {
       throw new Error("Quant API paths must stay inside /v1/quant/.");
+    }
+    return this.request<T>(path, init);
+  }
+
+  async paperRequest<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
+    if (!path.startsWith("/paper/") || path.includes("..")) {
+      throw new Error("Paper API paths must stay inside /v1/paper/.");
     }
     return this.request<T>(path, init);
   }

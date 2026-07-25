@@ -18,6 +18,12 @@ describe('RestAdapter import contract', () => {
     expect(() => new RestAdapter('http://api.test', 'workspace-1', '   ')).toThrow(/access token/i);
   });
 
+  it('keeps Quant and Paper transports in separate route namespaces', async () => {
+    const adapter = new RestAdapter('http://api.test', 'workspace-1', 'opaque-token');
+    await expect(adapter.quantRequest('/paper/snapshot')).rejects.toThrow('/v1/quant/');
+    await expect(adapter.paperRequest('/quant/workspace-snapshot')).rejects.toThrow('/v1/paper/');
+  });
+
   it('invalidates the secure session on API 401 without persisting the credential', async () => {
     const invalidated = vi.fn();
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ error: { message: 'expired' } }), { status: 401, headers: { 'Content-Type': 'application/json' } })));

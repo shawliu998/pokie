@@ -377,8 +377,8 @@ export function QuantUtilityFrame({ destination, snapshot, dataset = snapshot.da
   dataPreviewing?: boolean;
   onInspectDataset?: () => void;
 }) {
-  const title = destination === 'new_research' ? 'New research' : destination === 'runs' ? 'History' : destination === 'data' ? 'Data directory' : 'Settings';
-  const singleColumn = destination === 'settings' || destination === 'runs';
+  const title = destination === 'new_research' ? 'New research' : destination === 'runs' ? 'History' : destination === 'data' ? 'Data directory' : destination === 'paper' ? 'Paper Trading' : 'Settings';
+  const singleColumn = destination === 'settings' || destination === 'runs' || destination === 'paper';
   const hideCopilot = singleColumn || (destination === 'data' && dataPreviewing);
   return <section className={`pq-utility-frame is-${destination}${singleColumn ? ' is-single' : ''}${destination === 'data' && dataPreviewing ? ' is-data-preview' : ''}`} aria-label={title}>
     <header><strong>{title}</strong>{!hideCopilot && <span>{destination === 'data' ? dataImporting ? 'Import guide' : 'Dataset inspector' : 'Preflight review'}</span>}</header>

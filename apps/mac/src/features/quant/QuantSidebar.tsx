@@ -6,6 +6,7 @@ const destinations = [
   { id: 'new_research', label: 'New research' },
   { id: 'runs', label: 'History' },
   { id: 'data', label: 'Data' },
+  { id: 'paper', label: 'Paper Trading' },
   { id: 'settings', label: 'Settings' },
 ] satisfies Array<{ id: QuantNavDestination; label: string }>;
 

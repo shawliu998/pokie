@@ -24,7 +24,7 @@ export type QuantStepStatus = 'pending' | 'active' | 'waiting' | 'completed' | '
 export type CandidateVerdict = 'promising' | 'inconclusive' | 'rejected' | 'invalid';
 export type QuantAuthenticity = 'synthetic_fixture' | 'imported' | 'collected';
 export type QuantOwner = 'user' | 'system' | 'agent' | 'validator';
-export type QuantNavDestination = 'new_research' | 'projects' | 'runs' | 'data' | 'settings';
+export type QuantNavDestination = 'new_research' | 'projects' | 'runs' | 'data' | 'paper' | 'settings';
 
 export type QuantCommand =
   | 'ask'
@@ -530,6 +530,7 @@ export interface QuantRobustnessSensitivity {
 export interface ResearchReport {
   id: string;
   title: string;
+  selectedCandidateId?: string;
   conclusion: string;
   proposedNextStep: string;
   limitations: string[];

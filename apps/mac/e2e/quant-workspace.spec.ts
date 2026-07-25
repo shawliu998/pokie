@@ -318,6 +318,25 @@ test('renders the server-owned Quant fixture without active Glint product copy',
   await expect(page.getByText('No broker connection or order action')).toBeVisible();
 });
 
+test('hands the retained final candidate into an isolated Paper order and position', async ({ page }) => {
+  test.skip(process.env.GLINT_E2E_API_MODE !== 'fixture' || fixtureState !== 'quant-completed', 'Paper Trading uses the completed deterministic fixture.');
+  await page.setViewportSize({ width: 1024, height: 760 });
+  await page.goto('/');
+  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'Paper Trading', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Paper Trading', exact: true })).toBeVisible();
+  await expect(page.getByText('No live-trading route or live credentials')).toBeVisible();
+  await expect(page.getByText('$100,000.00').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Review draft' }).click();
+  const orders = page.getByRole('region', { name: 'Orders' });
+  await expect(orders).toContainText('draft');
+  await orders.getByRole('button', { name: 'Submit' }).click();
+  await expect(orders).toContainText('filled');
+  const positions = page.getByRole('region', { name: 'Positions' });
+  await expect(positions).toContainText('SPY');
+  await expect(positions).toContainText('365.25');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+});
+
 test('shares Overview candidate selection with Experiments, Analysis, and Decision', async ({ page }) => {
   test.skip(process.env.GLINT_E2E_API_MODE !== 'fixture' || fixtureState !== 'quant-completed', 'Shared selection uses the completed deterministic fixture.');
   await page.setViewportSize({ width: 1440, height: 960 });

@@ -20,6 +20,149 @@ export interface QuantCommandReceipt {
   message: string;
 }
 
+export type PaperOrderState = 'draft' | 'submitted' | 'partially_filled' | 'filled' | 'cancelled' | 'rejected';
+
+export interface PaperAccount {
+  accountId: string;
+  environment: 'paper';
+  broker: 'local_simulator';
+  currency: 'USD';
+  status: 'active' | 'unconfigured' | 'error';
+  cash: string;
+  buyingPower: string;
+  equity: string;
+  rowVersion: number;
+  lastReconciledAt: string | null;
+  updatedAt: string;
+}
+
+export interface PaperPosition {
+  symbol: string;
+  quantity: string;
+  averageEntryPrice: string;
+  currentPrice: string;
+  marketValue: string;
+  unrealizedPl: string;
+  updatedAt: string;
+}
+
+export interface PaperOrder {
+  orderId: string;
+  state: PaperOrderState;
+  sourceRunId: string;
+  sourceCandidateId: string;
+  sourceEvidenceDigest: string;
+  symbol: string;
+  side: 'buy' | 'sell';
+  quantity: string;
+  filledQuantity: string;
+  orderType: 'market';
+  timeInForce: 'day';
+  limitPrice: string | null;
+  referencePrice: string;
+  estimatedNotional: string;
+  averageFillPrice: string | null;
+  rowVersion: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaperFill {
+  fillId: string;
+  orderId: string;
+  symbol: string;
+  side: 'buy' | 'sell';
+  quantity: string;
+  price: string;
+  notional: string;
+  occurredAt: string;
+}
+
+export interface PaperSnapshot {
+  contractVersion: 'qurio-paper-v1';
+  environment: 'paper';
+  account: PaperAccount;
+  positions: PaperPosition[];
+  orders: PaperOrder[];
+  fills: PaperFill[];
+  generatedAt: string;
+}
+
+export interface PaperDraftRequest {
+  sourceRunId: string;
+  sourceCandidateId: string;
+  side: 'buy' | 'sell';
+  quantity: string;
+  orderType: 'market';
+  timeInForce: 'day';
+  expectedAccountRowVersion: number;
+  idempotencyKey: string;
+}
+
+function parsePaperSnapshot(value: unknown): PaperSnapshot {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Paper snapshot must be an object.');
+  const row = value as Record<string, unknown>;
+  if (row.contract_version !== 'qurio-paper-v1' || row.environment !== 'paper' || !row.account) {
+    throw new Error('Paper snapshot contract is unsupported.');
+  }
+  const account = row.account as Record<string, unknown>;
+  const mapOrder = (value: unknown): PaperOrder => {
+    const order = value as Record<string, unknown>;
+    return {
+    orderId: String(order.order_id), state: order.state, sourceRunId: String(order.source_run_id),
+    sourceCandidateId: String(order.source_candidate_id), sourceEvidenceDigest: String(order.source_evidence_digest),
+    symbol: String(order.symbol), side: order.side, quantity: String(order.quantity),
+    filledQuantity: String(order.filled_quantity), orderType: order.order_type, timeInForce: order.time_in_force,
+    limitPrice: order.limit_price == null ? null : String(order.limit_price), referencePrice: String(order.reference_price),
+    estimatedNotional: String(order.estimated_notional), averageFillPrice: order.average_fill_price == null ? null : String(order.average_fill_price),
+    rowVersion: Number(order.row_version), createdAt: String(order.created_at), updatedAt: String(order.updated_at),
+    } as PaperOrder;
+  };
+  return {
+    contractVersion: 'qurio-paper-v1',
+    environment: 'paper',
+    account: {
+      accountId: String(account.account_id), environment: 'paper', broker: account.broker as PaperAccount['broker'],
+      currency: 'USD', status: account.status as PaperAccount['status'], cash: String(account.cash),
+      buyingPower: String(account.buying_power), equity: String(account.equity),
+      rowVersion: Number(account.row_version), lastReconciledAt: account.last_reconciled_at == null ? null : String(account.last_reconciled_at),
+      updatedAt: String(account.updated_at),
+    },
+    positions: (Array.isArray(row.positions) ? row.positions : []).map((value) => {
+      const position = value as Record<string, unknown>;
+      return {
+        symbol: String(position.symbol), quantity: String(position.quantity),
+        averageEntryPrice: String(position.average_entry_price), currentPrice: String(position.current_price),
+        marketValue: String(position.market_value), unrealizedPl: String(position.unrealized_pl),
+        updatedAt: String(position.updated_at),
+      };
+    }),
+    orders: (Array.isArray(row.orders) ? row.orders : []).map(mapOrder),
+    fills: (Array.isArray(row.fills) ? row.fills : []).map((value) => {
+      const fill = value as Record<string, unknown>;
+      return {
+        fillId: String(fill.fill_id), orderId: String(fill.order_id), symbol: String(fill.symbol),
+        side: fill.side, quantity: String(fill.quantity), price: String(fill.price),
+        notional: String(fill.notional), occurredAt: String(fill.occurred_at),
+      } as PaperFill;
+    }),
+    generatedAt: String(row.generated_at),
+  };
+}
+
+function parsePaperOrder(value: unknown): PaperOrder {
+  return parsePaperSnapshot({
+    contract_version: 'qurio-paper-v1',
+    environment: 'paper',
+    account: {
+      account_id: '00000000-0000-4000-8000-000000000001', broker: 'local_simulator',
+      status: 'active', cash: '0', buying_power: '0', equity: '0', row_version: 1,
+      last_reconciled_at: null, updated_at: new Date().toISOString(),
+    },
+    positions: [], orders: [value], fills: [], generated_at: new Date().toISOString(),
+  }).orders[0]!;
+}
+
 let fallbackIdempotencySequence = 0;
 
 export function quantIdempotencyKey(): string {
@@ -358,6 +501,11 @@ export interface QuantApi {
   listConnectors(): Promise<QuantMarketDataConnector[]>;
   fetchConnectorDataset(request: QuantConnectorFetchRequest): Promise<DatasetSnapshot>;
   fetchNasdaqEquityDataset(request: QuantNasdaqEquityFetchRequest): Promise<DatasetSnapshot>;
+  getPaperSnapshot(): Promise<PaperSnapshot>;
+  createPaperDraft(request: PaperDraftRequest): Promise<PaperOrder>;
+  submitPaperOrder(orderId: string, orderVersion: number, accountVersion: number, idempotencyKey: string): Promise<PaperOrder>;
+  cancelPaperOrder(orderId: string, orderVersion: number, idempotencyKey: string): Promise<PaperOrder>;
+  reconcilePaperAccount(accountVersion: number, idempotencyKey: string): Promise<PaperSnapshot>;
 }
 
 interface QuantDatasetDto {
@@ -589,6 +737,28 @@ function parseLegacyRunHistoryItem(value: unknown): QuantRunHistoryItem {
  * API-owned.
  */
 export function createFixtureQuantApi(): QuantApi {
+  const now = new Date().toISOString();
+  const fixturePaper: PaperSnapshot = {
+    contractVersion: 'qurio-paper-v1',
+    environment: 'paper',
+    account: {
+      accountId: '00000000-0000-4000-8000-000000000901',
+      environment: 'paper',
+      broker: 'local_simulator',
+      currency: 'USD',
+      status: 'active',
+      cash: '100000.00',
+      buyingPower: '100000.00',
+      equity: '100000.00',
+      rowVersion: 1,
+      lastReconciledAt: null,
+      updatedAt: now,
+    },
+    positions: [],
+    orders: [],
+    fills: [],
+    generatedAt: now,
+  };
   return {
     async getWorkspaceSnapshot() { return quantFixtureSnapshot; },
     async sendCommand(request) {
@@ -634,6 +804,49 @@ export function createFixtureQuantApi(): QuantApi {
     async fetchNasdaqEquityDataset() {
       throw new Error('Nasdaq Equity fetch requires the authenticated Quant API.');
     },
+    async getPaperSnapshot() { return structuredClone(fixturePaper); },
+    async createPaperDraft(request) {
+      const price = String(quantFixtureSnapshot.bars.at(-1)?.close ?? 100);
+      const createdAt = new Date().toISOString();
+      const order: PaperOrder = {
+        orderId: quantIdempotencyKey(), state: 'draft', sourceRunId: request.sourceRunId,
+        sourceCandidateId: request.sourceCandidateId, sourceEvidenceDigest: `sha256:${'0'.repeat(64)}`,
+        symbol: quantFixtureSnapshot.scope.symbol, side: request.side, quantity: request.quantity,
+        filledQuantity: '0', orderType: request.orderType, timeInForce: request.timeInForce,
+        limitPrice: null, referencePrice: price,
+        estimatedNotional: (Number(request.quantity) * Number(price)).toFixed(2),
+        averageFillPrice: null, rowVersion: 1, createdAt, updatedAt: createdAt,
+      };
+      fixturePaper.orders.unshift(order);
+      return structuredClone(order);
+    },
+    async submitPaperOrder(orderId, orderVersion, accountVersion) {
+      const order = fixturePaper.orders.find((item) => item.orderId === orderId);
+      if (!order || order.state !== 'draft' || order.rowVersion !== orderVersion || fixturePaper.account.rowVersion !== accountVersion) {
+        throw new Error('The Paper order changed; refresh before submitting.');
+      }
+      order.state = 'filled';
+      order.filledQuantity = order.quantity;
+      order.averageFillPrice = order.limitPrice ?? order.referencePrice;
+      order.rowVersion += 1;
+      order.updatedAt = new Date().toISOString();
+      fixturePaper.account.rowVersion += 1;
+      return structuredClone(order);
+    },
+    async cancelPaperOrder(orderId, orderVersion) {
+      const order = fixturePaper.orders.find((item) => item.orderId === orderId);
+      if (!order || order.state !== 'draft' || order.rowVersion !== orderVersion) throw new Error('Only a current draft can be cancelled.');
+      order.state = 'cancelled';
+      order.rowVersion += 1;
+      order.updatedAt = new Date().toISOString();
+      return structuredClone(order);
+    },
+    async reconcilePaperAccount(accountVersion) {
+      if (fixturePaper.account.rowVersion !== accountVersion) throw new Error('The Paper account changed; refresh before reconciling.');
+      fixturePaper.account.rowVersion += 1;
+      fixturePaper.account.lastReconciledAt = new Date().toISOString();
+      return structuredClone(fixturePaper);
+    },
   };
 }
 
@@ -641,6 +854,7 @@ export function createFixtureQuantApi(): QuantApi {
 export function createApiQuantApi(api: GlintApi): QuantApi {
   const quantRequest = api.quantRequest?.bind(api);
   if (!quantRequest) throw new Error('The authenticated API does not expose the Quant transport.');
+  const paperRequest = api.paperRequest?.bind(api);
   const publicMarketCommands: ReadonlySet<QuantCommand> = new Set([
     'approve_plan',
     'request_plan_changes',
@@ -934,6 +1148,53 @@ export function createApiQuantApi(api: GlintApi): QuantApi {
         }),
       });
       return mapDataset(row);
+    },
+    async getPaperSnapshot() {
+      if (!paperRequest) throw new Error('The authenticated API does not expose the Paper transport.');
+      return parsePaperSnapshot(await paperRequest<unknown>('/paper/snapshot'));
+    },
+    async createPaperDraft(request) {
+      if (!paperRequest) throw new Error('The authenticated API does not expose the Paper transport.');
+      return parsePaperOrder(await paperRequest<unknown>('/paper/orders/drafts', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': request.idempotencyKey },
+        body: JSON.stringify({
+          source_run_id: request.sourceRunId,
+          source_candidate_id: request.sourceCandidateId,
+          side: request.side,
+          quantity: request.quantity,
+          order_type: request.orderType,
+          time_in_force: request.timeInForce,
+          expected_account_row_version: request.expectedAccountRowVersion,
+        }),
+      }));
+    },
+    async submitPaperOrder(orderId, orderVersion, accountVersion, idempotencyKey) {
+      if (!paperRequest) throw new Error('The authenticated API does not expose the Paper transport.');
+      return parsePaperOrder(await paperRequest<unknown>(`/paper/orders/${encodeURIComponent(orderId)}/submit`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': idempotencyKey },
+        body: JSON.stringify({
+          expected_order_row_version: orderVersion,
+          expected_account_row_version: accountVersion,
+        }),
+      }));
+    },
+    async cancelPaperOrder(orderId, orderVersion, idempotencyKey) {
+      if (!paperRequest) throw new Error('The authenticated API does not expose the Paper transport.');
+      return parsePaperOrder(await paperRequest<unknown>(`/paper/orders/${encodeURIComponent(orderId)}/cancel`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': idempotencyKey },
+        body: JSON.stringify({ expected_order_row_version: orderVersion }),
+      }));
+    },
+    async reconcilePaperAccount(accountVersion, idempotencyKey) {
+      if (!paperRequest) throw new Error('The authenticated API does not expose the Paper transport.');
+      return parsePaperSnapshot(await paperRequest<unknown>('/paper/reconcile', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': idempotencyKey },
+        body: JSON.stringify({ expected_account_row_version: accountVersion }),
+      }));
     },
   };
 }

@@ -10,6 +10,7 @@ import { QuantInspector } from './QuantInspector';
 import { QuantMarketWorkspace } from './QuantMarketWorkspace';
 import { QuantOverviewWorkbench, QuantUtilityFrame } from './QuantOverviewWorkbench';
 import { QuantPlanRail } from './QuantPlanRail';
+import { QuantPaperTradingPage } from './QuantPaperTradingPage';
 import { presentQuantWorkspace, type QuantEvidenceFocusIntent } from './quant-presentation';
 import { QuantRunsPage } from './QuantRunsPage';
 import { QuantWorkspace, QuantWorkspaceLoading } from './QuantWorkspace';
@@ -74,6 +75,32 @@ function robustnessReportSnapshot() {
 }
 
 describe('Quant Workspace components', () => {
+  it('moves a retained report candidate through a reviewable Paper order draft', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const research = structuredClone(quantFixtureSnapshot);
+    research.report!.selectedCandidateId = 'candidate-b';
+    await act(async () => {
+      root.render(<QuantPaperTradingPage api={createFixtureQuantApi()} research={research} />);
+      await Promise.resolve();
+    });
+    expect(container.textContent).toContain('Paper Trading');
+    expect(container.textContent).toContain('$100,000.00');
+    const review = [...container.querySelectorAll<HTMLButtonElement>('button')]
+      .find((button) => button.textContent === 'Review draft');
+    expect(review?.disabled).toBe(false);
+    await act(async () => {
+      review?.click();
+      await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
+    });
+    expect(container.textContent).toContain('draft');
+    expect(container.textContent).toContain('Submit');
+    expect(container.textContent).toContain('Cancel');
+    await act(async () => { root.unmount(); });
+    container.remove();
+  });
+
   it('keeps managed runtime controls inside the native settings destination and locks them for an active run', () => {
     const active = structuredClone(quantFixtureSnapshot);
     active.run.state = 'running_experiments';

@@ -2213,6 +2213,7 @@ function parseReport(value: unknown, path: string, ctx: Ctx, marketRuntime: bool
     new Set([
       'id',
       'title',
+      'selectedCandidateId',
       'conclusion',
       'proposedNextStep',
       'limitations',
@@ -2232,6 +2233,11 @@ function parseReport(value: unknown, path: string, ctx: Ctx, marketRuntime: bool
       let ok = true;
       const id = requiredString(obj.id, joinPath(path, 'id'), ctx);
       const title = requiredString(obj.title, joinPath(path, 'title'), ctx);
+      const selectedCandidateId = optionalString(
+        obj.selectedCandidateId,
+        joinPath(path, 'selectedCandidateId'),
+        ctx,
+      );
       const conclusion = requiredString(obj.conclusion, joinPath(path, 'conclusion'), ctx);
       const proposedNextStep = requiredString(obj.proposedNextStep, joinPath(path, 'proposedNextStep'), ctx);
       const limitations = requiredArray(requiredString)(obj.limitations, joinPath(path, 'limitations'), ctx);
@@ -2312,6 +2318,7 @@ function parseReport(value: unknown, path: string, ctx: Ctx, marketRuntime: bool
       if (
         id === null ||
         title === null ||
+        selectedCandidateId === null ||
         conclusion === null ||
         proposedNextStep === null ||
         limitations === null ||
@@ -2339,6 +2346,9 @@ function parseReport(value: unknown, path: string, ctx: Ctx, marketRuntime: bool
         generationMethod: generationMethod!,
         disclaimer: disclaimer!,
       };
+      if (selectedCandidateId !== undefined) {
+        report.selectedCandidateId = selectedCandidateId;
+      }
       if (generalization != null) report.generalization = generalization;
       if (walkForward != null) report.walkForward = walkForward;
       if (robustnessSensitivity != null) report.robustnessSensitivity = robustnessSensitivity;

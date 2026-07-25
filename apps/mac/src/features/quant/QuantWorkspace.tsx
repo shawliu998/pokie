@@ -9,6 +9,7 @@ import { presentQuantProblem, QuantInlineProblem, type QuantProblem } from './qu
 import { QuantGoalComposer, type QuantRefinementContext, type QuantResearchFollowUp } from './QuantGoalComposer';
 import { QuantInspector, type QuantInspectTarget } from './QuantInspector';
 import { QuantOverviewWorkbench, QuantUtilityFrame, ResearchCopilotContent, type WorkspaceTab } from './QuantOverviewWorkbench';
+import { QuantPaperTradingPage } from './QuantPaperTradingPage';
 import { canContinueResearch, presentQuantWorkspace, presentResearchCopilot, projectTerminalDecision, resolveEvidenceFocusIntent, type QuantActionPresentation, type QuantCopilotActionKind, type QuantEvidenceFocusIntent, type QuantEvidenceFocusRequest, type QuantEvidenceFocusResult } from './quant-presentation';
 import { QuantRunsPage } from './QuantRunsPage';
 import { QuantSidebar } from './QuantSidebar';
@@ -17,7 +18,7 @@ import { QuantStrategyLab } from './QuantStrategyLab';
 import { QuantRuntimeSettings } from './QuantRuntimeSettings';
 import './quant-workspace.css';
 
-const quantDestinations: ReadonlySet<QuantNavDestination> = new Set(['new_research', 'projects', 'runs', 'data', 'settings']);
+const quantDestinations: ReadonlySet<QuantNavDestination> = new Set(['new_research', 'projects', 'runs', 'data', 'paper', 'settings']);
 const progressOverviewStates = new Set(['loading_data', 'generating_candidates', 'generating_report']);
 const experimentWorkspaceStates = new Set(['queued', 'running_experiments', 'repairing', 'validating']);
 const agentDecisionSurfaceStates = new Set(['queued', 'loading_data', 'generating_candidates', 'running_experiments', 'repairing', 'validating', 'generating_report']);
@@ -139,6 +140,7 @@ function OverviewPage({ api, destination, snapshot, selectedDataset, composerMod
   if (destination === 'new_research') return <div className="quant-page quant-new-page"><div className="quant-page-title"><h1>New research</h1><p>{refinement ? 'Set the next objective from retained evidence, then generate a plan for review.' : 'Select market evidence, define a measurable objective, and generate a plan before Qurio runs experiments.'}</p></div>{refinementLoading ? <p className="quant-inline-note" role="status">Loading continuation source…</p> : refinementError ? <QuantInlineProblem problem={{ kind: 'validation', title: 'Continuation unavailable', detail: refinementError, retryable: false }} action={<Button onClick={onCancelRefinement}>Start new research</Button>} /> : <QuantGoalComposer api={api} snapshot={snapshot} selectedDataset={selectedDataset} initialMode={composerMode} initialGoal={refinement ? `Continue research from ${refinement.candidateName}: ${refinement.sourceQuestion}` : ''} large busy={commandPending} refinement={refinement} onCancelRefinement={onCancelRefinement} onSelectDataset={onSelectDataset} onAddData={onAddData} onSubmit={onComposer} onStartNewRun={onStartNewRun} />}</div>;
   if (destination === 'runs') return <QuantRunsPage api={api} snapshot={snapshot} openingRunId={openingRunId} openRunError={openRunError} onOpenRun={onOpenRun} onOpenReport={onOpenWorkspace} onStartNewResearch={onStartNewResearch} onRefineFromComparison={onRefineFromComparison} evidenceFocus={evidenceFocus} onEvidenceFocusResolved={onEvidenceFocusResolved} />;
   if (destination === 'data') return <QuantDataPage api={api} snapshot={snapshot} selectedDataset={selectedDataset} onSelect={onSelectDataset} onUseForResearch={onUseDatasetForResearch} onImportViewChange={onDataImportViewChange} onPreviewViewChange={onDataPreviewViewChange} />;
+  if (destination === 'paper') return <QuantPaperTradingPage api={api} research={snapshot} />;
   return <QuantRuntimeSettings snapshot={snapshot} />;
 }
 

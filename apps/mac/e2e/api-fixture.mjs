@@ -40,7 +40,7 @@ const SHA = (letter) => `sha256:${letter.repeat(64)}`;
 const EVIDENCE_QUOTE = 'Permission previews would unblock our enterprise rollout.';
 const textDigest = (value) => `sha256:${createHash('sha256').update(value).digest('hex')}`;
 const cloneFixtureValue = (value) => JSON.parse(JSON.stringify(value));
-const state = { apiOffline: false, mutationRequestCount: 0, sseRequestCount: 0, offlineMutationRequestCount: 0, offlineSseRequestCount: 0, offlineExportRequestCount: 0, importState: 'none', importPayload: null, consentPreviewCount: 0, consentGrantAttempts: 0, consentGrantCount: 0, uploadCount: 0, signalTriaged: false, signalDisposition: null, signalTransitionCount: 0, investigationStatus: 'none', investigationRowVersion: 1, runState: 'none', runRowVersion: 1, latestSequence: 0, sseAttempt: 0, evidenceStatus: 'proposed', claimStatus: 'needs_review', synthesisStatus: 'none', synthesisRowVersion: 2, briefStatus: 'none', briefRowVersion: 1, briefVersion: 1, briefDocument: null, briefReadiness: 'draft', cloudSources: [], validationJobs: [], schedules: [], watchlistSourceIds: [ID.csvSource, ID.githubSource, ID.rssSource], watchlistRowVersion: 2, exportPostCount: 0, exportTerminalCount: 0, exportIdempotencyKeys: [], exportTimestamps: [] };
+const state = { apiOffline: false, mutationRequestCount: 0, sseRequestCount: 0, offlineMutationRequestCount: 0, offlineSseRequestCount: 0, offlineExportRequestCount: 0, importState: 'none', importPayload: null, consentPreviewCount: 0, consentGrantAttempts: 0, consentGrantCount: 0, uploadCount: 0, signalTriaged: false, signalDisposition: null, signalTransitionCount: 0, investigationStatus: 'none', investigationRowVersion: 1, runState: 'none', runRowVersion: 1, latestSequence: 0, sseAttempt: 0, evidenceStatus: 'proposed', claimStatus: 'needs_review', synthesisStatus: 'none', synthesisRowVersion: 2, briefStatus: 'none', briefRowVersion: 1, briefVersion: 1, briefDocument: null, briefReadiness: 'draft', cloudSources: [], validationJobs: [], schedules: [], watchlistSourceIds: [ID.csvSource, ID.githubSource, ID.rssSource], watchlistRowVersion: 2, exportPostCount: 0, exportTerminalCount: 0, exportIdempotencyKeys: [], exportTimestamps: [], paperAccountVersion: 1, paperOrders: [], paperPositions: [], paperFills: [], paperReconciledAt: null };
 
 const initialFixtureState = cloneFixtureValue(state);
 
@@ -1413,6 +1413,34 @@ function bootstrap() {
 
 function navigation() { return { workspace_id: ID.workspace, unreviewed_signal_count: state.importState === 'finalized' && !state.signalTriaged ? 1 : 0, investigation_needs_input_count: 0, draft_decision_brief_count: state.briefStatus === 'draft' ? 1 : 0, monitoring_health: 'degraded', computed_at: LATER, data_authenticity: 'human_authored' }; }
 
+function paperSnapshot() {
+  const cash = 100000 - state.paperFills.reduce((total, fill) => total + Number(fill.notional), 0);
+  const marketValue = state.paperPositions.reduce((total, position) => total + Number(position.market_value), 0);
+  return {
+    contract_version: 'qurio-paper-v1',
+    environment: 'paper',
+    account: {
+      account_id: '00000000-0000-4000-8000-000000000901',
+      workspace_id: ID.workspace,
+      environment: 'paper',
+      broker: 'local_simulator',
+      currency: 'USD',
+      status: 'active',
+      cash: cash.toFixed(2),
+      buying_power: cash.toFixed(2),
+      equity: (cash + marketValue).toFixed(2),
+      row_version: state.paperAccountVersion,
+      last_reconciled_at: state.paperReconciledAt,
+      updated_at: LATER,
+    },
+    positions: state.paperPositions,
+    orders: state.paperOrders,
+    fills: state.paperFills,
+    legal_actions: ['create_draft', 'submit', 'cancel', 'reconcile'],
+    generated_at: LATER,
+  };
+}
+
 const runEventId = (sequence) => `00000000-0000-4000-8000-${String(200 + sequence).padStart(12, '0')}`;
 function sseEvent(sequence, eventType, payload) { const eventId = runEventId(sequence); const wire = { data_authenticity: 'collected', run_id: ID.run, sequence, event_id: eventId, event_type: eventType, payload, trace_id: 'fixture-trace', timestamp: LATER }; return `id: ${eventId}\nevent: ${eventType}\ndata: ${JSON.stringify(wire)}\n\n`; }
 
@@ -1438,6 +1466,84 @@ const server = createServer(async (req, res) => {
     }
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) state.mutationRequestCount += 1;
     if (req.method === 'POST' && path.startsWith('/quant/') && QUANT_MUTATION_DELAY_MS > 0) await new Promise((resolve) => globalThis.setTimeout(resolve, QUANT_MUTATION_DELAY_MS));
+    if (req.method === 'GET' && path === '/paper/snapshot') return send(res, 200, paperSnapshot());
+    if (req.method === 'POST' && path === '/paper/orders/drafts') {
+      requireValue(payload?.order_type === 'market' && payload?.time_in_force === 'day', 'Paper fixture supports Market/Day only.');
+      requireValue(payload?.expected_account_row_version === state.paperAccountVersion, 'Paper account version changed.');
+      const referencePrice = '365.25';
+      const order = {
+        order_id: `00000000-0000-4000-8000-${String(910 + state.paperOrders.length).padStart(12, '0')}`,
+        workspace_id: ID.workspace,
+        environment: 'paper',
+        broker: 'local_simulator',
+        state: 'draft',
+        source_run_id: payload.source_run_id,
+        source_candidate_id: payload.source_candidate_id,
+        source_evidence_digest: SHA('p'),
+        symbol: 'SPY',
+        side: payload.side,
+        quantity: Number(payload.quantity).toFixed(8),
+        filled_quantity: '0',
+        order_type: 'market',
+        time_in_force: 'day',
+        limit_price: null,
+        reference_price: referencePrice,
+        estimated_notional: (Number(payload.quantity) * Number(referencePrice)).toFixed(2),
+        average_fill_price: null,
+        external_order_id: null,
+        rejection_reason: null,
+        row_version: 1,
+        created_at: LATER,
+        updated_at: LATER,
+        submitted_at: null,
+        filled_at: null,
+        cancelled_at: null,
+      };
+      state.paperOrders.unshift(order);
+      return send(res, 201, order);
+    }
+    const paperSubmit = path.match(/^\/paper\/orders\/([^/]+)\/submit$/);
+    if (req.method === 'POST' && paperSubmit) {
+      const order = state.paperOrders.find((item) => item.order_id === decodeURIComponent(paperSubmit[1]));
+      requireValue(order?.state === 'draft', 'Paper order must be a draft.');
+      requireValue(payload?.expected_order_row_version === order.row_version, 'Paper order version changed.');
+      requireValue(payload?.expected_account_row_version === state.paperAccountVersion, 'Paper account version changed.');
+      order.state = 'filled';
+      order.filled_quantity = order.quantity;
+      order.average_fill_price = order.reference_price;
+      order.row_version += 1;
+      order.submitted_at = LATER;
+      order.filled_at = LATER;
+      state.paperAccountVersion += 1;
+      const notional = (Number(order.quantity) * Number(order.reference_price)).toFixed(2);
+      state.paperPositions = [{
+        symbol: order.symbol,
+        quantity: order.quantity,
+        average_entry_price: order.reference_price,
+        current_price: order.reference_price,
+        market_value: notional,
+        unrealized_pl: '0.00',
+        updated_at: LATER,
+      }];
+      state.paperFills = [{
+        fill_id: '00000000-0000-4000-8000-000000000920',
+        order_id: order.order_id,
+        workspace_id: ID.workspace,
+        symbol: order.symbol,
+        side: order.side,
+        quantity: order.quantity,
+        price: order.reference_price,
+        notional,
+        occurred_at: LATER,
+      }];
+      return send(res, 200, order);
+    }
+    if (req.method === 'POST' && path === '/paper/reconcile') {
+      requireValue(payload?.expected_account_row_version === state.paperAccountVersion, 'Paper account version changed.');
+      state.paperAccountVersion += 1;
+      state.paperReconciledAt = LATER;
+      return send(res, 200, paperSnapshot());
+    }
     if (req.method === 'GET' && path === '/quant/workspace-snapshot') {
       if (QUANT_DELAY_MS > 0) await new Promise((resolve) => globalThis.setTimeout(resolve, QUANT_DELAY_MS));
       if (activeMarketRunId) {
@@ -1459,6 +1565,9 @@ const server = createServer(async (req, res) => {
         return send(res, 200, cloneFixtureValue(activeMarketSnapshot));
       }
       const snapshot = JSON.parse(JSON.stringify(QUANT_FIXTURES[quantFixtureState]));
+      if (quantFixtureState === 'quant-completed' && snapshot.report) {
+        snapshot.report.selectedCandidateId = 'candidate-b';
+      }
       snapshot.run.rowVersion = quantRowVersion;
       snapshot.run.mode = quantRunMode;
       snapshot.project.goal = quantGoal;

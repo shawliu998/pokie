@@ -5,6 +5,48 @@ import { quantFixtureSnapshot } from './features/quant/quant-fixtures';
 import { QuantWorkspaceCompatibilityError } from './quant-workspace-parser';
 
 describe('Quant fixture API adapter', () => {
+  it('keeps Paper requests on their independent transport and maps account state', async () => {
+    const now = '2026-07-25T08:00:00Z';
+    const calls: Array<{ path: string; init?: RequestInit }> = [];
+    const snapshot = {
+      contract_version: 'qurio-paper-v1',
+      environment: 'paper',
+      account: {
+        account_id: '00000000-0000-4000-8000-000000000901',
+        workspace_id: '00000000-0000-4000-8000-000000000902',
+        environment: 'paper',
+        broker: 'local_simulator',
+        currency: 'USD',
+        status: 'active',
+        cash: '100000.00',
+        buying_power: '100000.00',
+        equity: '100000.00',
+        row_version: 1,
+        last_reconciled_at: null,
+        updated_at: now,
+      },
+      positions: [],
+      orders: [],
+      fills: [],
+      legal_actions: ['create_draft', 'submit', 'cancel', 'reconcile'],
+      generated_at: now,
+    };
+    const glint = {
+      async quantRequest() { return quantFixtureSnapshot; },
+      async paperRequest(path: string, init?: RequestInit) {
+        calls.push({ path, init });
+        return snapshot;
+      },
+    } as unknown as GlintApi;
+    const paper = await createApiQuantApi(glint).getPaperSnapshot();
+    expect(paper).toMatchObject({
+      contractVersion: 'qurio-paper-v1',
+      environment: 'paper',
+      account: { broker: 'local_simulator', cash: '100000.00', rowVersion: 1 },
+    });
+    expect(calls).toEqual([{ path: '/paper/snapshot', init: undefined }]);
+  });
+
   it('rejects commands absent from the completed snapshot without mutating run state', async () => {
     const api = createFixtureQuantApi();
     const before = (await api.getWorkspaceSnapshot()).run.state;
