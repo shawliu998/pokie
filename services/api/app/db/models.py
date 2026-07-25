@@ -128,6 +128,20 @@ class QuantRepositoryState(Timestamped, Versioned, Authentic, Base):
     worker_fencing_version: Mapped[int] = mapped_column(Integer, default=0)
 
 
+class PaperTradingState(Timestamped, Versioned, Base):
+    """Workspace-scoped simulation state, deliberately separate from research."""
+
+    __tablename__ = "paper_trading_states"
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id"), primary_key=True)
+    contract_version: Mapped[str] = mapped_column(
+        String(64),
+        default="qurio-paper-v1",
+        server_default=text("'qurio-paper-v1'"),
+        nullable=False,
+    )
+    state_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
 class Watchlist(Identified, Timestamped, Versioned, Authentic, Base):
     __tablename__ = "watchlists"
     workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id"), index=True)

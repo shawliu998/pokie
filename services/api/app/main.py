@@ -19,6 +19,7 @@ from sqlalchemy.exc import IntegrityError
 
 from packages.contracts.openapi import openapi_components
 from services.api.app.api.routes_core import router as core_router
+from services.api.app.api.routes_paper import router as paper_router
 from services.api.app.api.routes_quant import router as quant_router
 from services.api.app.api.routes_research import router as research_router
 from services.api.app.core.auth import authenticate_authorization
@@ -388,6 +389,7 @@ def health() -> dict[str, str]:
 # discovery, OpenAPI generation, and older DTO generators all see one stable
 # flat application surface across FastAPI releases.
 app.router.routes.extend(core_router.routes)
+app.router.routes.extend(paper_router.routes)
 app.router.routes.extend(quant_router.routes)
 app.router.routes.extend(research_router.routes)
 

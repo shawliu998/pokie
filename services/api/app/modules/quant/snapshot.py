@@ -2259,6 +2259,7 @@ def quant_agent_workspace_snapshot(
         {
             "id": report_artifact.id,
             "title": report_artifact.title,
+            "selectedCandidateId": report_selection,
             "conclusion": user_facing_report_text(
                 report_artifact.content.get("conclusion", run.final_conclusion or ""),
                 fallback=(
