@@ -1,10 +1,19 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Badge, Button } from '@glint/ui';
-import { quantIdempotencyKey, type QuantApi } from '../../quant-api';
-import { quantAuthenticityLabel, type DatasetSnapshot, type QuantWorkspaceSnapshot } from '../../quant-domain';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Button } from '@glint/ui';
+import { quantIdempotencyKey, type QuantApi, type QuantConnectorInterval, type QuantMarketDataConnector } from '../../quant-api';
+import type { DatasetSnapshot, QuantBarInterval, QuantDatasetPreview, QuantWorkspaceSnapshot } from '../../quant-domain';
+import { defaultMarketFetchLimit, marketResearchRequirementLabel } from '../../quant-research-eligibility';
+import { presentQuantProblem, QuantInlineProblem, type QuantProblem } from './quant-errors';
+import { QuantMarketChart } from './QuantMarketWorkspace';
 
 const MAX_CSV_BYTES = 10_000_000;
-const MIN_AUTONOMOUS_RESEARCH_BARS = 252;
+type DataDirectoryTab = 'datasets' | 'connections';
+type ImportSource = 'binance' | 'kraken' | 'nasdaq' | 'csv';
+const MARKET_INTERVALS: readonly QuantBarInterval[] = ['1h', '4h', '1D'];
+
+function intervalLabel(value: QuantBarInterval): string {
+  return value === '1h' ? '1 hour' : value === '4h' ? '4 hour' : '1 day';
+}
 
 function fileStem(fileName: string): string {
   return fileName.replace(/\.csv$/i, '').trim() || 'Imported OHLCV dataset';
@@ -17,18 +26,60 @@ function uniqueDatasets(snapshotDataset: DatasetSnapshot, datasets: DatasetSnaps
   return [...byId.values()];
 }
 
-function qualitySummary(dataset: DatasetSnapshot): string {
-  const quality = dataset.quality;
-  if (!quality) return 'Unavailable for this legacy or synthetic snapshot.';
-  return `${quality.status} · ${quality.barCount.toLocaleString()} checked bars · ${quality.zeroVolumeBarCount} zero-volume · ${quality.calendarGapCount} calendar gaps`;
+function qualityLabel(dataset: DatasetSnapshot): string {
+  if (!dataset.quality) return 'Not checked';
+  if (dataset.quality.status === 'blocked') return 'Blocked';
+  if (dataset.contract === 'legacy-daily-v1' && dataset.quality.status === 'warning') return 'Attention';
+  return 'Verified';
 }
 
-export function QuantDataPage({ api, snapshot, selectedDataset, onSelect, onInspect }: {
+function qualityTone(dataset: DatasetSnapshot): 'blocked' | 'warning' | 'verified' | 'unchecked' {
+  if (!dataset.quality) return 'unchecked';
+  if (dataset.quality.status === 'blocked') return 'blocked';
+  if (dataset.contract === 'legacy-daily-v1' && dataset.quality.status === 'warning') return 'warning';
+  return 'verified';
+}
+
+function focusAfterPaint(target: () => HTMLElement | null | undefined) {
+  requestAnimationFrame(() => requestAnimationFrame(() => target()?.focus()));
+}
+
+function QuantDatasetPreviewPanel({ dataset, preview, loading, problem, selected, onRetry, onClose, onSelect }: {
+  dataset: DatasetSnapshot;
+  preview: QuantDatasetPreview | null;
+  loading: boolean;
+  problem: QuantProblem | null;
+  selected: boolean;
+  onRetry: () => void;
+  onClose: () => void;
+  onSelect: () => void;
+}) {
+  const canResearch = dataset.researchEligible;
+  const source = dataset.source?.sourceName ?? (dataset.authenticity === 'synthetic_fixture' ? 'Synthetic fixture' : 'Imported dataset');
+  const tone = qualityTone(dataset);
+  return <aside className="quant-dataset-preview" aria-labelledby="quant-dataset-preview-title" aria-busy={loading}>
+    <header><div><span>Dataset preview</span><h2 id="quant-dataset-preview-title">{dataset.symbol} · {dataset.interval}</h2><p>{dataset.name}</p></div><Button onClick={onClose}>Back to catalog</Button></header>
+    <dl className="quant-dataset-preview-facts"><div><dt>Coverage</dt><dd>{dataset.dateRange.start} – {dataset.dateRange.end}</dd></div><div><dt>Bars</dt><dd>{dataset.barCount.toLocaleString()}</dd></div><div><dt>Source</dt><dd>{source}</dd></div><div><dt>Quality</dt><dd className={tone === 'blocked' ? 'is-danger' : tone === 'warning' ? 'is-warning' : undefined}>{qualityLabel(dataset)}</dd></div>{dataset.contract === 'market-v2' && <div><dt>Annualization</dt><dd>{dataset.periodsPerYear ? `${dataset.periodsPerYear.toLocaleString()} periods/year` : 'Unavailable'}</dd></div>}</dl>
+    {dataset.quality?.status === 'blocked' && <p className="quant-preview-blocked"><strong>Research use is blocked.</strong> Review the quality findings before selecting this dataset.</p>}
+    {loading && <div className="quant-preview-loading"><strong>Loading stored OHLCV…</strong><span>The preview is read from this dataset, not the current run.</span></div>}
+    {problem && <QuantInlineProblem problem={problem} action={problem.retryable ? <Button onClick={onRetry}>Retry preview</Button> : undefined} />}
+    {!loading && !problem && preview && <>
+      <QuantMarketChart bars={preview.bars} symbol={preview.symbol} interval={preview.interval} dateRange={{ start: preview.bars[0]?.date ?? preview.coveredStart, end: preview.bars.at(-1)?.date ?? preview.coveredEnd }} title={`${preview.returnedBarCount} latest contiguous bars`} description={`${preview.symbol} stored OHLCV preview; ${preview.returnedBarCount} of ${preview.totalBarCount} bars returned using the latest contiguous rule.`} />
+      <footer><span>{preview.returnedBarCount.toLocaleString()} of {preview.totalBarCount.toLocaleString()} stored bars shown · latest contiguous</span>{selected ? <strong>Current research dataset</strong> : <Button className="primary" disabled={!canResearch} title={canResearch ? undefined : 'Stored and previewable, but this dataset is not eligible for research.'} onClick={onSelect}>Use for research</Button>}</footer>
+    </>}
+  </aside>;
+}
+
+export function QuantDataPage({ api, snapshot, selectedDataset, onSelect, onUseForResearch, onImportViewChange, onPreviewViewChange, initialView = 'directory', initialSource = 'binance' }: {
   api: QuantApi;
   snapshot: QuantWorkspaceSnapshot;
   selectedDataset: DatasetSnapshot;
   onSelect: (dataset: DatasetSnapshot) => void;
-  onInspect: () => void;
+  onUseForResearch?: (dataset: DatasetSnapshot) => void;
+  onImportViewChange?: (importing: boolean) => void;
+  onPreviewViewChange?: (previewing: boolean) => void;
+  initialView?: 'directory' | 'import';
+  initialSource?: ImportSource;
 }) {
   const [datasets, setDatasets] = useState<DatasetSnapshot[]>([]);
   const [file, setFile] = useState<File | null>(null);
@@ -36,122 +87,297 @@ export function QuantDataPage({ api, snapshot, selectedDataset, onSelect, onInsp
   const [symbol, setSymbol] = useState('');
   const [sourceName, setSourceName] = useState('');
   const [sourceReference, setSourceReference] = useState('');
-  const [marketCalendar, setMarketCalendar] = useState<'unknown' | 'weekday' | 'XNYS' | 'XNAS' | 'XSHG' | 'XSHE'>('unknown');
-  const [timeZone, setTimeZone] = useState('UTC');
-  const [priceAdjustment, setPriceAdjustment] = useState<'unknown' | 'unadjusted' | 'split_adjusted' | 'total_return_adjusted'>('unknown');
+  const [csvInterval, setCsvInterval] = useState<QuantBarInterval>('1D');
   const [binanceSymbol, setBinanceSymbol] = useState('BTCUSDT');
-  const [binanceLimit, setBinanceLimit] = useState(365);
+  const [binanceInterval, setBinanceInterval] = useState<QuantBarInterval>('1D');
+  const [binanceLimit, setBinanceLimit] = useState(defaultMarketFetchLimit('1D'));
+  const [connectors, setConnectors] = useState<QuantMarketDataConnector[]>([]);
+  const [krakenSymbol, setKrakenSymbol] = useState('BTCUSD');
+  const [krakenInterval, setKrakenInterval] = useState<QuantConnectorInterval>('4h');
+  const [krakenLimit, setKrakenLimit] = useState(548);
   const [nasdaqSymbol, setNasdaqSymbol] = useState('AAPL');
   const [nasdaqLookbackDays, setNasdaqLookbackDays] = useState(730);
+  const [showImporter, setShowImporter] = useState(initialView === 'import');
+  const [importSource, setImportSource] = useState<ImportSource>(initialSource);
+  const [directoryTab, setDirectoryTab] = useState<DataDirectoryTab>('datasets');
+  const [directoryQuery, setDirectoryQuery] = useState('');
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'provider' | 'local'>('all');
+  const [integrityFilter, setIntegrityFilter] = useState<'all' | 'verified' | 'attention'>('all');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const operationLock = useRef(false);
+  const hasMounted = useRef(false);
+  const wasShowingImporter = useRef(showImporter);
+  const [listError, setListError] = useState<QuantProblem | null>(null);
+  const [connectorError, setConnectorError] = useState<QuantProblem | null>(null);
+  const [importError, setImportError] = useState<QuantProblem | null>(null);
+  const [binanceError, setBinanceError] = useState<QuantProblem | null>(null);
+  const [krakenError, setKrakenError] = useState<QuantProblem | null>(null);
+  const [nasdaqError, setNasdaqError] = useState<QuantProblem | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [previewDataset, setPreviewDataset] = useState<DatasetSnapshot | null>(null);
+  const [preview, setPreview] = useState<QuantDatasetPreview | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewProblem, setPreviewProblem] = useState<QuantProblem | null>(null);
+  const showImportView = (importing: boolean) => {
+    if (operationLock.current) return;
+    if (importing && previewDataset) {
+      setPreviewDataset(null);
+      setPreview(null);
+      setPreviewProblem(null);
+      onPreviewViewChange?.(false);
+    }
+    setShowImporter(importing);
+    onImportViewChange?.(importing);
+  };
+
+  useEffect(() => {
+    if (!hasMounted.current) {
+      hasMounted.current = true;
+      wasShowingImporter.current = showImporter;
+      if (showImporter) focusAfterPaint(() => document.getElementById(`quant-data-source-${importSource}`));
+      return;
+    }
+    if (wasShowingImporter.current === showImporter) return;
+    wasShowingImporter.current = showImporter;
+    if (showImporter) {
+      focusAfterPaint(() => document.getElementById(`quant-data-source-${importSource}`));
+      return;
+    }
+    focusAfterPaint(() => document.querySelector<HTMLButtonElement>('.quant-data-directory-nav .button.primary'));
+  }, [importSource, showImporter]);
 
   const refresh = async () => {
+    const [legacy, market, connectorDirectory] = await Promise.allSettled([api.listDatasets(), api.listMarketDatasets(), api.listConnectors()]);
+    const loaded = [legacy, market].flatMap((result) => result.status === 'fulfilled' ? result.value : []);
+    setDatasets(loaded);
+    const failures = [legacy, market].filter((result) => result.status === 'rejected');
+    setListError(failures.length ? presentQuantProblem(failures[0]!.reason, failures.length === 2 ? 'Dataset list' : 'Part of the dataset list') : null);
+    if (connectorDirectory.status === 'fulfilled') {
+      setConnectors(connectorDirectory.value);
+      setConnectorError(null);
+    } else {
+      setConnectorError(presentQuantProblem(connectorDirectory.reason, 'Connector directory'));
+    }
+  };
+
+  const loadPreview = async (dataset: DatasetSnapshot) => {
+    setPreviewDataset(dataset);
+    onPreviewViewChange?.(true);
+    setPreview(null);
+    setPreviewProblem(null);
+    setPreviewLoading(true);
     try {
-      setDatasets(await api.listDatasets());
+      setPreview(await (dataset.contract === 'market-v2' ? api.getMarketDatasetPreview(dataset.id) : api.getDatasetPreview(dataset.id)));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Unable to load immutable datasets.');
+      setPreviewProblem(presentQuantProblem(reason, 'Dataset preview'));
+    } finally {
+      setPreviewLoading(false);
     }
   };
 
   useEffect(() => { void refresh(); }, [api]);
+  useEffect(() => {
+    setBinanceLimit(defaultMarketFetchLimit(binanceInterval));
+  }, [binanceInterval]);
+  const krakenConnector = useMemo(
+    () => connectors.find((connector) => connector.provider === 'kraken_spot') ?? null,
+    [connectors],
+  );
+  useEffect(() => {
+    if (!krakenConnector) return;
+    setKrakenSymbol((current) => krakenConnector.supportedSymbols.includes(current) ? current : krakenConnector.supportedSymbols[0]!);
+    setKrakenInterval((current) => krakenConnector.supportedIntervals.includes(current) ? current : krakenConnector.supportedIntervals[0]!);
+  }, [krakenConnector]);
+  useEffect(() => {
+    if (!krakenConnector) return;
+    setKrakenLimit(krakenConnector.minimumRecentBars[krakenInterval]);
+  }, [krakenConnector, krakenInterval]);
+  const sourceTabs = useMemo<ImportSource[]>(
+    () => krakenConnector ? ['binance', 'kraken', 'nasdaq', 'csv'] : ['binance', 'nasdaq', 'csv'],
+    [krakenConnector],
+  );
 
   const allDatasets = useMemo(
     () => uniqueDatasets(snapshot.dataset, datasets),
     [datasets, snapshot.dataset],
   );
-  const eligible = selectedDataset.barCount >= MIN_AUTONOMOUS_RESEARCH_BARS && selectedDataset.quality?.status !== 'blocked';
+  const visibleDatasets = useMemo(() => allDatasets.filter((dataset) => {
+    const query = directoryQuery.trim().toLowerCase();
+    const sourceKind = dataset.source?.kind === 'provider_fetch' ? 'provider' : 'local';
+    const tone = qualityTone(dataset);
+    const integrity = tone === 'unchecked' || tone === 'blocked' || tone === 'warning' ? 'attention' : 'verified';
+    return (!query || `${dataset.symbol} ${dataset.name} ${dataset.source?.sourceName ?? ''}`.toLowerCase().includes(query))
+      && (sourceFilter === 'all' || sourceFilter === sourceKind)
+      && (integrityFilter === 'all' || integrityFilter === integrity);
+  }), [allDatasets, directoryQuery, integrityFilter, sourceFilter]);
+  const onDirectoryTabKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const tabs: DataDirectoryTab[] = ['datasets', 'connections'];
+    const current = tabs.indexOf(directoryTab);
+    let next = current;
+    if (event.key === 'ArrowRight') next = (current + 1) % tabs.length;
+    else if (event.key === 'ArrowLeft') next = (current - 1 + tabs.length) % tabs.length;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = tabs.length - 1;
+    else return;
+    event.preventDefault();
+    const nextTab = tabs[next] ?? directoryTab;
+    setDirectoryTab(nextTab);
+    requestAnimationFrame(() => document.getElementById(`quant-data-tab-${nextTab}`)?.focus());
+  };
 
-  const chooseMarketCalendar = (calendar: typeof marketCalendar) => {
-    setMarketCalendar(calendar);
-    if (calendar === 'XNYS' || calendar === 'XNAS') setTimeZone('America/New_York');
-    if (calendar === 'XSHG' || calendar === 'XSHE') setTimeZone('Asia/Shanghai');
+  const onSourceTabKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const current = sourceTabs.indexOf(importSource);
+    let next = current;
+    if (event.key === 'ArrowRight') next = (current + 1) % sourceTabs.length;
+    else if (event.key === 'ArrowLeft') next = (current - 1 + sourceTabs.length) % sourceTabs.length;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = sourceTabs.length - 1;
+    else return;
+    event.preventDefault();
+    const nextTab = sourceTabs[next] ?? importSource;
+    setImportSource(nextTab);
+    requestAnimationFrame(() => document.getElementById(`quant-data-source-${nextTab}`)?.focus());
+  };
+
+  const focusAlert = (id: string) => {
+    focusAfterPaint(() => {
+      const node = document.getElementById(id);
+      if (!node) return null;
+      return node.querySelector<HTMLElement>('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')
+        ?? node;
+    });
+  };
+
+  const focusField = (selector: string) => {
+    focusAfterPaint(() => document.querySelector<HTMLElement>(selector));
   };
 
   const chooseFile = (nextFile: File | null) => {
     setFile(nextFile);
-    setError(null);
+    setImportError(null);
     setNotice(null);
     if (!nextFile) return;
     if (nextFile.size > MAX_CSV_BYTES) {
-      setError('CSV files must be 10 MB or smaller.');
+      setImportError(presentQuantProblem('CSV files must be 10 MB or smaller.', 'CSV import'));
+      focusField('[aria-label="OHLCV CSV file"]');
       return;
     }
     setName((current) => current || fileStem(nextFile.name));
   };
 
   const importCsv = async () => {
-    if (!file || busy) return;
+    if (!file || operationLock.current) return;
     if (file.size > MAX_CSV_BYTES) {
-      setError('CSV files must be 10 MB or smaller.');
+      setImportError(presentQuantProblem('CSV files must be 10 MB or smaller.', 'CSV import'));
+      focusField('[aria-label="OHLCV CSV file"]');
       return;
     }
     if (!name.trim() || !symbol.trim()) {
-      setError('Provide a dataset name and symbol before importing.');
+      setImportError(presentQuantProblem('A dataset name and symbol are required.', 'CSV import'));
+      focusField(!name.trim() ? '[aria-label="Dataset name"]' : '[aria-label="Dataset symbol"]');
       return;
     }
+    operationLock.current = true;
     setBusy(true);
-    setError(null);
+    setImportError(null);
     setNotice(null);
     try {
-      const dataset = await api.importDatasetCsv({
+      const dataset = await api.importMarketDatasetCsv({
         name: name.trim(),
         symbol: symbol.trim(),
+        interval: csvInterval,
         csvText: await file.text(),
         fileName: file.name,
         sourceName: sourceName.trim() || 'User-provided CSV',
         sourceReference: sourceReference.trim() || undefined,
-        marketCalendar,
-        timeZone: timeZone.trim() || 'UTC',
-        priceAdjustment,
         idempotencyKey: quantIdempotencyKey(),
       });
       setDatasets((current) => uniqueDatasets(dataset, current));
-      onSelect(dataset);
       setFile(null);
       setName('');
       setSymbol('');
       setSourceName('');
       setSourceReference('');
-      setMarketCalendar('unknown');
-      setTimeZone('UTC');
-      setPriceAdjustment('unknown');
+      setCsvInterval('1D');
       setNotice(`${dataset.name} was imported as an immutable dataset.`);
       await refresh();
+      setShowImporter(false);
+      onImportViewChange?.(false);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'The OHLCV CSV could not be imported.');
+      setImportError(presentQuantProblem(reason, 'CSV import'));
+      focusAlert('quant-import-error');
     } finally {
+      operationLock.current = false;
       setBusy(false);
     }
   };
 
   const fetchBinanceSpot = async () => {
-    if (busy) return;
+    if (operationLock.current) return;
+    operationLock.current = true;
     setBusy(true);
-    setError(null);
+    setBinanceError(null);
     setNotice(null);
     try {
-      const dataset = await api.fetchBinanceSpotDataset({
+      const dataset = await api.fetchMarketBinanceDataset({
+        name: `${binanceSymbol.trim().toUpperCase() || 'BTCUSDT'} Binance Spot ${intervalLabel(binanceInterval)}`,
         symbol: binanceSymbol.trim().toUpperCase() || 'BTCUSDT',
-        limit: Math.max(252, Math.min(1000, binanceLimit || 365)),
+        interval: binanceInterval,
+        limit: Math.max(1, Math.min(5000, binanceLimit || defaultMarketFetchLimit(binanceInterval))),
         idempotencyKey: quantIdempotencyKey(),
       });
       setDatasets((current) => uniqueDatasets(dataset, current));
-      onSelect(dataset);
       setNotice(`${dataset.name} was fetched and stored as an immutable dataset.`);
       await refresh();
+      setShowImporter(false);
+      onImportViewChange?.(false);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Binance Spot data could not be fetched.');
+      setBinanceError(presentQuantProblem(reason, 'Binance data fetch'));
+      focusAlert('quant-binance-error');
     } finally {
+      operationLock.current = false;
+      setBusy(false);
+    }
+  };
+
+  const fetchKrakenSpot = async () => {
+    if (!krakenConnector || operationLock.current) return;
+    operationLock.current = true;
+    setBusy(true);
+    setKrakenError(null);
+    setNotice(null);
+    try {
+      const dataset = await api.fetchConnectorDataset({
+        connectorId: krakenConnector.id,
+        name: `${krakenSymbol} Kraken Spot ${intervalLabel(krakenInterval)}`,
+        symbol: krakenSymbol,
+        interval: krakenInterval,
+        limit: Math.max(
+          krakenConnector.minimumRecentBars[krakenInterval],
+          Math.min(krakenConnector.maximumRecentBars, krakenLimit || krakenConnector.minimumRecentBars[krakenInterval]),
+        ),
+        idempotencyKey: quantIdempotencyKey(),
+      });
+      setDatasets((current) => uniqueDatasets(dataset, current));
+      setNotice(`${dataset.name} was fetched and stored as an immutable dataset.`);
+      await refresh();
+      setDirectoryTab('datasets');
+      setShowImporter(false);
+      onImportViewChange?.(false);
+    } catch (reason) {
+      setKrakenError(presentQuantProblem(reason, 'Kraken data fetch'));
+      focusAlert('quant-kraken-error');
+    } finally {
+      operationLock.current = false;
       setBusy(false);
     }
   };
 
   const fetchNasdaqEquity = async () => {
-    if (busy) return;
+    if (operationLock.current) return;
+    operationLock.current = true;
     setBusy(true);
-    setError(null);
+    setNasdaqError(null);
     setNotice(null);
     try {
       const dataset = await api.fetchNasdaqEquityDataset({
@@ -163,62 +389,48 @@ export function QuantDataPage({ api, snapshot, selectedDataset, onSelect, onInsp
       onSelect(dataset);
       setNotice(`${dataset.name} was fetched and stored as an immutable dataset.`);
       await refresh();
+      setShowImporter(false);
+      onImportViewChange?.(false);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Nasdaq equity data could not be fetched.');
+      setNasdaqError(presentQuantProblem(reason, 'Nasdaq data fetch'));
+      focusAlert('quant-nasdaq-error');
     } finally {
+      operationLock.current = false;
       setBusy(false);
     }
   };
 
-  return <div className="quant-page quant-data-page">
-    <div className="quant-page-title"><p className="quant-eyebrow">Data</p><h1>Immutable datasets</h1><p>Import CSV or retrieve bounded provider data, then select the immutable version a new research run must pin.</p></div>
-    <section className="quant-data-import" aria-labelledby="quant-data-import-title">
-      <div><p className="quant-eyebrow">Import CSV</p><h2 id="quant-data-import-title">Daily OHLCV</h2><p>Accepted files are parsed by the server and stored as immutable, digest-addressed dataset versions.</p></div>
-      <div className="quant-data-import-fields">
-        <label><span>CSV file</span><input aria-label="OHLCV CSV file" type="file" accept=".csv,text/csv" disabled={busy} onChange={(event) => chooseFile(event.target.files?.[0] ?? null)} /></label>
-        <label><span>Dataset name</span><input aria-label="Dataset name" value={name} disabled={busy} onChange={(event) => setName(event.target.value)} /></label>
-        <label><span>Symbol</span><input aria-label="Dataset symbol" value={symbol} disabled={busy} placeholder="SPY" onChange={(event) => setSymbol(event.target.value.toUpperCase())} /></label>
-        <label><span>Source/provider</span><input aria-label="Dataset source provider" value={sourceName} disabled={busy} placeholder="Exchange, vendor, or research source" onChange={(event) => setSourceName(event.target.value)} /></label>
-        <label><span>Source reference</span><input aria-label="Dataset source reference" value={sourceReference} disabled={busy} placeholder="URL, export ID, or internal reference" onChange={(event) => setSourceReference(event.target.value)} /></label>
-        <label><span>Market calendar</span><select aria-label="Dataset market calendar" value={marketCalendar} disabled={busy} onChange={(event) => chooseMarketCalendar(event.target.value as typeof marketCalendar)}><option value="unknown">Unknown</option><option value="weekday">Weekday only</option><option value="XNYS">NYSE (XNYS)</option><option value="XNAS">Nasdaq (XNAS)</option><option value="XSHG">Shanghai (XSHG)</option><option value="XSHE">Shenzhen (XSHE)</option></select></label>
-        <label><span>Market timezone</span><input aria-label="Dataset market timezone" value={timeZone} disabled={busy} placeholder="America/New_York" onChange={(event) => setTimeZone(event.target.value)} /></label>
-        <label><span>Price adjustment</span><select aria-label="Dataset price adjustment" value={priceAdjustment} disabled={busy} onChange={(event) => setPriceAdjustment(event.target.value as typeof priceAdjustment)}><option value="unknown">Unknown</option><option value="unadjusted">Unadjusted</option><option value="split_adjusted">Split adjusted</option><option value="total_return_adjusted">Total return adjusted</option></select></label>
-        <Button className="primary" disabled={!file || busy} onClick={() => void importCsv()}>{busy ? 'Importing…' : 'Import immutable dataset'}</Button>
+  if (!showImporter) return <div className="quant-data-directory">
+    <h1 className="quant-visually-hidden">Data directory</h1>
+    <div className="quant-data-directory-nav"><div className="quant-data-directory-tabs" role="tablist" aria-label="Data directory views" onKeyDown={onDirectoryTabKeyDown}>{(['datasets', 'connections'] as const).map((tab) => <button key={tab} id={`quant-data-tab-${tab}`} role="tab" aria-controls={`quant-data-panel-${tab}`} aria-selected={directoryTab === tab} tabIndex={directoryTab === tab ? 0 : -1} className={directoryTab === tab ? 'active' : undefined} onClick={() => setDirectoryTab(tab)}>{tab === 'datasets' ? 'Catalog' : 'Connections'}</button>)}</div><span className="quant-data-directory-count">{allDatasets.length} dataset{allDatasets.length === 1 ? '' : 's'}</span><Button className="primary" onClick={() => showImportView(true)}>Add data</Button></div>
+    {notice && <p className="quant-data-notice" role="status">{notice}</p>}
+    {directoryTab === 'datasets' && <section className={`quant-data-catalog-layout${previewDataset ? ' has-preview' : ''}`} id="quant-data-panel-datasets" role="tabpanel" aria-labelledby="quant-data-tab-datasets">
+      <div className="quant-data-directory-table quant-data-catalog-list">
+        <div className="quant-data-directory-tools"><input aria-label="Search datasets" placeholder="Search by symbol, name, or source" value={directoryQuery} onChange={(event) => setDirectoryQuery(event.target.value)} /><select aria-label="Dataset source filter" value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value as typeof sourceFilter)}><option value="all">All sources</option><option value="provider">Providers</option><option value="local">Local/imported</option></select><select aria-label="Dataset quality filter" value={integrityFilter} onChange={(event) => setIntegrityFilter(event.target.value as typeof integrityFilter)}><option value="all">All quality states</option><option value="verified">Quality verified</option><option value="attention">Needs review</option></select></div>
+        {listError && <QuantInlineProblem problem={listError} action={listError.retryable ? <Button onClick={() => void refresh()}>Retry dataset list</Button> : undefined} />}
+        <table className="quant-research-table">
+        <caption className="quant-visually-hidden">Available research datasets</caption>
+        <thead><tr><th>Dataset</th><th>Source</th><th>Coverage</th><th className="is-numeric">Bars</th><th>Data quality</th><th className="is-action">Actions</th></tr></thead>
+        <tbody>{visibleDatasets.map((dataset) => {
+          const isSelected = dataset.id === selectedDataset.id;
+          const canResearch = dataset.researchEligible;
+          const tone = qualityTone(dataset);
+          return <tr key={dataset.id} className={isSelected ? 'is-selected' : undefined}><td><strong>{dataset.symbol}</strong><small>{dataset.name} · {dataset.interval}</small></td><td>{dataset.source?.sourceName ?? (dataset.authenticity === 'synthetic_fixture' ? 'Synthetic fixture' : 'Imported')}</td><td>{dataset.contract === 'market-v2' ? `${dataset.dateRange.start} — ${dataset.dateRange.end}` : `${dataset.dateRange.start.slice(0, 4)} — ${dataset.dateRange.end.slice(0, 4)}`}</td><td className="is-numeric">{dataset.barCount.toLocaleString()}</td><td><span className={tone === 'blocked' ? 'is-danger' : tone === 'warning' ? 'is-warning' : tone === 'verified' ? 'is-positive' : undefined}>{qualityLabel(dataset)}</span></td><td className="is-action"><div className="quant-dataset-actions"><Button onClick={() => void loadPreview(dataset)}>Preview</Button>{isSelected ? <span className="quant-dataset-selected">Current</span> : <Button disabled={!canResearch} title={canResearch ? undefined : 'Stored and previewable, but not research eligible'} onClick={() => (onUseForResearch ?? onSelect)(dataset)}>Use</Button>}</div></td></tr>;
+        })}</tbody>
+      </table>
+      {visibleDatasets.length === 0 && <div className="quant-data-empty"><strong>No matching datasets</strong><span>Clear the search or broaden the source and integrity filters.</span><button onClick={() => { setDirectoryQuery(''); setSourceFilter('all'); setIntegrityFilter('all'); }}>Clear filters</button></div>}
       </div>
-      <small>Maximum 10 MB. The selected file is sent only when you import it.</small>
-      {error && <p className="quant-inline-note" role="alert">{error}</p>}
-      {notice && <p className="quant-inline-note" role="status">{notice}</p>}
-    </section>
-    <section className="quant-data-import" aria-labelledby="quant-binance-fetch-title">
-      <div><p className="quant-eyebrow">Provider fetch</p><h2 id="quant-binance-fetch-title">Binance Spot daily OHLCV</h2><p>Fetches public Binance Spot candles through the server, then stores a digest-pinned immutable version.</p></div>
-      <div className="quant-data-import-fields">
-        <label><span>Spot symbol</span><input aria-label="Binance Spot symbol" value={binanceSymbol} disabled={busy} onChange={(event) => setBinanceSymbol(event.target.value.toUpperCase())} /></label>
-        <label><span>Daily bars</span><input aria-label="Binance Spot daily bar limit" type="number" min="252" max="1000" value={binanceLimit} disabled={busy} onChange={(event) => setBinanceLimit(Number(event.target.value))} /></label>
-        <Button className="primary" disabled={busy} onClick={() => void fetchBinanceSpot()}>{busy ? 'Fetching…' : 'Fetch immutable dataset'}</Button>
-      </div>
-      <small>Default BTCUSDT · 365 daily bars. Provider provenance is retained with the dataset version.</small>
-    </section>
-    <section className="quant-data-import" aria-labelledby="quant-nasdaq-fetch-title">
-      <div><p className="quant-eyebrow">Provider fetch</p><h2 id="quant-nasdaq-fetch-title">Nasdaq Equity daily OHLCV</h2><p>Fetches server-normalized equity data and retains corporate-action and provider-response attestations.</p></div>
-      <div className="quant-data-import-fields">
-        <label><span>Equity symbol</span><input aria-label="Nasdaq Equity symbol" value={nasdaqSymbol} disabled={busy} onChange={(event) => setNasdaqSymbol(event.target.value.toUpperCase())} /></label>
-        <label><span>Lookback days</span><input aria-label="Nasdaq Equity lookback days" type="number" min="370" max="3650" value={nasdaqLookbackDays} disabled={busy} onChange={(event) => setNasdaqLookbackDays(Number(event.target.value))} /></label>
-        <Button className="primary" disabled={busy} onClick={() => void fetchNasdaqEquity()}>{busy ? 'Fetching…' : 'Fetch immutable dataset'}</Button>
-      </div>
-      <small>Default AAPL · 730 days. Corporate-action coverage is shown with the retained provider evidence.</small>
-    </section>
-    <section className="quant-dataset-list" aria-labelledby="quant-dataset-list-title">
-      <header><div><p className="quant-eyebrow">Available versions</p><h2 id="quant-dataset-list-title">Select a dataset</h2></div><span>{allDatasets.length} version{allDatasets.length === 1 ? '' : 's'}</span></header>
-      {allDatasets.map((dataset) => {
-        const isSelected = dataset.id === selectedDataset.id;
-        const canResearch = dataset.barCount >= MIN_AUTONOMOUS_RESEARCH_BARS && dataset.quality?.status !== 'blocked';
-        return <article className={`quant-dataset-card${isSelected ? ' is-selected' : ''}`} key={dataset.id}>
-          <header><div><p className="quant-eyebrow">{dataset.symbol} · {dataset.interval}</p><h3>{dataset.name}</h3></div><Badge tone={dataset.authenticity === 'synthetic_fixture' ? 'warning' : 'info'}>{quantAuthenticityLabel(dataset.authenticity)}</Badge></header>
-          <dl><div><dt>Date range</dt><dd>{dataset.dateRange.start} – {dataset.dateRange.end}</dd></div><div><dt>Bars</dt><dd>{dataset.barCount.toLocaleString()}</dd></div>{dataset.source?.kind === 'csv_upload' && <><div><dt>Source</dt><dd>{dataset.source.sourceName}</dd></div><div><dt>Calendar</dt><dd>{dataset.source.marketCalendar ?? 'unknown'} · {dataset.source.timeZone ?? 'timezone unavailable'}</dd></div><div><dt>Adjustment</dt><dd>{dataset.source.priceAdjustment.replaceAll('_', ' ')}</dd></div></>}{dataset.source?.kind === 'provider_fetch' && <><div><dt>Provider</dt><dd>{dataset.source.providerId} · {dataset.source.sourceName}</dd></div><div><dt>Calendar</dt><dd>{dataset.source.marketCalendar} · {dataset.source.timeZone}</dd></div><div><dt>Adjustment</dt><dd>{dataset.source.priceAdjustment.replaceAll('_', ' ')} · {(dataset.source.priceAdjustmentVerificationStatus ?? 'verification unavailable').replaceAll('_', ' ')}</dd></div><div><dt>Provider evidence</dt><dd>{dataset.source.returnedBarCount} bars from {dataset.source.requestedLimit} response limit · {dataset.source.droppedIncompleteCount} incomplete dropped · {dataset.source.attestationStatus}</dd></div><div><dt>Retrieved</dt><dd>{dataset.source.retrievedAt || 'timestamp unavailable'}</dd></div>{dataset.source.providerResponseAttestations.map((attestation) => <div key={`${attestation.kind}-${attestation.digest}`}><dt>{attestation.kind.replaceAll('_', ' ')} evidence</dt><dd><code>{attestation.digest}</code> · {attestation.sourceReference || 'reference unavailable'}</dd></div>)}<div><dt>Normalization</dt><dd>{dataset.source.normalizationNote}</dd></div>{dataset.source.corporateActionsAttestation && <><div><dt>Dividends</dt><dd>{dataset.source.corporateActionsAttestation.dividendsStatus.replaceAll('_', ' ')} · {dataset.source.corporateActionsAttestation.dividendEventCount ?? 'unknown'} events · {dataset.source.corporateActionsAttestation.dividendCoverageStart ?? 'start unavailable'} – {dataset.source.corporateActionsAttestation.dividendCoverageEnd ?? 'end unavailable'}</dd></div><div><dt>Splits</dt><dd>{dataset.source.corporateActionsAttestation.splitsStatus.replaceAll('_', ' ')}{dataset.source.corporateActionsAttestation.splitEventCount == null ? '' : ` · ${dataset.source.corporateActionsAttestation.splitEventCount} events`} · {dataset.source.corporateActionsAttestation.splitCoverageStart ?? 'start unavailable'} – {dataset.source.corporateActionsAttestation.splitCoverageEnd ?? 'end unavailable'}{dataset.source.corporateActionsAttestation.splitSnapshotAsOf ? ` · snapshot ${dataset.source.corporateActionsAttestation.splitSnapshotAsOf}` : ''}</dd></div><div><dt>Split assurance</dt><dd>{dataset.source.corporateActionsAttestation.splitCompletenessStatus ?? 'completeness unavailable'} · {dataset.source.corporateActionsAttestation.splitReconciliationStatus ?? 'reconciliation unavailable'} · current snapshot only; not historical completeness.</dd></div>{dataset.source.corporateActionsAttestation.splitEvents && dataset.source.corporateActionsAttestation.splitEvents.length > 0 && <div><dt>Split events</dt><dd>{dataset.source.corporateActionsAttestation.splitEvents.map((event) => `${event.effectiveDate}: ${event.ratioNumerator}:${event.ratioDenominator}`).join(', ')}</dd></div>}{dataset.source.corporateActionsAttestation.splitsStatus === 'unavailable' && <div><dt>Split warning</dt><dd>Warning: split coverage unavailable.</dd></div>}<div><dt>Corporate actions note</dt><dd>{dataset.source.corporateActionsAttestation.note}</dd></div></>}</>}<div><dt>Data quality</dt><dd>{qualitySummary(dataset)}</dd></div><div><dt>Research eligibility</dt><dd>{canResearch ? 'Ready for Auto Research' : dataset.quality?.status === 'blocked' ? 'Blocked by data quality checks' : `Needs ${MIN_AUTONOMOUS_RESEARCH_BARS - dataset.barCount} more daily bars`}</dd></div></dl>
-          <footer><code title={dataset.digest}>{dataset.digest.slice(0, 19)}…</code><div>{isSelected ? <span className="quant-dataset-selected">Selected</span> : <Button onClick={() => onSelect(dataset)}>Select dataset</Button>}{isSelected && <Button onClick={onInspect}>Inspect provenance</Button>}</div></footer>
-        </article>;
-      })}
-    </section>
-    {!eligible && <p className="quant-inline-note" role="status">The selected dataset can be inspected, but Auto Research requires at least {MIN_AUTONOMOUS_RESEARCH_BARS} daily bars and no blocking data-quality issues.</p>}
+      {previewDataset && <QuantDatasetPreviewPanel dataset={previewDataset} preview={preview} loading={previewLoading} problem={previewProblem} selected={previewDataset.id === selectedDataset.id} onRetry={() => void loadPreview(previewDataset)} onClose={() => { setPreviewDataset(null); setPreview(null); setPreviewProblem(null); onPreviewViewChange?.(false); }} onSelect={() => (onUseForResearch ?? onSelect)(previewDataset)} />}
+    </section>}
+    {directoryTab === 'connections' && <section className="quant-data-directory-panel" id="quant-data-panel-connections" role="tabpanel" aria-labelledby="quant-data-tab-connections"><header><strong>Available sources</strong></header>{connectorError && <QuantInlineProblem problem={connectorError} action={connectorError.retryable ? <Button onClick={() => void refresh()}>Retry connector directory</Button> : undefined} />}<dl><div><dt>Binance Spot<small>Supported `1h`, `4h`, and `1D` public OHLCV with retained provider batch evidence</small></dt><dd>Configured</dd></div>{connectors.map((connector) => <div key={connector.id}><dt>{connector.displayName}<small>{connector.supportedIntervals.join(' and ')} · {connector.supportedSymbols.join(', ')}</small></dt><dd><Button onClick={() => { setImportSource('kraken'); showImportView(true); }}>Fetch data</Button></dd></div>)}<div><dt>Nasdaq Equity<small>Daily equity OHLCV with corporate-action coverage</small></dt><dd>Configured</dd></div><div><dt>CSV upload<small>Explicit local upload for supported `1h`, `4h`, and `1D` market-bar datasets</small></dt><dd className="is-positive">Available</dd></div></dl></section>}
+  </div>;
+
+  return <div className="quant-page quant-data-page" aria-busy={busy}>
+    <div className="quant-page-title"><div><h1>Add market data</h1><p>Choose one source. Qurio validates the response, stores an immutable version, and returns it to the catalog for preview or research use.</p></div><Button disabled={busy} onClick={() => showImportView(false)}>Back</Button></div>
+    <div className="quant-data-source-tabs" role="tablist" aria-label="Data source" onKeyDown={onSourceTabKeyDown}>{sourceTabs.map((source) => <button key={source} disabled={busy} id={`quant-data-source-${source}`} role="tab" aria-controls={`quant-data-source-panel-${source}`} aria-selected={importSource === source} tabIndex={importSource === source ? 0 : -1} onClick={() => setImportSource(source)}>{source === 'binance' ? 'Binance Spot' : source === 'kraken' ? krakenConnector?.displayName ?? 'Kraken Spot' : source === 'nasdaq' ? 'Nasdaq Equity' : 'CSV upload'}</button>)}</div>
+    {importSource === 'binance' && <section id="quant-data-source-panel-binance" role="tabpanel" aria-labelledby="quant-data-source-binance" className="quant-data-import" aria-busy={busy}><header><h2>Spot OHLCV</h2><p>Fetch supported `1h`, `4h`, or `1D` completed bars. Provider batch evidence and the normalized digest are retained.</p></header><div className="quant-data-provider-fields"><label><span>Spot symbol</span><input aria-label="Binance Spot symbol" value={binanceSymbol} disabled={busy} aria-invalid={Boolean(binanceError)} aria-describedby={binanceError ? 'quant-binance-error' : undefined} onChange={(event) => setBinanceSymbol(event.target.value.toUpperCase())} /></label><label><span>Interval</span><select aria-label="Binance Spot interval" value={binanceInterval} disabled={busy} aria-invalid={Boolean(binanceError)} aria-describedby={binanceError ? 'quant-binance-error' : undefined} onChange={(event) => setBinanceInterval(event.target.value as QuantBarInterval)}>{MARKET_INTERVALS.map((value) => <option key={value} value={value}>{value}</option>)}</select></label><label><span>Bar limit</span><input aria-label="Binance Spot bar limit" type="number" min="1" max="5000" value={binanceLimit} disabled={busy} aria-invalid={Boolean(binanceError)} aria-describedby={binanceError ? 'quant-binance-error quant-binance-limit-help' : 'quant-binance-limit-help'} onChange={(event) => setBinanceLimit(Number(event.target.value))} /></label></div><footer><span id="quant-binance-limit-help">{busy ? 'Validating provider response and storing an immutable version…' : `Suggested for ${binanceInterval}: ${marketResearchRequirementLabel(binanceInterval, null)}; shorter retained datasets stay previewable.`}</span><Button className="primary" disabled={busy} onClick={() => void fetchBinanceSpot()}>{busy ? 'Fetching and validating…' : 'Fetch and validate'}</Button></footer>{binanceError && <div id="quant-binance-error" tabIndex={-1}><QuantInlineProblem problem={binanceError} action={binanceError.retryable ? <Button onClick={() => void fetchBinanceSpot()}>Retry fetch</Button> : undefined} /></div>}</section>}
+    {importSource === 'kraken' && krakenConnector && <section id="quant-data-source-panel-kraken" role="tabpanel" aria-labelledby="quant-data-source-kraken" className="quant-data-import" aria-busy={busy}><header><h2>Kraken Spot OHLCV</h2><p>Fetch a recent public `4h` or `1D` window through the installed connector. Qurio validates and stores the result in the same research catalog.</p></header><div className="quant-data-provider-fields"><label><span>Spot symbol</span><select aria-label="Kraken Spot symbol" value={krakenSymbol} disabled={busy} aria-invalid={Boolean(krakenError)} aria-describedby={krakenError ? 'quant-kraken-error' : undefined} onChange={(event) => setKrakenSymbol(event.target.value)}>{krakenConnector.supportedSymbols.map((value) => <option key={value} value={value}>{value}</option>)}</select></label><label><span>Interval</span><select aria-label="Kraken Spot interval" value={krakenInterval} disabled={busy} aria-invalid={Boolean(krakenError)} aria-describedby={krakenError ? 'quant-kraken-error' : undefined} onChange={(event) => setKrakenInterval(event.target.value as QuantConnectorInterval)}>{krakenConnector.supportedIntervals.map((value) => <option key={value} value={value}>{value}</option>)}</select></label><label><span>Recent bars</span><input aria-label="Kraken Spot bar limit" type="number" min={krakenConnector.minimumRecentBars[krakenInterval]} max={krakenConnector.maximumRecentBars} value={krakenLimit} disabled={busy} aria-invalid={Boolean(krakenError)} aria-describedby={krakenError ? 'quant-kraken-error quant-kraken-limit-help' : 'quant-kraken-limit-help'} onChange={(event) => setKrakenLimit(Number(event.target.value))} /></label></div><footer><span id="quant-kraken-limit-help">{busy ? 'Validating connector response and storing an immutable version…' : `${krakenConnector.minimumRecentBars[krakenInterval]}–${krakenConnector.maximumRecentBars} recent completed bars · public market data`}</span><Button className="primary" disabled={busy} onClick={() => void fetchKrakenSpot()}>{busy ? 'Fetching and validating…' : 'Fetch and validate'}</Button></footer>{krakenError && <div id="quant-kraken-error" tabIndex={-1}><QuantInlineProblem problem={krakenError} action={krakenError.retryable ? <Button onClick={() => void fetchKrakenSpot()}>Retry fetch</Button> : undefined} /></div>}</section>}
+    {importSource === 'nasdaq' && <section id="quant-data-source-panel-nasdaq" role="tabpanel" aria-labelledby="quant-data-source-nasdaq" className="quant-data-import"><header><h2>Daily equity OHLCV</h2><p>Fetch server-normalized prices with retained provider and corporate-action evidence.</p></header><div className="quant-data-provider-fields"><label><span>Equity symbol</span><input aria-label="Nasdaq Equity symbol" value={nasdaqSymbol} disabled={busy} aria-invalid={Boolean(nasdaqError)} aria-describedby={nasdaqError ? 'quant-nasdaq-error' : undefined} onChange={(event) => setNasdaqSymbol(event.target.value.toUpperCase())} /></label><label><span>Lookback days</span><input aria-label="Nasdaq Equity lookback days" type="number" min="370" max="3650" value={nasdaqLookbackDays} disabled={busy} aria-invalid={Boolean(nasdaqError)} aria-describedby={nasdaqError ? 'quant-nasdaq-error' : undefined} onChange={(event) => setNasdaqLookbackDays(Number(event.target.value))} /></label></div><footer><Button className="primary" disabled={busy} onClick={() => void fetchNasdaqEquity()}>{busy ? 'Fetching and validating…' : 'Fetch and validate'}</Button></footer>{nasdaqError && <div id="quant-nasdaq-error" tabIndex={-1}><QuantInlineProblem problem={nasdaqError} action={nasdaqError.retryable ? <Button onClick={() => void fetchNasdaqEquity()}>Retry fetch</Button> : undefined} /></div>}</section>}
+    {importSource === 'csv' && <section id="quant-data-source-panel-csv" role="tabpanel" aria-labelledby="quant-data-source-csv" className="quant-data-import"><header><h2>Market OHLCV CSV</h2><p>Upload one supported `1h`, `4h`, or `1D` UTC market-bar CSV. Qurio validates the file and stores an immutable version.</p></header><div className="quant-data-csv-fields"><label><span>CSV file</span><input aria-label="OHLCV CSV file" type="file" accept=".csv,text/csv" disabled={busy} aria-invalid={Boolean(importError)} aria-describedby={importError ? 'quant-import-error' : undefined} onChange={(event) => chooseFile(event.target.files?.[0] ?? null)} /></label><label><span>Dataset interval</span><select aria-label="Dataset interval" value={csvInterval} disabled={busy} aria-invalid={Boolean(importError)} aria-describedby={importError ? 'quant-import-error' : undefined} onChange={(event) => setCsvInterval(event.target.value as QuantBarInterval)}>{MARKET_INTERVALS.map((value) => <option key={value} value={value}>{value}</option>)}</select></label><label><span>Dataset name</span><input aria-label="Dataset name" value={name} disabled={busy} aria-invalid={Boolean(importError && !name.trim())} aria-describedby={importError ? 'quant-import-error' : undefined} onChange={(event) => setName(event.target.value)} /></label><label><span>Symbol</span><input aria-label="Dataset symbol" value={symbol} disabled={busy} aria-invalid={Boolean(importError && !symbol.trim())} aria-describedby={importError ? 'quant-import-error' : undefined} placeholder="BTCUSDT" onChange={(event) => setSymbol(event.target.value.toUpperCase())} /></label></div><details open className="quant-data-import-advanced"><summary>Source metadata</summary><div><label><span>Source/provider</span><input aria-label="Dataset source provider" value={sourceName} disabled={busy} placeholder="Exchange, vendor, or research source" onChange={(event) => setSourceName(event.target.value)} /></label><label><span>Source reference</span><input aria-label="Dataset source reference" value={sourceReference} disabled={busy} placeholder="URL, export ID, or internal reference" onChange={(event) => setSourceReference(event.target.value)} /></label></div></details><footer><span>CSV only · 10 MB maximum</span><Button className="primary" disabled={!file || busy} onClick={() => void importCsv()}>{busy ? 'Importing and validating…' : 'Import and validate'}</Button></footer>{importError && <div id="quant-import-error" tabIndex={-1}><QuantInlineProblem problem={importError} action={importError.retryable && file ? <Button onClick={() => void importCsv()}>Retry import</Button> : undefined} /></div>}</section>}
   </div>;
 }

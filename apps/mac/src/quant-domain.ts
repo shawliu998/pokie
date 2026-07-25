@@ -1,4 +1,7 @@
 export type QuantResearchMode = 'ask' | 'plan' | 'auto_research';
+export type QuantBarInterval = '1h' | '4h' | '1D';
+export type QuantDatasetContract = 'legacy-daily-v1' | 'market-v2';
+export type QuantRunContract = 'legacy-daily-v1' | 'market-v2-public' | 'market-v2-private';
 
 export type QuantRunState =
   | 'draft'
@@ -14,11 +17,12 @@ export type QuantRunState =
   | 'waiting_for_review'
   | 'completed'
   | 'failed'
-  | 'cancelled';
+  | 'cancelled'
+  | 'unknown';
 
 export type QuantStepStatus = 'pending' | 'active' | 'waiting' | 'completed' | 'failed' | 'skipped';
 export type CandidateVerdict = 'promising' | 'inconclusive' | 'rejected' | 'invalid';
-export type QuantAuthenticity = 'synthetic_fixture' | 'imported_fixture';
+export type QuantAuthenticity = 'synthetic_fixture' | 'imported' | 'collected';
 export type QuantOwner = 'user' | 'system' | 'agent' | 'validator';
 export type QuantNavDestination = 'new_research' | 'projects' | 'runs' | 'data' | 'settings';
 
@@ -48,7 +52,7 @@ export interface QuantResearchScope {
   version: number;
   symbol: string;
   market: string;
-  interval: '1D';
+  interval: QuantBarInterval;
   dateRange: { start: string; end: string };
   benchmark: string;
   assumptions: string[];
@@ -56,6 +60,7 @@ export interface QuantResearchScope {
 
 export interface QuantResearchProject {
   id: string;
+  latestRunId?: string;
   title: string;
   goal: string;
   symbol: string;
@@ -65,6 +70,7 @@ export interface QuantResearchProject {
 }
 
 export interface QuantResearchRun {
+  contract: QuantRunContract;
   id: string;
   rowVersion: number;
   attemptNumber: number;
@@ -82,6 +88,15 @@ export interface QuantResearchRun {
   model: string | null;
   legalCommands: QuantCommand[];
   traceRef: string;
+  planRevision?: number;
+  retryOfRunId?: string;
+  continuedFrom?: {
+    parentRunId: string;
+    seedCandidateId: string;
+    candidateName: string;
+    sourceQuestion: string;
+    reason: string;
+  };
 }
 
 export interface QuantPlanStep {
@@ -131,20 +146,67 @@ export interface QuantArtifact {
   digest: string;
 }
 
-export interface DatasetSnapshot {
+interface DatasetSnapshotBase {
   id: string;
   name: string;
   symbol: string;
-  interval: '1D';
   dateRange: { start: string; end: string };
   barCount: number;
   schemaVersion: string;
-  parserVersion: string;
   digest: string;
   authenticity: QuantAuthenticity;
+  researchEligible: boolean;
+  createdAt?: string;
+}
+
+export interface LegacyDatasetSnapshot extends DatasetSnapshotBase {
+  contract: 'legacy-daily-v1';
+  interval: '1D';
+  parserVersion: string;
   source?: DatasetSource;
   quality?: DatasetDataQuality;
 }
+
+export interface QuantMarketDatasetSource {
+  kind: 'csv_upload' | 'provider_fetch';
+  fileName: string | null;
+  sourceName: string;
+  sourceReference: string | null;
+  normalizerVersion: string;
+  retrievedAtUtc: string | null;
+  requestedBarCount: number | null;
+  returnedBarCount: number | null;
+  retainedBarCount: number | null;
+  closedDroppedCount: number | null;
+  deduplicatedCount: number | null;
+  terminationReason: 'requested_limit' | 'history_exhausted' | 'page_cap' | null;
+  targetSatisfied: boolean | null;
+  submittedCsvDigest?: string | null;
+  batchDigest?: string | null;
+}
+
+export interface QuantMarketDatasetQuality {
+  status: 'accepted' | 'blocked';
+  cadenceGapCount: number;
+  normalizationNote: string;
+}
+
+export interface QuantMarketDatasetSnapshot extends DatasetSnapshotBase {
+  contract: 'market-v2';
+  interval: QuantBarInterval;
+  parserVersion: string;
+  recordDigest?: string;
+  periodsPerYear: number | null;
+  marketCalendar: 'unknown' | 'weekday' | '24x7' | 'XNYS' | 'XNAS' | 'XSHG' | 'XSHE';
+  marketSession: 'unknown' | 'continuous' | 'regular';
+  timeZone: string;
+  source: QuantMarketDatasetSource;
+  quality: QuantMarketDatasetQuality;
+  runtimeDescriptorDigest?: string;
+  sealedSplitDigest?: string;
+}
+
+export type DatasetSnapshot = LegacyDatasetSnapshot | QuantMarketDatasetSnapshot;
 
 export interface DatasetCsvSource {
   kind: 'csv_upload';
@@ -228,7 +290,23 @@ export interface MarketBar {
   low: number;
   close: number;
   volume: number;
+  decimalValues?: { open: string; high: string; low: string; close: string; volume: string };
   marker?: 'entry' | 'exit' | 'market' | 'earnings' | 'policy' | 'macro';
+}
+
+export interface QuantDatasetPreview {
+  contract: QuantDatasetContract;
+  datasetId: string;
+  symbol: string;
+  interval: QuantBarInterval;
+  authenticity: QuantAuthenticity;
+  coveredStart: string;
+  coveredEnd: string;
+  totalBarCount: number;
+  returnedBarCount: number;
+  maxPoints: number;
+  samplingRule: 'latest_contiguous';
+  bars: MarketBar[];
 }
 
 export interface BacktestMetrics {
@@ -247,17 +325,85 @@ export interface QuantCandidate {
   metrics: BacktestMetrics;
   strategySpecVersion: string;
   strategySpec: string;
+  canSeedResearch?: boolean;
   robustness: string[];
+  evolution?: QuantCandidateEvolution;
 }
 
-export interface TradeRecord {
+export interface QuantCandidateEvolution {
+  hypothesis: string;
+  origin: 'initial' | 'training_feedback';
+  changeRationale: string | null;
+  feedbackReferenceCandidateId: string | null;
+  feedbackReferenceCandidateName: string | null;
+  comparisonRank: number | null;
+  comparisonCandidateCount: number | null;
+  selectionReason: string;
+  replanRepair?: {
+    rejectedAction: 'refine_parameters';
+    correctedAction: 'switch_approved_family';
+    retainedInputs: true;
+    outcome: 'candidate_created';
+  };
+}
+
+export type QuantLiveCandidateState = 'completed' | 'running' | 'queued' | 'repairing' | 'revised' | 'failed';
+
+export interface QuantLiveCandidate {
+  id: string;
+  ordinal: number;
+  name: string;
+  hypothesis: string;
+  parameters: string;
+  state: QuantLiveCandidateState;
+  repairCount: number;
+  metrics: BacktestMetrics | null;
+}
+
+export interface QuantLiveResearch {
+  phase: QuantRunState;
+  phaseLabel: string;
+  iteration: number;
+  currentExperiment: QuantLiveCandidate | null;
+  latestResult: QuantLiveCandidate | null;
+  candidates: QuantLiveCandidate[];
+  nextStep: string;
+}
+
+interface TradeRecordBase {
   id: string;
   candidateId: string;
   entryDate: string;
   exitDate: string;
   returnPct: number;
-  holdingDays: number;
   reason: string;
+}
+
+export interface LegacyTradeRecord extends TradeRecordBase {
+  holdingDays: number;
+  holdingBars?: never;
+  holdingElapsedSeconds?: never;
+}
+
+export interface MarketTradeRecord extends TradeRecordBase {
+  holdingDays?: never;
+  holdingBars: number;
+  holdingElapsedSeconds: number;
+}
+
+export type TradeRecord = LegacyTradeRecord | MarketTradeRecord;
+
+export interface StrategyPerformancePoint {
+  date: string;
+  equity: number;
+  drawdown: number;
+}
+
+export interface StrategyPerformanceSeries {
+  id: string;
+  label: string;
+  kind: 'candidate' | 'benchmark';
+  points: StrategyPerformancePoint[];
 }
 
 export interface GeneralizationSplit {
@@ -268,6 +414,13 @@ export interface GeneralizationSplit {
   cutoffDate: string;
   datasetId: string;
   datasetDigest: string;
+  interval?: QuantBarInterval;
+  periodsPerYear?: number;
+  cutoffTimestampUtc?: string;
+  rangeStartUtc?: string;
+  rangeEndUtc?: string;
+  descriptorDigest?: string;
+  sealDigest?: string;
 }
 
 export interface GeneralizationMetrics {
@@ -293,6 +446,29 @@ export interface WalkForwardFold {
   candidate: BacktestMetrics;
   benchmark: BacktestMetrics;
   status: 'pass' | 'fail' | 'inconclusive' | 'not_evaluated';
+  marketRegime?: WalkForwardMarketRegime;
+}
+
+export interface WalkForwardMarketRegime {
+  label: string;
+  trend: 'uptrend' | 'downtrend' | 'sideways';
+  volatility: 'high_volatility' | 'normal_volatility';
+  historyStart: string;
+  historyEnd: string;
+  historyBarCount: number;
+  trailingReturn: number;
+  annualizedVolatility: number;
+}
+
+export interface WalkForwardRegimeSummary {
+  label: string;
+  foldCount: number;
+  candidateMedianReturn: number;
+  benchmarkMedianReturn: number;
+  candidateMedianDrawdown: number;
+  benchmarkMedianDrawdown: number;
+  candidateMedianSharpe: number;
+  benchmarkMedianSharpe: number;
 }
 
 export interface ResearchWalkForward {
@@ -301,6 +477,8 @@ export interface ResearchWalkForward {
   evaluationPartition: 'train';
   foldCount: number;
   windowBarCount: number;
+  stateRuleVersion?: string;
+  stateLookbackBars?: number;
   status: 'completed' | 'not_evaluated';
   reason: string;
   folds: WalkForwardFold[];
@@ -314,7 +492,39 @@ export interface ResearchWalkForward {
     benchmarkMedianDrawdown: number;
     candidateMedianSharpe: number;
     benchmarkMedianSharpe: number;
+    distinctMarketRegimes?: number;
+    regimeDiversityStatus?: 'covered' | 'insufficient_regime_diversity';
+    byMarketRegime?: WalkForwardRegimeSummary[];
   };
+}
+
+export interface QuantRobustnessMetrics {
+  totalReturnPct: number;
+  annualizedReturnPct: number;
+  maximumDrawdownPct: number;
+  sharpeRatio: number;
+  tradeCount: number;
+  winRatePct: number;
+  finalEquity: number;
+}
+
+export interface QuantRobustnessSensitivity {
+  schemaVersion: 'robustness_sensitivity_v1';
+  evaluationPartition: 'train';
+  runId: string;
+  reportArtifactId: string;
+  candidate: { candidateId: string; template: 'sma_crossover' | 'rsi_mean_reversion' | 'breakout'; parameters: Record<string, number>; canonicalKey: string };
+  finalTrainingComparison: { artifactId: string; artifactDigest: string };
+  dataset: { datasetId: string; datasetDigest: string };
+  interval: QuantBarInterval;
+  periodsPerYear: number;
+  runtimeDescriptorDigest: string;
+  trainingSplit: { identityKind: 'sealed_market_split' | 'deterministic_legacy_split'; ruleVersion: 'chronological-80-20-v1'; trainingBarCount: number; trainingStart: string; trainingEnd: string; trainingSplitDigest: string; sealedSplitDigest: string | null };
+  executionRuleVersion: 'quant-execution-cost-policy-v1';
+  samplerRuleVersion: 'oat-parameter-neighborhood-v1';
+  costScenarios: Array<{ scenario: 'baseline_1x' | 'stressed_2x' | 'stressed_4x'; multiplier: 1 | 2 | 4; feeRate: number; slippageRate: number; candidateMetrics: QuantRobustnessMetrics; benchmarkMetrics: QuantRobustnessMetrics }>;
+  parameterNeighbors: Array<{ parameterName: string; direction: 'lower' | 'upper'; parameters: Record<string, number>; canonicalKey: string; candidateMetrics: QuantRobustnessMetrics }>;
+  kernelCallCount: number;
 }
 
 export interface ResearchReport {
@@ -327,9 +537,32 @@ export interface ResearchReport {
   validatorVersion: string;
   generationMethod: string;
   disclaimer: string;
+  selectionDecision?: QuantSelectionDecision;
+  iterationStop?: QuantIterationStop;
   generalization?: ResearchGeneralization;
   walkForward?: ResearchWalkForward;
-  datasetQuality?: DatasetDataQuality;
+  robustnessSensitivity?: QuantRobustnessSensitivity;
+  datasetQuality?: DatasetDataQuality | QuantMarketDatasetQuality;
+  datasetContext?: {
+    symbol: string;
+    interval: QuantBarInterval;
+    periodsPerYear: number;
+    range: { start: string; end: string };
+    runtimeDescriptorDigest: string;
+    sealedSplitDigest: string;
+  };
+}
+
+export interface QuantSelectionDecision {
+  basis: 'approved_objective_rank' | 'robustness_override';
+  selectedCandidateId?: string;
+  reason?: 'walk_forward_stability' | 'regime_coverage' | 'minimum_trade_evidence';
+  referenceCandidateId?: string;
+}
+
+export interface QuantIterationStop {
+  reason: 'no_novel_candidate' | 'insufficient_action_budget';
+  referenceCandidateId: string;
 }
 
 export interface QuantKernelResult {
@@ -355,6 +588,10 @@ export interface QuantKernelCheck {
   benchmark: QuantKernelResult | null;
   strategies: QuantKernelResult[];
   limitations: string[];
+  interval?: QuantBarInterval;
+  periodsPerYear?: number;
+  runtimeDescriptorDigest?: string;
+  sealedSplitDigest?: string;
 }
 
 export interface QuantWorkspaceSnapshot {
@@ -369,6 +606,8 @@ export interface QuantWorkspaceSnapshot {
   run: QuantResearchRun;
   limits: QuantLimits;
   plan: QuantPlanStep[];
+  researchPlan?: QuantExecutableResearchPlan;
+  researchMemory?: QuantResearchMemoryProjection;
   events: QuantRunEvent[];
   artifacts: QuantArtifact[];
   dataset: DatasetSnapshot;
@@ -376,11 +615,50 @@ export interface QuantWorkspaceSnapshot {
   kernelCheck: QuantKernelCheck;
   benchmark: BacktestMetrics | null;
   candidates: QuantCandidate[];
+  liveResearch: QuantLiveResearch | null;
+  performanceSeries: StrategyPerformanceSeries[];
   trades: TradeRecord[];
   report: ResearchReport | null;
   composerLegalCommands: QuantCommand[];
 }
 
-export function quantAuthenticityLabel(authenticity: QuantAuthenticity): 'Synthetic Demo Fixture' | 'Imported Dataset' {
-  return authenticity === 'synthetic_fixture' ? 'Synthetic Demo Fixture' : 'Imported Dataset';
+export interface QuantExecutableResearchPlan {
+  candidateFamilies: ('sma_crossover' | 'rsi_mean_reversion' | 'breakout')[];
+  selectionObjective: 'risk_adjusted_return' | 'total_return' | 'drawdown_control';
+  completionCriteria: string[];
+  objectiveSummary?: string;
+  strategyScope?: QuantStrategyScopeDecision;
+}
+
+export interface QuantStrategyScopeDecision {
+  schemaVersion: 'quant-strategy-scope-v1';
+  status: 'supported' | 'bounded_proxy' | 'unsupported';
+  reason: string;
+  proxyDescription?: string;
+  excludedBehaviors: string[];
+}
+
+export interface QuantResearchMemoryProjection {
+  sourceRunCount: number;
+  testedCandidateCount: number;
+}
+
+export interface QuantCompatibility {
+  schemaVersion: string;
+  supported: boolean;
+  degraded: boolean;
+  missingFields: string[];
+  unknownFields: string[];
+  warnings: string[];
+}
+
+export function quantAuthenticityLabel(authenticity: QuantAuthenticity): 'Synthetic Demo Fixture' | 'Imported Dataset' | 'Collected Dataset' {
+  if (authenticity === 'synthetic_fixture') return 'Synthetic Demo Fixture';
+  return authenticity === 'collected' ? 'Collected Dataset' : 'Imported Dataset';
+}
+
+export function quantResearchModeLabel(mode: QuantResearchMode | 'auto'): 'Ask' | 'Plan' | 'Auto Research' {
+  if (mode === 'ask') return 'Ask';
+  if (mode === 'plan') return 'Plan';
+  return 'Auto Research';
 }
