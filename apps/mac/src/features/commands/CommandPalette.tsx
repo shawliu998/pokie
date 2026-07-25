@@ -1,4 +1,5 @@
 import { Command } from 'cmdk';
+import { Kbd } from '@glint/ui';
 import type { WorkbenchCommand } from '../../lib/commands';
 
 export function CommandPalette({ commands, onClose }: { commands: WorkbenchCommand[]; onClose: () => void }) {
@@ -12,7 +13,7 @@ export function CommandPalette({ commands, onClose }: { commands: WorkbenchComma
         value={`${command.label} ${command.id}`}
         keywords={command.keywords}
         onSelect={() => { onClose(); command.run(); }}
-      ><span>{command.label}</span>{command.shortcut && <kbd>{command.shortcut}</kbd>}</Command.Item>)}</Command.Group>)}
+      ><span>{command.label}</span>{command.shortcut && <Kbd>{command.shortcut}</Kbd>}</Command.Item>)}</Command.Group>)}
     </Command.List>
     <div className="command-footer"><span>↑↓ Navigate</span><span>↵ Run</span><span>esc Close</span></div>
   </Command.Dialog>;

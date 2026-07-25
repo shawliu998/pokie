@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
-import { Button } from '@glint/ui';
+import { Button, Kbd } from '@glint/ui';
 import type { QuantApi } from '../../quant-api';
 import type { DatasetSnapshot, QuantCommand, QuantResearchMode, QuantWorkspaceSnapshot } from '../../quant-domain';
 import { marketResearchRequirementLabel, requiredMarketResearchBars } from '../../quant-research-eligibility';
@@ -228,7 +228,7 @@ export function QuantGoalComposer({ api, snapshot, selectedDataset = snapshot.da
         <Button className="primary quant-submit" disabled={!canSubmit} onClick={submit}>{busy ? 'Submitting…' : createsNewRun ? 'Start new run' : mode === 'ask' ? 'Ask' : mode === 'plan' ? 'Generate plan' : 'Start research'}</Button>
       </>}
     </div>
-    {!large && <div className="quant-composer-foot"><span>Dataset · {selectedDataset.name}</span><span>Benchmark · {selectedDataset.symbol} Buy and Hold</span><span>{snapshot.limits.maxExperiments} experiments · {snapshot.limits.maxRepairAttempts} repairs · {snapshot.limits.maxRuntimeMinutes} min</span><span>Internet disabled · Python disabled · Paper trading disabled</span><kbd>⌘ Enter</kbd></div>}
+    {!large && <div className="quant-composer-foot"><span>Dataset · {selectedDataset.name}</span><span>Benchmark · {selectedDataset.symbol} Buy and Hold</span><span>{snapshot.limits.maxExperiments} experiments · {snapshot.limits.maxRepairAttempts} repairs · {snapshot.limits.maxRuntimeMinutes} min</span><span>Internet disabled · Python disabled · Paper trading disabled</span><Kbd>⌘ Enter</Kbd></div>}
     {!large && ((!legal && !createsNewRun) || ((mode === 'auto_research' || createsNewRun) && !datasetReady) || createsNewRun) && <p className="quant-inline-note" role="status">{unavailableCopy}</p>}
   </section>;
 }

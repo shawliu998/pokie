@@ -318,7 +318,7 @@ test('renders the server-owned Quant fixture without active Glint product copy',
   await expect(page.getByText('No broker connection or order action')).toBeVisible();
 });
 
-test('hands the retained final candidate into an isolated Paper order and position', async ({ page }) => {
+test('blocks Paper handoff until the retained candidate passes sealed validation', async ({ page }) => {
   test.skip(process.env.GLINT_E2E_API_MODE !== 'fixture' || fixtureState !== 'quant-completed', 'Paper Trading uses the completed deterministic fixture.');
   await page.setViewportSize({ width: 1024, height: 760 });
   await page.goto('/');
@@ -326,6 +326,22 @@ test('hands the retained final candidate into an isolated Paper order and positi
   await expect(page.getByRole('heading', { name: 'Paper Trading', exact: true })).toBeVisible();
   await expect(page.getByText('No live-trading route or live credentials')).toBeVisible();
   await expect(page.getByText('$100,000.00').first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Review draft' })).toBeDisabled();
+  await expect(page.getByText('No terminal decision is available.')).toBeVisible();
+  await page.getByRole('button', { name: 'Open decision' }).click();
+  await expect(page.getByRole('tab', { name: 'Decision', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('heading', { name: 'Final decision unavailable' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+});
+
+test('hands a sealed-holdout pass into a reviewed Paper order and position', async ({ page }) => {
+  test.skip(process.env.GLINT_E2E_API_MODE !== 'fixture' || fixtureState !== 'quant-paper-pass', 'Paper Trading pass path uses the deterministic sealed-holdout fixture.');
+  await page.setViewportSize({ width: 1024, height: 760 });
+  await page.goto('/');
+  await expect(page.getByText('Research complete', { exact: true }).first()).toBeVisible();
+  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'Paper Trading', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Paper Trading', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Review draft' })).toBeEnabled();
   await page.getByRole('button', { name: 'Review draft' }).click();
   const orders = page.getByRole('region', { name: 'Orders' });
   await expect(orders).toContainText('draft');
@@ -346,10 +362,6 @@ test('shares Overview candidate selection with Experiments, Analysis, and Decisi
   await expect(page.locator('.pq-results-performance')).toContainText('SMA 20/100');
   await page.getByRole('tab', { name: 'Experiments', exact: true }).click();
   await expect(page.getByRole('button', { name: 'SMA 20/100' })).toHaveAttribute('aria-pressed', 'true');
-  const researchPath = page.locator('.pq-candidate-evolution');
-  await expect(researchPath.getByRole('heading', { name: 'SMA 20/100' })).toBeVisible();
-  await expect(researchPath).toContainText('Research path');
-  await expect(researchPath).toContainText('Rank 1 of 3');
   await page.getByRole('tab', { name: 'Analysis', exact: true }).click();
   await expect(page.locator('.pq-strategy-analysis')).toContainText('SMA 20/100');
   await page.getByRole('tab', { name: 'Decision', exact: true }).click();
@@ -498,12 +510,13 @@ test('finds, compares, and reopens server-owned historical research runs', async
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   if (process.env.POKIEQUANT_CAPTURE_SCREENSHOTS === '1') await page.screenshot({ path: '../../docs/assets/pokiequant/runs-list-1440x960.png', animations: 'disabled' });
 
-  await page.getByRole('searchbox', { name: 'Search', exact: true }).fill('QQQ Momentum Review');
+  await page.getByRole('searchbox', { name: 'Find research', exact: true }).fill('QQQ Momentum Review');
   await expect(history.getByRole('row')).toHaveCount(2);
   await expect(history).toContainText('Evaluate QQQ momentum resilience');
   await page.getByRole('button', { name: 'Clear filters' }).click();
   await page.getByLabel('Outcome').selectOption('completed');
   await expect(history.getByRole('row')).toHaveCount(9);
+  await page.getByText('Project & sort', { exact: true }).click();
   await page.getByLabel('Sort').selectOption('oldest');
   await expect(history.getByRole('row').nth(1)).toContainText('QQQ momentum resilience');
   await page.getByRole('button', { name: 'Clear filters' }).click();
@@ -657,16 +670,16 @@ test('Research Setup switches catalog data and stays dense at desktop widths', a
   await page.getByTestId('quant-sidebar').getByRole('button', { name: 'Data', exact: true }).click();
   await page.getByRole('button', { name: 'Add data' }).click();
   await page.getByRole('tabpanel', { name: 'Binance Spot' }).getByRole('button', { name: 'Fetch and validate' }).click();
-  await expect(page.getByRole('cell', { name: /BTCUSDT Binance Spot fixture/ })).toBeVisible();
+  await expect(page.getByRole('row', { name: /BTCUSDT Binance Spot 4 hour/ })).toBeVisible();
   await page.getByTestId('quant-sidebar').getByRole('button', { name: 'New research', exact: true }).click();
-  await page.getByLabel('Research dataset').selectOption('fixture-binance-btcusdt');
-  await expect(page.getByText('Crypto spot', { exact: true })).toBeVisible();
-  await expect(page.getByText('Binance Spot deterministic fixture', { exact: true })).toBeVisible();
-  await expect(page.getByText('BTCUSDT · 1D', { exact: true })).toBeVisible();
+  await page.getByLabel('Research dataset').selectOption('66666666-6666-4666-8666-666666666604');
+  await expect(page.getByText('24x7 market', { exact: true })).toBeVisible();
+  await expect(page.getByText('Binance Spot deterministic API fixture', { exact: true })).toBeVisible();
+  await expect(page.getByText('BTCUSDT · 4h', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Trend & risk' }).click();
   await expect(page.getByLabel('Research goal')).toHaveValue(/BTCUSDT trend strategy/);
-  await expect(page.getByLabel('Research start date')).toHaveAttribute('min', '2023-01-03');
-  await expect(page.getByLabel('Research end date')).toHaveAttribute('max', '2024-12-31');
+  await expect(page.getByLabel('Research start UTC')).toHaveAttribute('min', '2024-01-01T00:00');
+  await expect(page.getByLabel('Research end UTC')).toHaveAttribute('max', '2025-12-31T20:00');
   await expect(page.getByRole('button', { name: 'Generate plan' })).toBeEnabled();
   const assertNoOverflow = async () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);

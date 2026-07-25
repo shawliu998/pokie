@@ -15,12 +15,17 @@ test('Qurio keeps the workbench contiguous and stacks evidence at compact width'
   await expect(copilot.getByText('Observation', { exact: true })).toBeVisible();
   await expect(copilot.getByText('Next', { exact: true })).toBeVisible();
   await expect(copilot.getByText('Run details', { exact: true })).toBeVisible();
+  for (const action of await copilot.locator('.pq-copilot-actions button').all()) {
+    expect(Number.parseFloat(await action.evaluate((element) => getComputedStyle(element).borderRadius))).toBeLessThanOrEqual(6);
+  }
   const [overviewBox, copilotBox] = await Promise.all([overview.boundingBox(), copilot.boundingBox()]);
   expect(overviewBox).not.toBeNull();
   expect(copilotBox).not.toBeNull();
   expect(Math.abs((overviewBox?.x ?? 0) + (overviewBox?.width ?? 0) - (copilotBox?.x ?? 0))).toBeLessThanOrEqual(1);
   for (const selector of ['.quant-decision-gate.is-overview', '.pq-results-performance', '.pq-validation-summary']) {
-    await expect(page.locator(selector)).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    const surface = page.locator(selector);
+    await expect(surface).toHaveCSS('background-color', 'rgb(27, 32, 40)');
+    expect(Number.parseFloat(await surface.evaluate((element) => getComputedStyle(element).borderRadius))).toBeLessThanOrEqual(6);
   }
   await expect(page.getByRole('heading', { name: 'Strategy vs benchmark' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Candidate snapshot' })).toBeVisible();
@@ -39,7 +44,7 @@ test('Qurio keeps the workbench contiguous and stacks evidence at compact width'
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 
   await page.getByRole('tab', { name: 'Experiments', exact: true }).click();
-  await expect(page.locator('.pq-strategy-lab')).toHaveCSS('background-color', 'rgb(26, 26, 31)');
+  await expect(page.locator('.pq-strategy-lab')).toHaveCSS('background-color', 'rgb(27, 32, 40)');
   for (const control of await page.locator('.quant-chart-controls button,.quant-market-events button').all()) {
     expect((await control.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(28);
   }
@@ -76,7 +81,7 @@ test('utility pages use intentional width classes without split-column gaps', as
   expect(runListBox).not.toBeNull();
   expect((runTitleBox?.x ?? 0) - (runListBox?.x ?? 0)).toBeGreaterThanOrEqual(12);
   expect((runCountBox?.x ?? 0) - (runListBox?.x ?? 0)).toBeGreaterThanOrEqual(8);
-  await expect(runsFrame.locator('.quant-runs-table tbody tr.is-current')).toHaveCSS('background-color', 'rgb(29, 29, 34)');
+  await expect(runsFrame.locator('.quant-runs-table tbody tr.is-current')).toHaveCSS('background-color', 'rgb(36, 42, 52)');
   for (const selector of ['.quant-run-summary>.quant-decision-gate', '.quant-run-summary>.pq-evaluation-path']) {
     await expect(runsFrame.locator(selector)).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   }

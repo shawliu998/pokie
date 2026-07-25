@@ -350,11 +350,12 @@ export function QuantRunsPage({ api, snapshot, openingRunId = null, openRunError
               const isSelected = selectedIds.includes(run.id);
               const selectionDisabled = !isSelected && selectedIds.length >= 4;
               const relationshipLabel = quantRunRelationshipLabel(projectQuantRunRelationship(run, runs));
+              const lifecycleLabel = run.id === snapshot.run.id ? presentation.statusLabel : runStateLabel(run.state);
               return <tr key={run.id} className={run.id === snapshot.run.id ? 'is-current' : ''}>
                 <td className="is-select"><label><input type="checkbox" checked={isSelected} disabled={selectionDisabled} onChange={() => toggleComparison(run.id)} /><span className="quant-visually-hidden">Select {run.question} for comparison</span></label></td>
                 <th scope="row"><button className="quant-run-question" aria-busy={isOpening} disabled={isPending} onClick={() => void onOpenRun(run.id)}>{run.question}</button><small>{projectLabel(projectNames.get(run.projectId) ?? 'Research project')} · {run.mode === 'auto' ? 'Agent run' : 'Plan first'}</small>{run.contract === 'market-v2-public' && <small>{run.symbol} · {run.interval} · {run.researchStartUtc} – {run.researchEndUtc} · {run.periodsPerYear?.toLocaleString()} periods/year</small>}</th>
                 <td className="quant-series-cell">{relationshipLabel}</td>
-                <td><strong className={`is-${runStateTone(run.state)}`}>{isOpening ? 'Opening…' : runStateLabel(run.state)}</strong></td>
+                <td><strong className={`is-${runStateTone(run.state)}`}>{isOpening ? 'Opening…' : lifecycleLabel}</strong></td>
                 <td><time dateTime={run.updatedAt}>{shortDate(run.updatedAt || run.createdAt)}</time></td>
                 <td className="is-action"><Button disabled={isPending} aria-busy={isOpening} onClick={() => void onOpenRun(run.id)}>{isOpening ? 'Opening…' : 'Open run'}</Button></td>
               </tr>;
@@ -366,7 +367,7 @@ export function QuantRunsPage({ api, snapshot, openingRunId = null, openRunError
       </section>
       <article className="quant-run-summary">
         <QuantDecisionGate decision={presentation.decision} action={decisionAction} className="is-run-history" />
-        <header><div><span>{runStateLabel(snapshot.run.state)} · {snapshotRelationshipLabel}</span><h2>{projectLabel(snapshot.project.title)}</h2><p>{snapshot.project.goal}</p></div></header>
+        <header><div><span>{presentation.statusLabel} · {snapshotRelationshipLabel}</span><h2>{projectLabel(snapshot.project.title)}</h2><p>{snapshot.project.goal}</p></div></header>
         {(sourceRun || priorAttemptRun) && <div className="quant-run-series-navigation" aria-label="Related research runs"><span>Research path</span>{sourceRun && <Button disabled={openingRunId !== null} onClick={compareWithSource}>Compare with source</Button>}{sourceRun && <Button disabled={openingRunId !== null} onClick={() => void onOpenRun(sourceRun.id)}>Open source version</Button>}{priorAttemptRun && <Button disabled={openingRunId !== null} onClick={() => void onOpenRun(priorAttemptRun.id)}>Open prior attempt</Button>}</div>}
         <dl className="quant-run-summary-metrics"><div><dt>Training annual return</dt><dd>{signedPercent(retained?.metrics.annualizedReturn)}</dd></div><div><dt>Training max drawdown</dt><dd>{signedPercent(retained?.metrics.maxDrawdown)}</dd></div><div><dt>Walk-forward median</dt><dd>{signedPercent(snapshot.report?.walkForward?.aggregate.candidateMedianReturn)}</dd></div><div><dt>Holdout annual return</dt><dd className={generalization?.status === 'fail' ? 'is-danger' : ''}>{signedPercent(generalization?.holdout?.candidate.annualizedReturn)}</dd></div></dl>
         {retained && <div className="quant-run-candidate"><span>Selected candidate</span><strong>{retained.name}</strong><small>{retained.parameters}</small></div>}

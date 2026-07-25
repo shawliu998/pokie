@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
+import { Kbd } from '@glint/ui';
 import type { QuantNavDestination, QuantWorkspaceSnapshot } from '../../quant-domain';
+import { presentQuantWorkspace } from './quant-presentation';
 
 const destinations = [
   { id: 'projects', label: 'Workspace' },
@@ -10,24 +12,6 @@ const destinations = [
   { id: 'settings', label: 'Settings' },
 ] satisfies Array<{ id: QuantNavDestination; label: string }>;
 
-const runStateLabels: Record<QuantWorkspaceSnapshot['run']['state'], string> = {
-  draft: 'Draft',
-  planning: 'Planning',
-  waiting_plan_approval: 'Plan review',
-  queued: 'Queued',
-  loading_data: 'Verifying dataset',
-  generating_candidates: 'Preparing candidates',
-  running_experiments: 'Running experiments',
-  repairing: 'Repairing candidate',
-  validating: 'Validating evidence',
-  generating_report: 'Building report',
-  waiting_for_review: 'Review required',
-  completed: 'Completed',
-  failed: 'Failed safely',
-  cancelled: 'Cancelled',
-  unknown: 'Unknown state',
-};
-
 export function QuantSidebar({ snapshot, destination, onSelect, onSelectProject }: {
   snapshot: QuantWorkspaceSnapshot;
   destination: QuantNavDestination;
@@ -36,12 +20,13 @@ export function QuantSidebar({ snapshot, destination, onSelect, onSelectProject 
 }) {
   const [query, setQuery] = useState('');
   const visibleProjects = useMemo(() => snapshot.recentProjects.filter((project) => `${project.title} ${project.symbol}`.toLowerCase().includes(query.trim().toLowerCase())), [query, snapshot.recentProjects]);
+  const lifecycle = presentQuantWorkspace(snapshot);
 
   return <aside className="quant-sidebar" aria-label="Qurio navigation" data-testid="quant-sidebar">
     <div className="quant-brand"><img className="quant-brand-wordmark" src="/brand/qurio-wordmark-inverse.svg" alt="Qurio" /></div>
     <div className="quant-sidebar-body">
       <p className="quant-sidebar-label">Research workspace</p>
-      <label className="quant-sidebar-search"><input aria-label="Search research" placeholder="Search" value={query} onChange={(event) => setQuery(event.target.value)} /><kbd>⌘ K</kbd></label>
+      <label className="quant-sidebar-search"><input aria-label="Search research" placeholder="Search" value={query} onChange={(event) => setQuery(event.target.value)} /><Kbd>⌘ K</Kbd></label>
       <nav className="quant-main-nav" aria-label="Primary">
         {destinations.map(({ id, label }) => <button className={`${destination === id ? 'active' : ''}${id === 'settings' ? ' quant-sidebar-settings' : ''}`} aria-current={destination === id ? 'page' : undefined} onClick={() => onSelect(id)} key={id}>{label}</button>)}
       </nav>
@@ -52,7 +37,7 @@ export function QuantSidebar({ snapshot, destination, onSelect, onSelectProject 
       </section>
       <section className="quant-sidebar-list quant-sidebar-recent" aria-labelledby="quant-recent-heading">
         <p id="quant-recent-heading" className="quant-sidebar-label">Recent</p>
-        <button title={`${snapshot.modelLabel} run · ${runStateLabels[snapshot.run.state]}`} onClick={() => onSelect('runs')}>{snapshot.modelLabel} run · {runStateLabels[snapshot.run.state]}{snapshot.report?.generalization?.status === 'fail' ? ' · holdout failed' : ''}</button>
+        <button title={`${snapshot.modelLabel} run · ${lifecycle.statusLabel}`} onClick={() => onSelect('runs')}>{snapshot.modelLabel} run · {lifecycle.statusLabel}</button>
       </section>
     </div>
     <footer className="quant-sidebar-footer"><span>Provider · {snapshot.run.provider}</span><small>{snapshot.runtimeLabel}</small></footer>

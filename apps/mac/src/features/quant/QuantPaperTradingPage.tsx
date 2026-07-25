@@ -7,6 +7,7 @@ import {
   type QuantApi,
 } from '../../quant-api';
 import type { QuantWorkspaceSnapshot } from '../../quant-domain';
+import { projectPaperTradingEligibility } from './quant-presentation';
 
 function money(value: string): string {
   const number = Number(value);
@@ -23,24 +24,24 @@ function number(value: string): string {
 export function QuantPaperTradingPage({
   api,
   research,
+  onOpenDecision,
 }: {
   api: QuantApi;
   research: QuantWorkspaceSnapshot;
+  onOpenDecision?: () => void;
 }) {
   const [paper, setPaper] = useState<PaperSnapshot | null>(null);
   const [side, setSide] = useState<'buy' | 'sell'>('buy');
   const [quantity, setQuantity] = useState('1');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const selectedCandidateId = research.report?.selectedCandidateId
-    ?? research.report?.selectionDecision?.selectedCandidateId
-    ?? research.report?.generalization?.selectedCandidateId
-    ?? null;
+  const eligibility = projectPaperTradingEligibility(research);
+  const selectedCandidateId = eligibility.candidateId;
   const selectedCandidate = useMemo(
     () => research.candidates.find((candidate) => candidate.id === selectedCandidateId) ?? null,
     [research.candidates, selectedCandidateId],
   );
-  const eligible = research.run.state === 'completed' && selectedCandidate !== null;
+  const eligible = eligibility.eligible && selectedCandidate !== null;
 
   const refresh = useCallback(async () => {
     setError(null);
@@ -120,7 +121,7 @@ export function QuantPaperTradingPage({
           <dl>
             <div><dt>Run</dt><dd>{research.project.title}</dd></div>
             <div><dt>Candidate</dt><dd>{selectedCandidate?.name ?? 'No retained final candidate'}</dd></div>
-            <div><dt>Evidence</dt><dd>{eligible ? 'Final report retained' : 'Complete research and retain a final candidate first'}</dd></div>
+            <div><dt>Evidence</dt><dd>{eligibility.reason}</dd></div>
           </dl>
           <div className="quant-paper-fields">
             <label>Side<select value={side} onChange={(event) => setSide(event.target.value as 'buy' | 'sell')}><option value="buy">Buy</option><option value="sell">Sell</option></select></label>
@@ -128,6 +129,7 @@ export function QuantPaperTradingPage({
             <label>Order type<input value="Market · Day" readOnly /></label>
           </div>
           <Button disabled={!eligible || busy || Number(quantity) <= 0} onClick={createDraft}>Review draft</Button>
+          {!eligible && eligibility.canOpenDecision && onOpenDecision && <Button className="quant-paper-open-decision" onClick={onOpenDecision}>Open decision</Button>}
         </section>
 
         <section className="quant-paper-orders" aria-labelledby="paper-orders-title">

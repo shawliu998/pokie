@@ -17,10 +17,35 @@ if (QUANT_FAILURE && !QUANT_FAILURES.has(QUANT_FAILURE)) throw new Error(`Unsupp
 const QUANT_FIXTURES = JSON.parse(readFileSync(new URL('./fixtures/quant-workspace-fixtures.json', import.meta.url), 'utf8'));
 const INITIAL_QUANT_FIXTURE_STATE = process.env.POKIEQUANT_E2E_RUN_STATE ?? 'quant-completed';
 let quantFixtureState = INITIAL_QUANT_FIXTURE_STATE;
-if (!(quantFixtureState in QUANT_FIXTURES)) throw new Error(`Unsupported POKIEQUANT_E2E_RUN_STATE: ${quantFixtureState}`);
+if (!(quantFixtureState in QUANT_FIXTURES) && quantFixtureState !== 'quant-paper-pass') throw new Error(`Unsupported POKIEQUANT_E2E_RUN_STATE: ${quantFixtureState}`);
+
+// Keep the generated fixture JSON immutable: this browser-only variant derives a
+// terminal, identity-consistent sealed-holdout pass for the Paper handoff proof.
+function quantFixture(stateName) {
+  if (stateName !== 'quant-paper-pass') return QUANT_FIXTURES[stateName];
+  const snapshot = JSON.parse(JSON.stringify(QUANT_FIXTURES['quant-completed']));
+  snapshot.project.title = 'SPY sealed-holdout pass';
+  snapshot.project.goal = 'Retain the validated SPY trend candidate for Paper Trading review.';
+  snapshot.report.selectionDecision = { basis: 'approved_objective_rank', selectedCandidateId: 'candidate-b' };
+  snapshot.report.generalization = {
+    status: 'pass',
+    reason: 'The retained candidate passed the sealed holdout.',
+    selectedCandidateId: 'candidate-b',
+    split: {
+      method: 'chronological',
+      ruleVersion: 'chronological-80-20-v1',
+      trainBarCount: 1251,
+      holdoutBarCount: 313,
+      cutoffDate: '2023-10-20',
+      datasetId: snapshot.dataset.id,
+      datasetDigest: snapshot.dataset.digest,
+    },
+  };
+  return snapshot;
+}
 let quantRowVersion = 8;
-let quantGoal = QUANT_FIXTURES[quantFixtureState].project.goal;
-let quantRunMode = QUANT_FIXTURES[quantFixtureState].run.mode;
+let quantGoal = quantFixture(quantFixtureState).project.goal;
+let quantRunMode = quantFixture(quantFixtureState).run.mode;
 let quantProjectRowVersion = 1;
 if (!/^http:\/\/127\.0\.0\.1:[1-9]\d{0,4}$/.test(ALLOWED_ORIGIN)) {
   throw new Error('GLINT_FIXTURE_ALLOWED_ORIGIN must be an exact loopback HTTP origin.');
@@ -105,12 +130,12 @@ function registerQuantDataset(dataset) {
 }
 
 const quantDatasets = [registerQuantDataset(quantDatasetDto({
-  id: QUANT_FIXTURES[quantFixtureState].dataset.id,
-  name: QUANT_FIXTURES[quantFixtureState].dataset.name,
-  symbol: QUANT_FIXTURES[quantFixtureState].dataset.symbol,
-  barCount: QUANT_FIXTURES[quantFixtureState].dataset.barCount,
-  coveredStart: QUANT_FIXTURES[quantFixtureState].dataset.dateRange.start,
-  coveredEnd: QUANT_FIXTURES[quantFixtureState].dataset.dateRange.end,
+  id: quantFixture(quantFixtureState).dataset.id,
+  name: quantFixture(quantFixtureState).dataset.name,
+  symbol: quantFixture(quantFixtureState).dataset.symbol,
+  barCount: quantFixture(quantFixtureState).dataset.barCount,
+  coveredStart: quantFixture(quantFixtureState).dataset.dateRange.start,
+  coveredEnd: quantFixture(quantFixtureState).dataset.dateRange.end,
   sourceMetadata: { kind: 'csv_upload', file_name: 'synthetic-fixture.csv', source_name: 'Deterministic fixture', source_reference: 'fixture://spy', submitted_csv_digest: null, market_calendar: 'weekday', time_zone: 'America/New_York', price_adjustment: 'unadjusted' },
 }))];
 const initialQuantDatasets = cloneFixtureValue(quantDatasets);
@@ -978,8 +1003,8 @@ function resetFixtureState() {
   Object.assign(state, freshState);
   quantFixtureState = INITIAL_QUANT_FIXTURE_STATE;
   quantRowVersion = 8;
-  quantGoal = QUANT_FIXTURES[quantFixtureState].project.goal;
-  quantRunMode = QUANT_FIXTURES[quantFixtureState].run.mode;
+  quantGoal = quantFixture(quantFixtureState).project.goal;
+  quantRunMode = quantFixture(quantFixtureState).run.mode;
   quantProjectRowVersion = 1;
   quantPreviewBars.clear();
   quantDatasets.splice(0, quantDatasets.length);
@@ -993,7 +1018,7 @@ function resetFixtureState() {
 }
 
 function quantHistoryFixtures() {
-  const current = JSON.parse(JSON.stringify(QUANT_FIXTURES[quantFixtureState]));
+  const current = JSON.parse(JSON.stringify(quantFixture(quantFixtureState)));
   current.run.rowVersion = quantRowVersion;
   current.run.mode = quantRunMode;
   current.project.goal = quantGoal;
@@ -1458,7 +1483,7 @@ const server = createServer(async (req, res) => {
     const payload = await body(req);
     if (req.method === 'POST' && path === '/fixture-reset') { resetFixtureState(); return send(res, 200, { reset: true }); }
     if (req.method === 'POST' && path === '/fixture-control') { requireValue(typeof payload.api_offline === 'boolean', 'Fixture control requires an explicit API offline state.'); state.apiOffline = payload.api_offline; return send(res, 200, { api_offline: state.apiOffline }); }
-    if (req.method === 'GET' && path === '/fixture-state') return send(res, 200, { quant_fixture_state: quantFixtureState, quant_run_state: QUANT_FIXTURES[quantFixtureState].run.state, quant_run_mode: quantRunMode, quant_goal: quantGoal, quant_row_version: quantRowVersion, quant_project_row_version: quantProjectRowVersion, active_market_run_id: activeMarketRunId, api_offline: state.apiOffline, mutation_request_count: state.mutationRequestCount, sse_request_count: state.sseRequestCount, offline_mutation_request_count: state.offlineMutationRequestCount, offline_sse_request_count: state.offlineSseRequestCount, offline_export_request_count: state.offlineExportRequestCount, consent_preview_count: state.consentPreviewCount, consent_grant_attempts: state.consentGrantAttempts, consent_grant_count: state.consentGrantCount, upload_count: state.uploadCount, signal_transition_count: state.signalTransitionCount, signal_disposition: state.signalDisposition, investigation_status: state.investigationStatus, investigation_row_version: state.investigationRowVersion, run_state: state.runState, run_row_version: state.runRowVersion, latest_sequence: state.latestSequence, evidence_status: state.evidenceStatus, claim_status: state.claimStatus, synthesis_status: state.synthesisStatus, brief_status: state.briefStatus, export_post_count: state.exportPostCount, export_terminal_count: state.exportTerminalCount, export_idempotency_keys: state.exportIdempotencyKeys, export_timestamps: state.exportTimestamps });
+    if (req.method === 'GET' && path === '/fixture-state') return send(res, 200, { quant_fixture_state: quantFixtureState, quant_run_state: quantFixture(quantFixtureState).run.state, quant_run_mode: quantRunMode, quant_goal: quantGoal, quant_row_version: quantRowVersion, quant_project_row_version: quantProjectRowVersion, active_market_run_id: activeMarketRunId, api_offline: state.apiOffline, mutation_request_count: state.mutationRequestCount, sse_request_count: state.sseRequestCount, offline_mutation_request_count: state.offlineMutationRequestCount, offline_sse_request_count: state.offlineSseRequestCount, offline_export_request_count: state.offlineExportRequestCount, consent_preview_count: state.consentPreviewCount, consent_grant_attempts: state.consentGrantAttempts, consent_grant_count: state.consentGrantCount, upload_count: state.uploadCount, signal_transition_count: state.signalTransitionCount, signal_disposition: state.signalDisposition, investigation_status: state.investigationStatus, investigation_row_version: state.investigationRowVersion, run_state: state.runState, run_row_version: state.runRowVersion, latest_sequence: state.latestSequence, evidence_status: state.evidenceStatus, claim_status: state.claimStatus, synthesis_status: state.synthesisStatus, brief_status: state.briefStatus, export_post_count: state.exportPostCount, export_terminal_count: state.exportTerminalCount, export_idempotency_keys: state.exportIdempotencyKeys, export_timestamps: state.exportTimestamps });
     if (state.apiOffline) {
       if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) state.offlineMutationRequestCount += 1;
       if (req.method === 'GET' && path.endsWith('/events')) state.offlineSseRequestCount += 1;
@@ -1565,7 +1590,7 @@ const server = createServer(async (req, res) => {
         }
         return send(res, 200, cloneFixtureValue(activeMarketSnapshot));
       }
-      const snapshot = JSON.parse(JSON.stringify(QUANT_FIXTURES[quantFixtureState]));
+      const snapshot = JSON.parse(JSON.stringify(quantFixture(quantFixtureState)));
       if (quantFixtureState === 'quant-completed' && snapshot.report) {
         snapshot.report.selectedCandidateId = 'candidate-b';
       }
@@ -1856,7 +1881,7 @@ const server = createServer(async (req, res) => {
     }
     if (req.method === 'POST' && path === '/quant/workspace-snapshot/commands') {
       if (QUANT_FAILURE === 'provider-timeout') return failCode(res, 'PROVIDER_TIMEOUT', 'DeepSeek request timed out before producing a decision.', 504);
-      const snapshot = JSON.parse(JSON.stringify(QUANT_FIXTURES[quantFixtureState]));
+      const snapshot = JSON.parse(JSON.stringify(quantFixture(quantFixtureState)));
       const legal = [...snapshot.run.legalCommands, ...snapshot.composerLegalCommands];
       requireValue(payload.expected_row_version === quantRowVersion, 'Quant fixture command must pin the current row version.');
       requireValue(legal.includes(payload.command), 'Quant fixture command is not legal for the current snapshot.');
@@ -1877,7 +1902,7 @@ const server = createServer(async (req, res) => {
         complete_review: 'quant-completed',
       }[payload.command];
       quantRowVersion += 1;
-      const next = JSON.parse(JSON.stringify(QUANT_FIXTURES[quantFixtureState]));
+      const next = JSON.parse(JSON.stringify(quantFixture(quantFixtureState)));
       next.run.rowVersion = quantRowVersion;
       next.project.goal = quantGoal;
       return send(res, 200, next);

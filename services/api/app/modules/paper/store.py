@@ -149,16 +149,24 @@ class PaperTradingStore:
         if candidate is None:
             raise not_found("Research candidate")
         report = snapshot.get("report") or {}
+        if not report:
+            raise invalid_state("Paper orders require a retained final Research Report.")
         selection_decision = report.get("selectionDecision") or {}
         generalization = report.get("generalization") or {}
-        selected_candidate_id = (
+        report_selected_candidate_id = (
             report.get("selectedCandidateId")
             or selection_decision.get("selectedCandidateId")
-            or generalization.get("selectedCandidateId")
         )
-        if selected_candidate_id != candidate_id:
+        if report_selected_candidate_id != candidate_id:
             raise invalid_state(
                 "Paper orders require the candidate retained by the final Research Report."
+            )
+        if (
+            generalization.get("status") != "pass"
+            or generalization.get("selectedCandidateId") != candidate_id
+        ):
+            raise invalid_state(
+                "Paper orders require a passing sealed holdout generalization for the requested candidate."
             )
         bars = snapshot.get("bars") or []
         if not bars or not isinstance(bars[-1].get("close"), int | float):

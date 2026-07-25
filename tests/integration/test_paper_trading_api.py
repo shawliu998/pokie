@@ -7,6 +7,7 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 
 from packages.contracts.quant import QuantRunState
+from services.api.app.modules.paper import store as paper_store
 from services.api.app.modules.quant.store import QuantStore
 
 
@@ -130,6 +131,12 @@ def test_local_paper_order_fill_position_and_reconcile(
     client: TestClient, principal_id: str
 ) -> None:
     workspace_id, run, candidate_id = completed_research(client, principal_id)
+    research = client.get(
+        f"/v1/quant/runs/{run['id']}/workspace-snapshot",
+        headers=headers(principal_id, workspace_id),
+    )
+    assert research.status_code == 200, research.text
+    assert research.json()["report"]["generalization"]["status"] == "pass"
     initial = client.get(
         "/v1/paper/snapshot",
         headers=headers(principal_id, workspace_id),
@@ -213,6 +220,40 @@ def test_paper_draft_rejects_candidate_not_retained_by_final_report(
         json={
             "source_run_id": run["id"],
             "source_candidate_id": non_selected_candidate_id,
+            "side": "buy",
+            "quantity": "1",
+            "order_type": "market",
+            "time_in_force": "day",
+            "expected_account_row_version": 1,
+        },
+    )
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "INVALID_STATE"
+
+
+def test_paper_draft_rejects_retained_candidate_without_passed_holdout(
+    client: TestClient, principal_id: str, monkeypatch: Any
+) -> None:
+    workspace_id, run, candidate_id = completed_research(client, principal_id)
+    snapshot_response = client.get(
+        f"/v1/quant/runs/{run['id']}/workspace-snapshot",
+        headers=headers(principal_id, workspace_id),
+    )
+    assert snapshot_response.status_code == 200, snapshot_response.text
+    snapshot = snapshot_response.json()
+    snapshot["report"]["generalization"]["status"] = "inconclusive"
+    monkeypatch.setattr(
+        paper_store,
+        "quant_agent_workspace_snapshot",
+        lambda **_kwargs: snapshot,
+    )
+
+    response = client.post(
+        "/v1/paper/orders/drafts",
+        headers=command_headers(principal_id, workspace_id),
+        json={
+            "source_run_id": run["id"],
+            "source_candidate_id": candidate_id,
             "side": "buy",
             "quantity": "1",
             "order_type": "market",

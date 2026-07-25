@@ -13,6 +13,7 @@ import { QuantPlanRail } from './QuantPlanRail';
 import { QuantPaperTradingPage } from './QuantPaperTradingPage';
 import { presentQuantWorkspace, type QuantEvidenceFocusIntent } from './quant-presentation';
 import { QuantRunsPage } from './QuantRunsPage';
+import { QuantSidebar } from './QuantSidebar';
 import { QuantWorkspace, QuantWorkspaceLoading } from './QuantWorkspace';
 import { QuantRuntimeSettings } from './QuantRuntimeSettings';
 import { SessionRecovery } from '../session/SessionBoundary';
@@ -81,6 +82,8 @@ describe('Quant Workspace components', () => {
     const root = createRoot(container);
     const research = structuredClone(quantFixtureSnapshot);
     research.report!.selectedCandidateId = 'candidate-b';
+    research.report!.selectionDecision = { basis: 'approved_objective_rank', selectedCandidateId: 'candidate-b' };
+    research.report!.generalization = { ...research.report!.generalization!, status: 'pass', selectedCandidateId: 'candidate-b', reason: 'The retained candidate passed the sealed holdout.' };
     await act(async () => {
       root.render(<QuantPaperTradingPage api={createFixtureQuantApi()} research={research} />);
       await Promise.resolve();
@@ -97,6 +100,29 @@ describe('Quant Workspace components', () => {
     expect(container.textContent).toContain('draft');
     expect(container.textContent).toContain('Submit');
     expect(container.textContent).toContain('Cancel');
+    await act(async () => { root.unmount(); });
+    container.remove();
+  });
+
+  it('disables Paper draft review and opens the retained decision when validation is not promotable', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const research = structuredClone(quantFixtureSnapshot);
+    research.report!.selectionDecision = { basis: 'approved_objective_rank', selectedCandidateId: 'candidate-b' };
+    research.report!.generalization = { ...research.report!.generalization!, status: 'fail', selectedCandidateId: 'candidate-b', reason: 'The retained candidate failed the sealed holdout.' };
+    const onOpenDecision = vi.fn();
+    await act(async () => {
+      root.render(<QuantPaperTradingPage api={createFixtureQuantApi()} research={research} onOpenDecision={onOpenDecision} />);
+      await Promise.resolve();
+    });
+    const review = [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Review draft');
+    expect(review?.disabled).toBe(true);
+    expect(container.textContent).toContain('The retained candidate failed the sealed holdout.');
+    const openDecision = [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Open decision');
+    expect(openDecision).toBeTruthy();
+    await act(async () => { openDecision?.click(); });
+    expect(onOpenDecision).toHaveBeenCalledOnce();
     await act(async () => { root.unmount(); });
     container.remove();
   });
@@ -148,6 +174,31 @@ describe('Quant Workspace components', () => {
     expect(markup.indexOf('Open decision')).toBeLessThan(markup.indexOf('New research'));
     expect(markup).not.toContain('quant-run-state');
     expect(markup).not.toContain('text-transform:uppercase');
+  });
+
+  it('uses the authoritative terminal lifecycle label in History and Recent', () => {
+    const passed = structuredClone(quantFixtureSnapshot);
+    passed.report = {
+      ...passed.report!,
+      selectionDecision: { basis: 'approved_objective_rank', selectedCandidateId: 'candidate-b' },
+      generalization: { ...passed.report!.generalization!, status: 'pass', selectedCandidateId: 'candidate-b', reason: 'Passed the sealed holdout.' },
+    };
+    const concluded = structuredClone(passed);
+    concluded.report!.generalization = { ...concluded.report!.generalization!, status: 'fail', reason: 'Failed the sealed holdout.' };
+
+    const passedHistory = renderToStaticMarkup(<QuantRunsPage api={createFixtureQuantApi()} snapshot={passed} onOpenRun={vi.fn()} onOpenReport={vi.fn()} onStartNewResearch={vi.fn()} />);
+    const passedRecent = renderToStaticMarkup(<QuantSidebar snapshot={passed} destination="projects" onSelect={vi.fn()} />);
+    const concludedHistory = renderToStaticMarkup(<QuantRunsPage api={createFixtureQuantApi()} snapshot={concluded} onOpenRun={vi.fn()} onOpenReport={vi.fn()} onStartNewResearch={vi.fn()} />);
+    const concludedRecent = renderToStaticMarkup(<QuantSidebar snapshot={concluded} destination="projects" onSelect={vi.fn()} />);
+    const pendingHistory = renderToStaticMarkup(<QuantRunsPage api={createFixtureQuantApi()} snapshot={quantFixtureSnapshot} onOpenRun={vi.fn()} onOpenReport={vi.fn()} onStartNewResearch={vi.fn()} />);
+    const pendingRecent = renderToStaticMarkup(<QuantSidebar snapshot={quantFixtureSnapshot} destination="projects" onSelect={vi.fn()} />);
+
+    expect(passedHistory).toContain('Research complete');
+    expect(passedRecent).toContain('Research complete');
+    expect(concludedHistory).toContain('Research concluded');
+    expect(concludedRecent).toContain('Research concluded');
+    expect(pendingHistory).toContain('Experiments complete — validation pending');
+    expect(pendingRecent).toContain('Experiments complete — validation pending');
   });
 
   it('exposes the primary research views as a keyboard-oriented tab set', () => {
@@ -741,18 +792,23 @@ describe('Quant Workspace components', () => {
     expect(settings).toContain('Settings');
     expect(settings).not.toContain('<textarea');
     expect(research).toContain('Research preflight');
-    expect(research).toContain('aria-label="Research boundary"');
-    expect(research).toContain('Expanding windows');
+    expect(research).toContain('aria-label="Research readiness"');
+    expect(research).toContain('Minimum history met');
+    expect(research).not.toContain('Expanding windows');
+    expect(research).not.toContain('<dt>Holdout</dt>');
+    expect(research).not.toContain('<dt>Promotion</dt>');
     expect(research).not.toContain('Before you start');
     expect(research).not.toContain('pq-utility-card');
     expect(research).not.toContain('<textarea');
     expect(data).toContain('Dataset inspector');
-    expect(data).toContain('Immutable identity');
+    expect(data).toContain('Dataset fitness');
+    expect(data).toContain('Retained metadata');
     expect(data).toContain('<dt>Digest</dt>');
     expect(data).toContain('<dt>Schema</dt>');
-    expect(data).not.toContain('<dt>Rows</dt>');
-    expect(data).not.toContain('<dt>Coverage</dt>');
-    expect(data).not.toContain('<dt>Quality</dt>');
+    expect(data).toContain('<dt>Bars</dt>');
+    expect(data).toContain('<dt>Coverage</dt>');
+    expect(data).toContain('<dt>Quality</dt>');
+    expect(data).toContain('<dt>Price path</dt>');
     expect(data).not.toContain('<textarea');
   });
 

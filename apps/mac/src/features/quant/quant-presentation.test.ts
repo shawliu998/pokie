@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { QuantExecutableResearchPlan, QuantWorkspaceSnapshot } from '../../quant-domain';
 import type { QuantRunHistoryItem } from '../../quant-api';
 import { quantFixtureSnapshot } from './quant-fixtures';
-import { canContinueResearch, formatTradeHolding, presentQuantWorkspace, presentResearchCopilot, presentStrategyScopeDecision, projectDecisionLedger, projectEvidenceFocusActions, projectNextResearchProposal, projectQuantRunRelationship, projectTerminalDecision, resolveEvidenceFocusIntent, quantRunHistoryMatchesSnapshot, quantRunRelationshipLabel } from './quant-presentation';
+import { canContinueResearch, formatTradeHolding, presentQuantWorkspace, presentResearchCopilot, presentStrategyScopeDecision, projectDecisionLedger, projectEvidenceFocusActions, projectNextResearchProposal, projectPaperTradingEligibility, projectQuantRunRelationship, projectTerminalDecision, resolveEvidenceFocusIntent, quantRunHistoryMatchesSnapshot, quantRunRelationshipLabel } from './quant-presentation';
 
 function fixture(overrides: Partial<QuantWorkspaceSnapshot> = {}): QuantWorkspaceSnapshot {
   return { ...structuredClone(quantFixtureSnapshot), ...overrides };
@@ -286,6 +286,72 @@ describe('presentQuantWorkspace', () => {
     const historicalState = structuredClone(base);
     historicalState.run = { ...historicalState.run, state: 'failed' };
     expect(projectTerminalDecision(historicalState)).toBeNull();
+  });
+
+  it('permits Paper Trading only for the passed authoritative retained decision', () => {
+    const missingDecision = fixture();
+    expect(projectPaperTradingEligibility(missingDecision)).toMatchObject({
+      eligible: false,
+      candidateId: null,
+      reason: 'No terminal decision is available.',
+      canOpenDecision: true,
+    });
+
+    const inProgress = fixture({ report: null, run: { ...quantFixtureSnapshot.run, state: 'running_experiments', legalCommands: ['cancel_run'] } });
+    expect(projectPaperTradingEligibility(inProgress)).toMatchObject({
+      eligible: false,
+      candidateId: null,
+      reason: 'Research is still in progress; wait for a sealed decision.',
+      canOpenDecision: false,
+    });
+
+    const passed = fixture();
+    passed.report = {
+      ...passed.report!,
+      selectionDecision: { basis: 'approved_objective_rank', selectedCandidateId: 'candidate-b' },
+      generalization: { ...passed.report!.generalization!, status: 'pass', selectedCandidateId: 'candidate-b', reason: 'The retained candidate passed the sealed holdout.' },
+    };
+    expect(projectPaperTradingEligibility(passed)).toMatchObject({
+      eligible: true,
+      candidateId: 'candidate-b',
+      candidateName: 'Candidate B · SMA 50/200',
+      reason: 'Final report retained',
+      canOpenDecision: true,
+    });
+    expect(presentQuantWorkspace(passed).statusLabel).toBe('Research complete');
+
+    for (const status of ['fail', 'inconclusive'] as const) {
+      const ineligible = structuredClone(passed);
+      ineligible.report!.generalization = { ...ineligible.report!.generalization!, status, reason: `Retained ${status} evidence.` };
+      expect(projectPaperTradingEligibility(ineligible)).toMatchObject({
+        eligible: false,
+        candidateId: 'candidate-b',
+        candidateName: 'Candidate B · SMA 50/200',
+        reason: `Retained ${status} evidence.`,
+        canOpenDecision: true,
+      });
+    }
+
+    const pending = structuredClone(passed);
+    pending.report!.generalization = { ...pending.report!.generalization!, status: 'not_evaluated' };
+    expect(projectPaperTradingEligibility(pending)).toMatchObject({
+      eligible: false,
+      candidateId: 'candidate-b',
+      candidateName: 'Candidate B · SMA 50/200',
+      reason: 'Experiments complete — validation pending',
+      canOpenDecision: true,
+    });
+    expect(presentQuantWorkspace(pending).statusLabel).toBe('Experiments complete — validation pending');
+
+    const incoherent = structuredClone(passed);
+    incoherent.candidates = incoherent.candidates.filter((candidate) => candidate.id !== 'candidate-b');
+    expect(projectPaperTradingEligibility(incoherent)).toMatchObject({
+      eligible: false,
+      candidateId: 'candidate-b',
+      candidateName: null,
+      reason: 'The retained candidate identity is missing or inconsistent.',
+      canOpenDecision: true,
+    });
   });
 
   it('projects Current, Observation and one legal primary Next action across the lifecycle', () => {
@@ -742,8 +808,8 @@ describe('presentQuantWorkspace', () => {
 
   it('keeps rejected and inconclusive candidates independent from completed run health', () => {
     const presentation = presentQuantWorkspace(fixture());
-    expect(presentation.statusLabel).toBe('Completed');
-    expect(presentation.statusTone).toBe('positive');
+    expect(presentation.statusLabel).toBe('Experiments complete — validation pending');
+    expect(presentation.statusTone).toBe('warning');
     expect(presentation.candidates).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: 'candidate-a', verdictLabel: 'Rejected', reason: 'Parameter sensitivity · 6.33 pp range' }),
       expect.objectContaining({ id: 'candidate-c', verdictLabel: 'Inconclusive' }),
@@ -769,7 +835,7 @@ describe('presentQuantWorkspace', () => {
     snapshot.candidates = snapshot.candidates.map((candidate) => ({ ...candidate, verdict: candidate.id === 'candidate-a' ? 'rejected' : 'inconclusive' }));
     const presentation = presentQuantWorkspace(snapshot);
     expect(presentation.negativeConclusion).toBe(true);
-    expect(presentation.statusLabel).toBe('Completed');
+    expect(presentation.statusLabel).toBe('Experiments complete — validation pending');
     expect(presentation.decision).toMatchObject({
       title: 'No candidate passed validation',
       tone: 'danger',

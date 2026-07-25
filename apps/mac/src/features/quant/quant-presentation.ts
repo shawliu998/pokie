@@ -408,6 +408,120 @@ export type QuantTerminalDecisionProjection = {
   };
 };
 
+export interface QuantPaperTradingEligibility {
+  eligible: boolean;
+  candidateId: string | null;
+  candidateName: string | null;
+  reason: string;
+  canOpenDecision: boolean;
+}
+
+/**
+ * Paper simulation is a handoff from the authoritative terminal decision only.
+ * It intentionally does not infer a retained candidate from provisional report fields.
+ */
+export function projectPaperTradingEligibility(snapshot: QuantWorkspaceSnapshot): QuantPaperTradingEligibility {
+  const terminalDecision = projectTerminalDecision(snapshot);
+  const canOpenDecision = Boolean(snapshot.report);
+
+  if (terminalDecision?.holdoutStatus === 'pass') {
+    const candidate = snapshot.candidates.find((item) => item.id === terminalDecision.finalCandidateId);
+    if (candidate && candidate.name === terminalDecision.finalCandidateName) {
+      return {
+        eligible: true,
+        candidateId: candidate.id,
+        candidateName: candidate.name,
+        reason: 'Final report retained',
+        canOpenDecision,
+      };
+    }
+    return {
+      eligible: false,
+      candidateId: terminalDecision.finalCandidateId,
+      candidateName: terminalDecision.finalCandidateName,
+      reason: 'The passed decision’s retained candidate is unavailable.',
+      canOpenDecision,
+    };
+  }
+
+  if (terminalDecision?.holdoutStatus === 'fail') {
+    return {
+      eligible: false,
+      candidateId: terminalDecision.finalCandidateId,
+      candidateName: terminalDecision.finalCandidateName,
+      reason: terminalDecision.holdoutReason || 'The retained candidate failed the sealed holdout.',
+      canOpenDecision,
+    };
+  }
+
+  if (terminalDecision?.holdoutStatus === 'inconclusive') {
+    return {
+      eligible: false,
+      candidateId: terminalDecision.finalCandidateId,
+      candidateName: terminalDecision.finalCandidateName,
+      reason: terminalDecision.holdoutReason || 'The sealed holdout was inconclusive.',
+      canOpenDecision,
+    };
+  }
+
+  if (snapshot.run.state !== 'completed') {
+    return {
+      eligible: false,
+      candidateId: null,
+      candidateName: null,
+      reason: 'Research is still in progress; wait for a sealed decision.',
+      canOpenDecision,
+    };
+  }
+
+  const report = snapshot.report;
+  if (!report || !report.selectionDecision || !report.generalization) {
+    return {
+      eligible: false,
+      candidateId: null,
+      candidateName: null,
+      reason: 'No terminal decision is available.',
+      canOpenDecision,
+    };
+  }
+
+  const selectedCandidateId = report.selectionDecision.selectedCandidateId;
+  const generalizationCandidateId = report.generalization.selectedCandidateId;
+  const candidate = selectedCandidateId
+    ? snapshot.candidates.find((item) => item.id === selectedCandidateId)
+    : undefined;
+
+  if (!selectedCandidateId) {
+    return {
+      eligible: false,
+      candidateId: null,
+      candidateName: null,
+      reason: 'No retained candidate was selected.',
+      canOpenDecision,
+    };
+  }
+
+  if (selectedCandidateId !== generalizationCandidateId || !candidate) {
+    return {
+      eligible: false,
+      candidateId: selectedCandidateId,
+      candidateName: candidate?.name ?? null,
+      reason: 'The retained candidate identity is missing or inconsistent.',
+      canOpenDecision,
+    };
+  }
+
+  return {
+    eligible: false,
+    candidateId: selectedCandidateId,
+    candidateName: candidate.name,
+    reason: report.generalization.status === 'not_evaluated'
+      ? 'Experiments complete — validation pending'
+      : 'The retained candidate is not eligible for paper trading.',
+    canOpenDecision,
+  };
+}
+
 export function projectNextResearchProposal(
   snapshot: QuantWorkspaceSnapshot,
   candidate: QuantCandidate | undefined,
@@ -519,6 +633,7 @@ export function projectTerminalDecision(snapshot: QuantWorkspaceSnapshot): Quant
       : {}),
   };
 }
+
 export type QuantViewAction = 'open_report' | 'compare_candidates' | 'open_diagnostics';
 
 export interface QuantActivityPresentation {
@@ -737,7 +852,7 @@ const stateCopy: Record<QuantRunState, [string, QuantTone, string, string]> = {
   validating: ['Validating evidence', 'info', 'Running robustness checks', 'Completed candidates are being checked across walk-forward windows and the sealed holdout.'],
   generating_report: ['Building report', 'info', 'Assembling the research report', 'Retained results, validation findings, and limitations are being assembled for human review.'],
   waiting_for_review: ['Waiting for review', 'warning', 'Research results need review', 'Review findings and the report draft before completing the process.'],
-  completed: ['Completed', 'positive', 'Research process completed', 'Research artifacts and validation evidence are immutable and ready for review.'],
+  completed: ['Experiments complete', 'warning', 'Experiments complete', 'Review the retained validation evidence and final decision.'],
   failed: ['Failed safely', 'danger', 'The run stopped safely', 'Persisted artifacts remain available for diagnosis and a new attempt.'],
   cancelled: ['Cancelled', 'neutral', 'The run was cancelled', 'Events and artifacts recorded before cancellation remain immutable.'],
   unknown: ['Unrecognized state', 'neutral', 'The run state is not recognized', 'Check diagnostics for the raw state value returned by the server.'],
@@ -995,6 +1110,7 @@ export function presentResearchCopilot(
   snapshot: QuantWorkspaceSnapshot,
   options: { selectedCandidateId?: string; isHistorical?: boolean } = {},
 ): QuantCopilotProjection {
+  const lifecycle = presentQuantWorkspace(snapshot);
   const readOnly = options.isHistorical === true;
   const legal = new Set(readOnly ? [] : [...snapshot.run.legalCommands, ...snapshot.composerLegalCommands]);
   const terminal = ['completed', 'failed', 'cancelled'].includes(snapshot.run.state);
@@ -1056,7 +1172,7 @@ export function presentResearchCopilot(
     else add('new_research', 'New research', 'primary');
     if (snapshot.candidates.length > 0 && !actions.some((action) => action.kind === 'open_analysis')) add('open_analysis', 'Open analysis');
     add('new_research', 'New research');
-    nextDetail = 'Open the retained decision to review the final evidence.';
+    nextDetail = decision.nextStep;
   } else if (snapshot.run.state === 'failed' || snapshot.run.state === 'cancelled') {
     legalAction('retry_run', 'Retry run', 'primary');
     if (!actions.length) add('new_research', 'New research', 'primary');
@@ -1081,7 +1197,7 @@ export function presentResearchCopilot(
 
   return {
     current: {
-      title: snapshot.liveResearch?.phaseLabel || stateCopy[snapshot.run.state][2],
+      title: snapshot.liveResearch?.phaseLabel || lifecycle.currentActionTitle,
       detail: currentStep ? `${currentStep.title} · ${planCompleted} of ${snapshot.plan.length} plan steps complete.` : `${planCompleted} of ${snapshot.plan.length} plan steps complete.`,
       question: snapshot.project.goal,
     },
@@ -1134,7 +1250,29 @@ function presentActions(snapshot: QuantWorkspaceSnapshot): QuantActionPresentati
 }
 
 export function presentQuantWorkspace(snapshot: QuantWorkspaceSnapshot): QuantWorkspacePresentation {
-  const [statusLabel, statusTone, currentActionTitle, defaultActionPurpose] = stateCopy[snapshot.run.state];
+  const [defaultStatusLabel, defaultStatusTone, defaultCurrentActionTitle, defaultActionPurpose] = stateCopy[snapshot.run.state];
+  const terminalDecision = projectTerminalDecision(snapshot);
+  const statusLabel = snapshot.run.state === 'completed'
+    ? terminalDecision?.holdoutStatus === 'pass'
+      ? 'Research complete'
+      : terminalDecision
+        ? 'Research concluded'
+        : 'Experiments complete — validation pending'
+    : defaultStatusLabel;
+  const statusTone: QuantTone = snapshot.run.state === 'completed'
+    ? terminalDecision?.holdoutStatus === 'pass'
+      ? 'positive'
+      : terminalDecision?.holdoutStatus === 'fail'
+        ? 'danger'
+        : 'warning'
+    : defaultStatusTone;
+  const currentActionTitle = snapshot.run.state === 'completed'
+    ? terminalDecision?.holdoutStatus === 'pass'
+      ? 'Research complete'
+      : terminalDecision
+        ? 'Research concluded'
+        : 'Experiments complete — validation pending'
+    : defaultCurrentActionTitle;
   const generalization = snapshot.run.state === 'completed' || snapshot.run.state === 'waiting_for_review'
     ? snapshot.report?.generalization
     : undefined;

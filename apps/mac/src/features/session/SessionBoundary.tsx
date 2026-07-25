@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { Button } from '@glint/ui';
+import { Button, Field, FieldDescription, FieldError, FieldLabel, Skeleton } from '@glint/ui';
 import { createApi, type GlintApi } from '../../api';
 import { clearAccessToken, isNativeRuntime, SessionExpiredError, SessionFailure, storeAccessToken } from '../../session';
 import { clearConnectionProfile, connectionDraft, storeConnectionProfile } from '../../connection';
@@ -34,7 +34,7 @@ export function SessionBoundary({ children }: SessionBoundaryProps) {
     }
   }, [expire]);
   useEffect(() => { void connect(); }, [connect]);
-  if (loading) return <div className="loading-shell" aria-live="polite"><div className="skeleton title" /><div className="skeleton wide" /><p>Connecting Qurio…</p></div>;
+  if (loading) return <div className="loading-shell" aria-live="polite"><Skeleton className="title" /><Skeleton className="wide" /><p>Connecting Qurio…</p></div>;
   if (!api) return <SessionRecovery failure={failure} native={native} onReconnect={connect} />;
   return children(api);
 }
@@ -112,23 +112,26 @@ export function SessionRecovery({ failure, native, onReconnect }: { failure: Ses
       {mode === 'native-keychain' ? <>
         {native && <div className="session-runtime">
           <div className="session-fields">
-            <label>Model provider
+            <Field><FieldLabel>Model provider
               <select value={runtimeProvider} disabled={busy} onChange={(event) => setRuntimeProvider(event.target.value as LocalRuntimeProvider)}>
                 <option value="deepseek">DeepSeek</option>
                 <option value="mock">Offline demo — no API key</option>
               </select>
-            </label>
-            {runtimeProvider === 'deepseek' && <label>Model
+            </FieldLabel></Field>
+            {runtimeProvider === 'deepseek' && <Field><FieldLabel>Model
               <input value={runtimeModel} disabled={busy} onChange={(event) => setRuntimeModel(event.target.value)} />
-            </label>}
+            </FieldLabel></Field>}
           </div>
-          {runtimeProvider === 'deepseek' && <label>DeepSeek API key <span className="hint">Stored in macOS Keychain. Leave blank to reuse a saved key.</span>
-            <input type="password" autoComplete="off" value={runtimeApiKey} disabled={busy} onChange={(event) => setRuntimeApiKey(event.target.value)} />
-          </label>}
+          {runtimeProvider === 'deepseek' && <Field>
+            <FieldLabel>DeepSeek API key
+              <input type="password" autoComplete="off" value={runtimeApiKey} disabled={busy} onChange={(event) => setRuntimeApiKey(event.target.value)} />
+            </FieldLabel>
+            <FieldDescription>Stored in macOS Keychain. Leave blank to reuse a saved key.</FieldDescription>
+          </Field>}
           {startupStep !== 'idle'
             ? <p className="session-progress" role="status">{startupStep === 'starting' ? 'Starting the local runtime…' : 'Opening your research workspace…'}</p>
             : runtimeStatus?.message && <p className="hint">{runtimeStatus.message}</p>}
-          {error && <p className="session-error" role="alert">{error}</p>}
+          {error && <FieldError className="session-error">{error}</FieldError>}
           <Button className="primary session-start" disabled={busy || (runtimeProvider === 'deepseek' && !runtimeModel.trim())} onClick={() => void startLocal()}>
             {busy ? 'Preparing Qurio…' : 'Start Qurio'}
           </Button>
@@ -138,10 +141,10 @@ export function SessionRecovery({ failure, native, onReconnect }: { failure: Ses
           <summary>Connect an existing workspace</summary>
           <p className="hint">For hosted or separately managed Qurio workspaces.</p>
           <div className="session-fields">
-            <label>API URL<input type="url" autoComplete="url" placeholder="http://127.0.0.1:8135" value={connection.apiUrl} disabled={busy} onChange={(event) => setConnection((current) => ({ ...current, apiUrl: event.target.value }))} /></label>
-            <label>Workspace ID<input autoComplete="off" spellCheck={false} placeholder="Workspace UUID" value={connection.workspaceId} disabled={busy} onChange={(event) => setConnection((current) => ({ ...current, workspaceId: event.target.value }))} /></label>
+            <Field><FieldLabel>API URL<input type="url" autoComplete="url" placeholder="http://127.0.0.1:8135" value={connection.apiUrl} disabled={busy} onChange={(event) => setConnection((current) => ({ ...current, apiUrl: event.target.value }))} /></FieldLabel></Field>
+            <Field><FieldLabel>Workspace ID<input autoComplete="off" spellCheck={false} placeholder="Workspace UUID" value={connection.workspaceId} disabled={busy} onChange={(event) => setConnection((current) => ({ ...current, workspaceId: event.target.value }))} /></FieldLabel></Field>
           </div>
-          <label>Access token<input type="password" autoComplete="off" spellCheck={false} value={token} disabled={busy} onChange={(event) => setToken(event.target.value)} /></label>
+          <Field><FieldLabel>Access token<input type="password" autoComplete="off" spellCheck={false} value={token} disabled={busy} onChange={(event) => setToken(event.target.value)} /></FieldLabel></Field>
           <p className="hint">The endpoint and workspace stay on this Mac. The token stays in macOS Keychain.</p>
           <div className="actions">
             <Button className="primary" disabled={busy || (tokenRequired && !token.trim()) || !connection.apiUrl.trim() || !connection.workspaceId.trim()} onClick={() => void save()}>Save &amp; connect</Button>

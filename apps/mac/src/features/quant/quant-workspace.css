@@ -724,9 +724,9 @@
 
 /* Canonical dark Figma system: the only theme/token source for this workspace. */
 .quant-shell {
-  --background:#0d0f12; --surface:#171a20; --surface-elevated:#20242c; --surface-subtle:#12151a; --sidebar:#111419;
-  --border:#272c34; --border-strong:#39414d; --text:#f4f5f7; --muted:#c0c4cc; --faint:#9da3ae;
-  --accent:#6675f5; --primary:#6675f5; --positive:#4eb58b; --warning:#d8a84e; --danger:#df737c; --info:#7d8cf7; --focus:#8795ff;
+  --background:#11141a; --surface:#1b2028; --surface-elevated:#242a34; --surface-subtle:#171b22; --sidebar:#171b22;
+  --border:#2c333f; --border-strong:#46505f; --text:#f4f6f8; --muted:#b0b7c2; --faint:#858e9c;
+  --accent:#8290ff; --primary:#f4f6f8; --primary-foreground:#202733; --positive:#4eb58b; --warning:#d8a84e; --danger:#df737c; --info:#91a0ff; --focus:#8795ff;
   --font-sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;
   --font-mono:"SF Mono",ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;
   --type-dense:.884615rem;
@@ -1520,7 +1520,7 @@
 .pq-strategy-scope-exclusions ul { display:grid; gap:var(--space-1); margin:0; padding-left:18px; }
 .pq-copilot-section .pq-strategy-scope .pq-strategy-scope-confirmation { padding-top:var(--space-3); border-top:1px solid var(--border-strong); color:var(--text); font-weight:600; }
 .pq-copilot-actions { display:flex; flex-wrap:wrap; gap:var(--space-3); margin-top:var(--space-4); }
-.pq-copilot-actions button { min-height:var(--control-compact); border:1px solid var(--border-strong); border-radius:var(--radius-control); padding:0 var(--space-4); background:var(--surface); color:var(--text); font-size:var(--type-dense); }
+.pq-copilot-actions button { min-height:var(--control-compact); border:1px solid var(--border-strong); border-radius:6px; padding:0 var(--space-4); background:var(--surface); color:var(--text); font-size:var(--type-dense); }
 .pq-copilot-actions button.is-primary { border-color:var(--accent); background:var(--accent); color:#fff; }
 .pq-copilot-actions button:disabled { opacity:.5; }
 .pq-copilot-details { flex:0 0 auto; border-bottom:1px solid var(--border); }
@@ -2047,7 +2047,7 @@
   margin:0 0 var(--space-6);
   padding:var(--space-6);
   border:0;
-  border-radius:var(--radius-overlay);
+  border-radius:var(--radius-panel);
   background:var(--surface);
 }
 .quant-decision-outcome>strong { font-size:var(--type-section); line-height:var(--leading-section); }
@@ -2058,7 +2058,7 @@
 .quant-report-performance {
   overflow:hidden;
   border:0;
-  border-radius:var(--radius-overlay);
+  border-radius:var(--radius-panel);
   background:var(--surface);
 }
 .pq-results-performance>header,
@@ -2076,7 +2076,7 @@
   margin:0;
   padding:var(--space-5) var(--space-6);
   border:0;
-  border-radius:var(--radius-overlay);
+  border-radius:var(--radius-panel);
   background:var(--surface);
 }
 .pq-key-comparison>div,
@@ -2095,7 +2095,7 @@
 .pq-validation-summary {
   overflow:hidden;
   border:0;
-  border-radius:var(--radius-overlay);
+  border-radius:var(--radius-panel);
   background:var(--surface);
 }
 .pq-validation-summary>header { border-bottom:0; padding-inline:var(--space-6); }
@@ -2258,4 +2258,165 @@
   .quant-runs-tools>details { justify-self:start; }
   .quant-runs-tools>.button { justify-self:end; }
   .quant-runs-tools>details>div { right:auto; left:0; }
+}
+
+/* Appica-compatible primitive layer: React 18 adaptation of its public control contract. */
+.quant-shell :is(input,select,textarea) {
+  border:1px solid var(--border-strong);
+  border-radius:var(--radius-control);
+  background:var(--surface);
+  color:var(--text);
+  transition:border-color var(--motion-fast) var(--ease-out),background-color var(--motion-fast) var(--ease-out),box-shadow var(--motion-fast) var(--ease-out);
+}
+.quant-shell :is(input,select,textarea):hover:not(:disabled):not(:focus) { border-color:var(--faint); }
+.quant-shell :is(input,select,textarea):focus-visible {
+  outline:0;
+  border-color:transparent;
+  background:var(--surface);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--focus) 28%,transparent);
+}
+.quant-shell :is(input,select,textarea):disabled {
+  border-style:dashed;
+  background:var(--surface-subtle);
+  opacity:.56;
+}
+.quant-shell .button {
+  min-height:var(--control-default);
+  border:1px solid var(--border-strong);
+  border-radius:var(--radius-control);
+  padding:0 var(--space-6);
+  background:var(--surface);
+  color:var(--text);
+  font-weight:600;
+  box-shadow:none;
+  transition:transform var(--motion-fast) var(--ease-out),background-color var(--motion-fast) var(--ease-out),border-color var(--motion-fast) var(--ease-out),color var(--motion-fast) var(--ease-out);
+}
+.quant-shell .button:hover:not(:disabled) {
+  border-color:var(--faint);
+  background:var(--surface-subtle);
+}
+.quant-shell .button:active:not(:disabled) {
+  transform:translateY(1px);
+  transition-duration:100ms;
+}
+.quant-shell .button.primary,
+.quant-shell .button[data-variant="primary"],
+.pq-primary-button {
+  border-color:var(--primary);
+  border-radius:var(--radius-control);
+  background:var(--primary);
+  color:var(--primary-foreground);
+}
+.quant-shell .button.primary:hover:not(:disabled),
+.quant-shell .button[data-variant="primary"]:hover:not(:disabled),
+.pq-primary-button:hover:not(:disabled) {
+  border-color:var(--primary);
+  background:color-mix(in srgb,var(--primary) 86%,var(--accent));
+  color:var(--primary-foreground);
+}
+.quant-shell .button[data-variant="soft"] { border-color:transparent; background:var(--surface-elevated); }
+.quant-shell .button[data-variant="ghost"] { border-color:transparent; background:transparent; }
+.quant-shell .button[data-variant="destructive"] { border-color:var(--danger); background:var(--danger); color:#fff; }
+
+.quant-shell :is(
+  .pq-workbench-header nav,
+  .quant-report-tabs,
+  .pq-results-view-tabs,
+  .pq-analysis-tabs,
+  .quant-data-directory-tabs,
+  .quant-data-source-tabs,
+  .quant-settings-page>nav
+) button {
+  border-radius:0;
+  transition:background-color var(--motion-fast) var(--ease-out),border-color var(--motion-fast) var(--ease-out),color var(--motion-fast) var(--ease-out);
+}
+.quant-shell :is(
+  .pq-workbench-header nav,
+  .quant-report-tabs,
+  .pq-results-view-tabs,
+  .pq-analysis-tabs,
+  .quant-data-directory-tabs,
+  .quant-data-source-tabs,
+  .quant-settings-page>nav
+) button:hover:not(:disabled) { background:var(--surface-subtle); color:var(--text); }
+.quant-mode-switch {
+  gap:var(--space-1);
+  padding:var(--space-1);
+  border-color:var(--border);
+  border-radius:var(--radius-control);
+  background:var(--surface-subtle);
+}
+.quant-mode-switch button { border-radius:2px; }
+.quant-mode-switch button[aria-pressed="true"] {
+  border-bottom-color:transparent;
+  background:var(--surface-elevated);
+  color:var(--text);
+  box-shadow:0 1px 2px rgb(0 0 0 / 24%);
+}
+.pq-utility-frame.is-new_research .quant-composer-mode-field .quant-mode-switch {
+  padding:var(--space-1);
+  border:1px solid var(--border);
+  border-radius:var(--radius-control);
+  background:var(--surface-subtle);
+}
+.pq-utility-frame.is-new_research .quant-composer-mode-field .quant-mode-switch button {
+  height:var(--control-default);
+  border:0;
+  border-radius:2px;
+  padding-inline:var(--space-5);
+}
+.pq-utility-frame.is-new_research .quant-composer-mode-field .quant-mode-switch button[aria-pressed="true"] {
+  background:var(--surface-elevated);
+  color:var(--text);
+  box-shadow:0 1px 2px rgb(0 0 0 / 24%);
+}
+.quant-report>header select { border-radius:var(--radius-control); }
+
+.pq-table-scroll {
+  overflow:auto;
+  border:1px solid var(--border);
+  border-radius:var(--radius-panel);
+  background:var(--surface);
+}
+.pq-table-scroll>.quant-research-table { border-top:0; }
+.quant-research-table { border-collapse:separate; border-spacing:0; }
+.quant-research-table thead th { background:var(--surface-subtle); color:var(--muted); }
+.quant-research-table thead th:first-child { border-top-left-radius:calc(var(--radius-panel) - 1px); }
+.quant-research-table thead th:last-child { border-top-right-radius:calc(var(--radius-panel) - 1px); }
+.quant-research-table tbody tr:hover { background:color-mix(in srgb,var(--surface-elevated) 72%,var(--surface)); }
+.quant-research-table tbody tr.is-selected { background:var(--surface-elevated); }
+
+.quant-shell :is(.quant-run-card,.quant-data-card,.quant-data-import,.quant-dataset-list,.quant-policy-grid article,.quant-composer.is-large,.quant-report-performance,.pq-results-performance) {
+  border-radius:var(--radius-panel);
+}
+.quant-shell :is(.badge,.status) {
+  min-height:20px;
+  border-radius:999px;
+  padding:0 8px;
+  font-size:var(--type-dense);
+  line-height:var(--leading-dense);
+}
+.quant-sidebar-search [data-slot="kbd"] {
+  min-width:18px;
+  height:18px;
+  border:1px solid var(--border);
+  border-radius:5px;
+  padding-inline:4px;
+  background:var(--surface);
+  color:var(--muted);
+  font-family:var(--font-sans);
+  font-size:10px;
+}
+.quant-shell :is(.quant-research-table,.quant-run-decision-actions,.quant-dataset-actions,.quant-paper-row-actions) .button,
+.quant-paper-account>.button {
+  min-height:28px;
+  border-radius:6px;
+  padding-inline:10px;
+}
+
+@media (prefers-reduced-motion:reduce) {
+  .quant-shell :is(.button,input,select,textarea),
+  .quant-shell :is(.pq-workbench-header nav,.quant-report-tabs,.pq-results-view-tabs,.pq-analysis-tabs,.quant-data-directory-tabs,.quant-data-source-tabs,.quant-settings-page>nav) button {
+    transition:none;
+  }
 }
