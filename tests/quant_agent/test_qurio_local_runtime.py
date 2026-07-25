@@ -101,7 +101,17 @@ def test_api_and_worker_environment_share_provider_model_and_cors(tmp_path: Path
         assert env["POKIEQUANT_AGENT_ALLOW_MOCK_FALLBACK"] == "false"
         assert json.loads(env["GLINT_ALLOWED_ORIGINS"]) == ["tauri://localhost"]
     assert worker["GLINT_WORKSPACE_ID"] == "workspace-1"
+    assert worker["GLINT_WORKER_MODE"] == "dev"
+    assert worker["GLINT_WORKER_DOMAIN_ADAPTER"] == (
+        "services.worker.app.repositories.sqlalchemy_adapter:create_adapter"
+    )
+    assert worker["GLINT_WORKER_OBJECT_STORE"] == (
+        "services.api.app.core.object_store:get_object_store"
+    )
     assert "GLINT_WORKSPACE_ID" not in api
+    assert "GLINT_WORKER_MODE" not in api
+    assert "GLINT_WORKER_DOMAIN_ADAPTER" not in api
+    assert "GLINT_WORKER_OBJECT_STORE" not in api
 
 
 def test_mock_ready_contract_uses_null_model(tmp_path: Path) -> None:
@@ -122,6 +132,30 @@ def test_mock_ready_contract_uses_null_model(tmp_path: Path) -> None:
     )
     assert env["POKIEQUANT_AGENT_PROVIDER"] == "mock"
     assert "POKIEQUANT_AGENT_MODEL" not in env
+
+
+def test_frozen_runtime_reexecutes_itself_for_api_and_worker_children(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(runtime, "FROZEN_RUNTIME", True)
+    monkeypatch.setattr(runtime.sys, "executable", "/Applications/Qurio.app/qurio-runtime")
+    assert runtime.api_command(8123) == [
+        "/Applications/Qurio.app/qurio-runtime",
+        "--child-role",
+        "api",
+        "--api-port",
+        "8123",
+    ]
+    assert runtime.worker_command() == [
+        "/Applications/Qurio.app/qurio-runtime",
+        "--child-role",
+        "worker",
+    ]
+
+
+def test_bundled_api_child_rejects_an_invalid_port() -> None:
+    with pytest.raises(ValueError, match="loopback port"):
+        runtime.run_child("api", None)
 
 
 def test_terminate_children_escalates_to_sigkill_after_timeout(

@@ -18,8 +18,8 @@ describe('local runtime bridge', () => {
     expect(JSON.stringify(status)).not.toContain('apiKey');
   });
 
-  it('fails outside the native source-checkout app', async () => {
+  it('fails outside the native app', async () => {
     const browser: LocalRuntimeBoundary = { isTauri: () => false, invoke: async <T>() => status as T };
-    await expect(startLocalRuntime({ provider: 'mock', model: null }, browser)).rejects.toThrow('source-checkout');
+    await expect(startLocalRuntime({ provider: 'mock', model: null }, browser)).rejects.toThrow('native app');
   });
 });

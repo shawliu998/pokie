@@ -22,8 +22,14 @@ def test_native_gate_uses_node_ports_and_actual_cargo_target_dir() -> None:
     assert "node:net" in script
     assert 'CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT_DIR/apps/mac/src-tauri/target}"' in script
     assert 'for artifact in apps/mac/dist "$CARGO_TARGET_DIR"' in script
-    assert "tauri build --debug --bundles app --no-sign -- --locked" in script
+    assert "tauri build --debug --bundles app -- --locked" in script
     assert 'native_app="$CARGO_TARGET_DIR/debug/bundle/macos/Qurio.app"' in script
+    assert (
+        'native_runtime="$native_app/Contents/Resources/qurio-runtime/qurio-runtime"'
+        in script
+    )
+    assert '"$native_runtime" --help >/dev/null' in script
+    assert 'codesign --verify --deep --strict "$native_app"' in script
     assert "bundle_identifier=$(plutil -extract CFBundleIdentifier raw" in script
     assert '[[ "$bundle_identifier" == "com.glint.workbench"' in script
     assert "Native gate found fake React traffic lights" in script
@@ -69,6 +75,11 @@ def test_native_shell_has_real_bundle_window_state_and_native_menu() -> None:
     assert not config["identifier"].endswith(".app")
     assert config["bundle"]["active"] is True
     assert config["bundle"]["targets"] == ["app"]
+    assert config["bundle"]["resources"] == {
+        "resources/qurio-runtime/": "qurio-runtime/"
+    }
+    assert config["bundle"]["macOS"]["signingIdentity"] == "-"
+    assert config["bundle"]["macOS"]["minimumSystemVersion"] == "11.0"
     assert "icons/icon.icns" in config["bundle"]["icon"]
     assert config["app"]["windows"][0]["decorations"] is True
     assert "http://localhost:*" in config["app"]["security"]["csp"]
