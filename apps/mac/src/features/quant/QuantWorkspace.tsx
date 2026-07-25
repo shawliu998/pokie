@@ -32,6 +32,15 @@ function initialDestination(): QuantNavDestination {
   }
 }
 
+function hasStoredDestination(): boolean {
+  try {
+    const stored = sessionStorage.getItem('pokiequant.destination') as QuantNavDestination | null;
+    return Boolean(stored && quantDestinations.has(stored));
+  } catch {
+    return false;
+  }
+}
+
 function focusAfterPaint(target: () => HTMLElement | null | undefined) {
   requestAnimationFrame(() => requestAnimationFrame(() => target()?.focus()));
 }
@@ -153,6 +162,7 @@ function QuantWorkspaceView({ api, snapshot, isHistorical, refreshError, refresh
     ?? snapshot.candidates[0]?.id
     ?? '';
   const [destination, setDestination] = useState<QuantNavDestination>(initialDestination);
+  const [destinationWasRestored] = useState(hasStoredDestination);
   const [projectTab, setProjectTab] = useState<WorkspaceTab>(experimentWorkspaceStates.has(snapshot.run.state) ? 'experiments' : 'overview');
   const [composerMode, setComposerMode] = useState<QuantResearchMode>('plan');
   const [selectedCandidateId, setSelectedCandidateId] = useState(preferredCandidateId);
@@ -168,6 +178,7 @@ function QuantWorkspaceView({ api, snapshot, isHistorical, refreshError, refresh
   const [commandPending, setCommandPending] = useState(false);
   const liveDecisionProjection = useMemo(() => presentResearchCopilot(snapshot, { selectedCandidateId, isHistorical }), [isHistorical, selectedCandidateId, snapshot]);
   const commandLock = useRef(false);
+  const initialRouteChecked = useRef(false);
   const evidenceFocusSequence = useRef(0);
   const previousDestination = useRef<QuantNavDestination>(destination);
   const previousRun = useRef({ id: snapshot.run.id, state: snapshot.run.state });
@@ -183,6 +194,19 @@ function QuantWorkspaceView({ api, snapshot, isHistorical, refreshError, refresh
     url.searchParams.delete('seedCandidate');
     window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
   }, []);
+
+  useEffect(() => {
+    if (initialRouteChecked.current) return;
+    initialRouteChecked.current = true;
+    if (destinationWasRestored || isHistorical) return;
+    let current = true;
+    void Promise.all([api.listRuns(), api.listMarketRuns()]).then(([legacyRuns, marketRuns]) => {
+      if (!current || legacyRuns.length || marketRuns.length) return;
+      setSelectedDataset(snapshot.dataset);
+      setDestination('new_research');
+    }).catch(() => undefined);
+    return () => { current = false; };
+  }, [api, destinationWasRestored, isHistorical, snapshot.dataset]);
 
   const beginNewResearch = useCallback(() => {
     clearContinuation();

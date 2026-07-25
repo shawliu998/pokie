@@ -26,6 +26,19 @@ function chartPath(values: readonly (number | null)[], width: number, height: nu
   }).filter(Boolean).join(' ');
 }
 
+function chartDateLabel(value: string): string {
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.getTime())) return value;
+  const includesIntradayTime = value.includes('T') && !/T00:00(?::00)?(?:Z|[+-]00:00)?$/.test(value);
+  return new Intl.DateTimeFormat('en', {
+    timeZone: 'UTC',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    ...(includesIntradayTime ? { hour: '2-digit', minute: '2-digit', hour12: false } : {}),
+  }).format(parsed);
+}
+
 export function QuantMarketChart({ bars, symbol, interval, dateRange, title = 'Market preview', description, onInspect, tradeMarkers, highlightedTradeDates = [], enableIndicators = true }: {
   bars: MarketBar[];
   symbol: string;
@@ -94,7 +107,7 @@ export function QuantMarketChart({ bars, symbol, interval, dateRange, title = 'M
         })}
         {hasVolume && bars.map((bar, index) => { const x = 30 + (index / Math.max(1, bars.length - 1)) * (width - 60); const volumeHeight = (bar.volume / chart.maxVolume) * 36; return <rect key={`volume-${bar.date}`} x={x - candleWidth / 2} y={height + 42 - volumeHeight} width={candleWidth} height={volumeHeight} className="quant-volume" />; })}
       </svg>
-      <figcaption><span>{dateRange.start} – {dateRange.end}</span><span className="legend-price">Price</span>{hasSma20 && showSma20 && <span className="legend-sma20">SMA 20</span>}{hasSma50 && showSma50 && <span className="legend-sma50">SMA 50</span>}{hasVolume && <span>Volume</span>}</figcaption>
+      <figcaption><span><time dateTime={dateRange.start}>{chartDateLabel(dateRange.start)}</time> – <time dateTime={dateRange.end}>{chartDateLabel(dateRange.end)}</time> UTC</span><span className="legend-price">Price</span>{hasSma20 && showSma20 && <span className="legend-sma20">SMA 20</span>}{hasSma50 && showSma50 && <span className="legend-sma50">SMA 50</span>}{hasVolume && <span>Volume</span>}</figcaption>
     </figure>
     {((enableIndicators && (!hasSma20 || !hasSma50)) || !hasVolume) && <p className="quant-chart-availability">{enableIndicators && !hasSma20 ? `SMA 20 requires 20 bars; ${bars.length} available. ` : ''}{enableIndicators && !hasSma50 ? `SMA 50 requires 50 bars; ${bars.length} available. ` : ''}{!hasVolume ? 'Volume is unavailable for this preview.' : ''}</p>}
     {onInspect && <div className="quant-market-events" aria-label="Chart events">{bars.filter((bar) => bar.marker).map((bar) => <button key={`${bar.date}-${bar.marker}`} onClick={() => onInspect({ kind: 'market_event', title: `${bar.marker} dataset marker`, bar })}><strong>{bar.marker}</strong><span>{bar.date}</span></button>)}</div>}

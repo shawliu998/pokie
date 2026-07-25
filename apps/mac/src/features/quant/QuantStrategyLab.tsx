@@ -39,6 +39,19 @@ function chartRangeLabel(value: string, interval: QuantWorkspaceSnapshot['scope'
   return `${new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' }).format(parsed)} UTC`;
 }
 
+function chartInspectionDateLabel(value: string, interval: QuantWorkspaceSnapshot['scope']['interval']) {
+  const parsed = new Date(value.includes('T') ? value : `${value}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return value;
+  const date = new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+    ...(interval === '1D' ? {} : { hour: '2-digit', minute: '2-digit', hour12: false }),
+  }).format(parsed);
+  return `${date} UTC`;
+}
+
 export function StrategyPerformanceChart({ snapshot, selectedCandidateId, view, focusedDate }: { snapshot: QuantWorkspaceSnapshot; selectedCandidateId: string; view: 'equity' | 'drawdown'; focusedDate?: string }) {
   const candidate = snapshot.performanceSeries.find((series) => series.id === selectedCandidateId);
   const benchmark = snapshot.performanceSeries.find((series) => series.kind === 'benchmark');
@@ -69,6 +82,9 @@ export function StrategyPerformanceChart({ snapshot, selectedCandidateId, view, 
   const endDate = candidate.points.at(-1)!.date;
   const candidatePath = seriesPath(candidate.points, key, domain, bounds, startDate, endDate);
   const benchmarkPath = benchmark ? seriesPath(benchmark.points, key, domain, bounds, startDate, endDate) : '';
+  const drawdownAreaPath = view === 'drawdown' && candidatePath
+    ? `${candidatePath} L${xForDate(endDate, startDate, endDate, bounds).toFixed(1)} ${yForValue(0, domain, bounds).toFixed(1)} L${xForDate(startDate, startDate, endDate, bounds).toFixed(1)} ${yForValue(0, domain, bounds).toFixed(1)} Z`
+    : '';
   const selectedIndex = Math.min(candidate.points.length - 1, Math.max(0, hoveredIndex ?? pinnedIndex ?? candidate.points.length - 1));
   const selectedPoint = candidate.points[selectedIndex]!;
   const benchmarkPoint = benchmark ? matchPointByDate(benchmark.points, selectedPoint.date) : null;
@@ -92,17 +108,18 @@ export function StrategyPerformanceChart({ snapshot, selectedCandidateId, view, 
   const chartLabel = benchmark?.points.length ? `${candidate.label} ${view} compared with benchmark` : `${candidate.label} ${view} performance`;
   return <figure className="pq-strategy-chart" aria-label={chartLabel}>
     <header className="pq-strategy-inspection" aria-label="Performance inspection">
-      <dl><div><dt>Date</dt><dd>{selectedPoint.date}</dd></div><div><dt><span className="pq-series-key is-candidate" />Strategy</dt><dd>{percent(candidateValue)}</dd></div>{benchmarkPoint && <div><dt><span className="pq-series-key is-benchmark" />Benchmark</dt><dd>{percent(benchmarkValue)}</dd></div>}{benchmarkPoint && <div><dt>Difference</dt><dd>{percent(difference)}</dd></div>}</dl>
-      {benchmarkPoint && benchmarkPoint.date !== selectedPoint.date && <span>Benchmark matched to {benchmarkPoint.date}</span>}
+      <dl><div><dt>Date</dt><dd><time dateTime={selectedPoint.date}>{chartInspectionDateLabel(selectedPoint.date, snapshot.scope.interval)}</time></dd></div><div><dt><span className="pq-series-key is-candidate" />Strategy</dt><dd><strong>{percent(candidateValue)}</strong></dd></div>{benchmarkPoint && <div><dt><span className="pq-series-key is-benchmark" />Benchmark</dt><dd>{percent(benchmarkValue)}</dd></div>}{benchmarkPoint && <div><dt>Difference</dt><dd>{percent(difference)}</dd></div>}</dl>
+      {benchmarkPoint && benchmarkPoint.date !== selectedPoint.date && <span>Benchmark matched to {chartInspectionDateLabel(benchmarkPoint.date, snapshot.scope.interval)}</span>}
     </header>
     <div className="pq-strategy-plot" role="group" tabIndex={0} aria-label={`Inspect ${candidate.label} ${view} performance. Use Left and Right arrows to move by date; Home and End jump to the range bounds.`} onPointerMove={(event) => setHoveredIndex(pointerIndex(event))} onPointerLeave={() => setHoveredIndex(null)} onPointerDown={(event) => { const next = pointerIndex(event); if (next >= 0) setPinnedIndex(next); }} onKeyDown={onChartKeyDown}>
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={chartLabel}>
         {domain.ticks.map((tick) => { const y = yForValue(tick, domain, bounds); return <g key={tick}><line x1={bounds.left} x2={width - bounds.right} y1={y} y2={y} className="pq-strategy-gridline" /><text x={bounds.left - 8} y={y + 3} textAnchor="end" className="pq-strategy-axis-label">{axisLabel(tick)}</text></g>; })}
+        {drawdownAreaPath && <path d={drawdownAreaPath} className="pq-strategy-area is-candidate is-drawdown" />}
         {benchmarkPath && <path d={benchmarkPath} className="pq-strategy-line is-benchmark" />}
         {candidatePath && <path d={candidatePath} className="pq-strategy-line is-candidate" />}
         <line x1={selectedX} x2={selectedX} y1={bounds.top} y2={height - bounds.bottom} className="pq-strategy-crosshair" />
-        {benchmarkPoint && <circle cx={xForDate(benchmarkPoint.date, startDate, endDate, bounds)} cy={yForValue(benchmarkPoint[key], domain, bounds)} r="3" className="pq-strategy-marker is-benchmark" />}
-        <circle cx={selectedX} cy={yForValue(selectedPoint[key], domain, bounds)} r="3" className="pq-strategy-marker is-candidate" />
+        {benchmarkPoint && <circle cx={xForDate(benchmarkPoint.date, startDate, endDate, bounds)} cy={yForValue(benchmarkPoint[key], domain, bounds)} r="2.5" className="pq-strategy-marker is-benchmark" />}
+        <circle cx={selectedX} cy={yForValue(selectedPoint[key], domain, bounds)} r="3.5" className="pq-strategy-marker is-candidate" />
       </svg>
     </div>
     <figcaption><time dateTime={candidate.points[0]!.date}>{chartRangeLabel(candidate.points[0]!.date, snapshot.scope.interval)}</time><time dateTime={candidate.points.at(-1)!.date}>{chartRangeLabel(candidate.points.at(-1)!.date, snapshot.scope.interval)}</time></figcaption>

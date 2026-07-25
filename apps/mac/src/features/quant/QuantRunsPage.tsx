@@ -324,21 +324,26 @@ export function QuantRunsPage({ api, snapshot, openingRunId = null, openRunError
   return <div className="quant-runs-page">
     <header className="quant-runs-heading"><div><h1>Research history</h1><p>Find prior research, compare stored outcomes, or reopen the full result.</p></div></header>
     <section className="quant-runs-tools" aria-label="Run history filters">
-      <label className="quant-run-search"><span>Search</span><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Question or project" /></label>
-      <label><span>Project</span><select value={projectId} onChange={(event) => setProjectId(event.target.value)}><option value="all">All projects</option>{projects.map((project) => <option key={project.id} value={project.id}>{projectLabel(project.name)}</option>)}</select></label>
+      <label className="quant-run-search"><span>Find research</span><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search question or project" /></label>
       <label><span>Outcome</span><select value={outcome} onChange={(event) => setOutcome(event.target.value as OutcomeFilter)}><option value="all">All</option><option value="active">Active</option><option value="completed">Completed</option><option value="review">Needs review</option><option value="failed_cancelled">Failed / Cancelled</option></select></label>
-      <label><span>Sort</span><select value={sortOrder} onChange={(event) => setSortOrder(event.target.value as SortOrder)}><option value="newest">Newest</option><option value="oldest">Oldest</option></select></label>
+      <details>
+        <summary>Project &amp; sort{projectId !== 'all' || sortOrder !== 'newest' ? ' · Filtered' : ''}</summary>
+        <div>
+          <label><span>Project</span><select value={projectId} onChange={(event) => setProjectId(event.target.value)}><option value="all">All projects</option>{projects.map((project) => <option key={project.id} value={project.id}>{projectLabel(project.name)}</option>)}</select></label>
+          <label><span>Sort</span><select value={sortOrder} onChange={(event) => setSortOrder(event.target.value as SortOrder)}><option value="newest">Newest</option><option value="oldest">Oldest</option></select></label>
+        </div>
+      </details>
       <Button disabled={!filtersActive} onClick={() => { setProjectId('all'); setQuery(''); setOutcome('all'); setSortOrder('newest'); }}>Clear filters</Button>
     </section>
     {openRunError && <p className="quant-runs-error" role="alert">{openRunError}</p>}
     {error && <p className="quant-runs-error" role="alert">{error}</p>}
     <div className="quant-runs-layout">
       <section className="quant-run-list" aria-label="Research run list">
-        <header><div><strong>{loading ? 'Loading…' : `${visibleRuns.length} of ${runs.length} run${runs.length === 1 ? '' : 's'}`}</strong><span>{selectedIds.length} selected</span></div><Button className="primary" disabled={selectedIds.length < 2} onClick={openComparison}>Compare{selectedIds.length ? ` ${selectedIds.length}` : ''}</Button></header>
+        <header><div><strong>{loading ? 'Loading…' : `${visibleRuns.length} of ${runs.length} run${runs.length === 1 ? '' : 's'}`}</strong><span>{selectedIds.length < 2 ? `${selectedIds.length} selected · Select at least 2 to compare` : `${selectedIds.length} selected · Ready to compare`}</span></div>{selectedIds.length >= 2 && <Button className="primary" onClick={openComparison}>Compare {selectedIds.length}</Button>}</header>
         <div className="quant-run-list-scroll">
           <table className="quant-research-table quant-runs-table">
             <caption>Searchable and filterable research run history</caption>
-            <thead><tr><th className="is-select">Compare</th><th>Question</th><th>Project</th><th>State / outcome</th><th>Mode</th><th>Version / attempt</th><th>Updated</th><th className="is-action">Open</th></tr></thead>
+            <thead><tr><th className="is-select">Compare</th><th>Question</th><th>Version / attempt</th><th>State / outcome</th><th>Updated</th><th className="is-action">Open</th></tr></thead>
             <tbody>{visibleRuns.map((run) => {
               const isOpening = openingRunId === run.id;
               const isPending = openingRunId !== null;
@@ -347,11 +352,9 @@ export function QuantRunsPage({ api, snapshot, openingRunId = null, openRunError
               const relationshipLabel = quantRunRelationshipLabel(projectQuantRunRelationship(run, runs));
               return <tr key={run.id} className={run.id === snapshot.run.id ? 'is-current' : ''}>
                 <td className="is-select"><label><input type="checkbox" checked={isSelected} disabled={selectionDisabled} onChange={() => toggleComparison(run.id)} /><span className="quant-visually-hidden">Select {run.question} for comparison</span></label></td>
-                <th scope="row"><button className="quant-run-question" aria-busy={isOpening} disabled={isPending} onClick={() => void onOpenRun(run.id)}>{run.question}</button>{run.contract === 'market-v2-public' && <small>{run.symbol} · {run.interval} · {run.researchStartUtc} – {run.researchEndUtc}</small>}</th>
-                <td>{projectLabel(projectNames.get(run.projectId) ?? 'Research project')}</td>
-                <td><strong className={`is-${runStateTone(run.state)}`}>{isOpening ? 'Opening…' : runStateLabel(run.state)}</strong></td>
-                <td>{run.mode === 'auto' ? 'Agent run' : 'Plan first'}{run.contract === 'market-v2-public' && <small>{run.periodsPerYear?.toLocaleString()} periods/year</small>}</td>
+                <th scope="row"><button className="quant-run-question" aria-busy={isOpening} disabled={isPending} onClick={() => void onOpenRun(run.id)}>{run.question}</button><small>{projectLabel(projectNames.get(run.projectId) ?? 'Research project')} · {run.mode === 'auto' ? 'Agent run' : 'Plan first'}</small>{run.contract === 'market-v2-public' && <small>{run.symbol} · {run.interval} · {run.researchStartUtc} – {run.researchEndUtc} · {run.periodsPerYear?.toLocaleString()} periods/year</small>}</th>
                 <td className="quant-series-cell">{relationshipLabel}</td>
+                <td><strong className={`is-${runStateTone(run.state)}`}>{isOpening ? 'Opening…' : runStateLabel(run.state)}</strong></td>
                 <td><time dateTime={run.updatedAt}>{shortDate(run.updatedAt || run.createdAt)}</time></td>
                 <td className="is-action"><Button disabled={isPending} aria-busy={isOpening} onClick={() => void onOpenRun(run.id)}>{isOpening ? 'Opening…' : 'Open run'}</Button></td>
               </tr>;

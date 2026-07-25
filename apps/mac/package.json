@@ -13,6 +13,8 @@
     "audit:bulk": "node scripts/audit-pnpm-lock.mjs",
     "audit:bulk:prod": "node scripts/audit-pnpm-lock.mjs --prod",
     "verify:secure-bundle": "node scripts/verify-secure-bundle.mjs",
+    "package:mac": "tauri build --bundles app,dmg --ci && node scripts/verify-macos-package.mjs",
+    "verify:package": "node scripts/verify-macos-package.mjs",
     "tauri:check": "tauri info"
   },
   "dependencies": {

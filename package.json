@@ -9,6 +9,7 @@
     "typecheck": "pnpm --filter @glint/mac typecheck",
     "test": "pnpm --filter @glint/mac test",
     "test:e2e": "pnpm --filter @glint/mac test:e2e",
+    "package:mac": "pnpm --filter @glint/mac package:mac",
     "tauri:check": "pnpm --filter @glint/mac tauri:check"
   },
   "devDependencies": {
