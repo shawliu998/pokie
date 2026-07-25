@@ -998,6 +998,15 @@
 .quant-settings-content dd.is-warning { color:var(--warning); }
 .quant-settings-note { margin:var(--space-5) 0 0; padding:0; border:0; background:transparent; color:var(--faint); font-size:var(--type-dense); }
 .quant-settings-audit-copy { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+.quant-runtime-control { padding:var(--space-5); border-top:1px solid var(--border); }
+.quant-runtime-form { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:var(--space-4); }
+.quant-runtime-form label { display:grid; gap:6px; color:#d0d2d7; font-size:var(--type-dense); }
+.quant-runtime-form label small { color:var(--faint); font-weight:400; }
+.quant-runtime-form input,.quant-runtime-form select { width:100%; min-height:32px; }
+.quant-runtime-actions { display:flex; flex-wrap:wrap; gap:var(--space-3); margin-top:var(--space-5); }
+.quant-runtime-note,.quant-runtime-error { margin:var(--space-4) 0 0; font-size:var(--type-dense); }
+.quant-runtime-note { color:var(--faint); }
+.quant-runtime-error { color:var(--danger); }
 
 .quant-run-detail-page { height:100%; overflow:auto; padding:0 10px 14px; }
 .quant-run-detail-context { min-height:47px; display:flex; align-items:center; gap:14px; margin:0 -10px; padding:0 12px; border-bottom:1px solid var(--border); color:#85878f; font-size:var(--type-dense); }

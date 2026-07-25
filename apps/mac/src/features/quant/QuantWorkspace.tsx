@@ -14,6 +14,7 @@ import { QuantRunsPage } from './QuantRunsPage';
 import { QuantSidebar } from './QuantSidebar';
 import { QuantStrategyReport } from './QuantStrategyReport';
 import { QuantStrategyLab } from './QuantStrategyLab';
+import { QuantRuntimeSettings } from './QuantRuntimeSettings';
 import './quant-workspace.css';
 
 const quantDestinations: ReadonlySet<QuantNavDestination> = new Set(['new_research', 'projects', 'runs', 'data', 'settings']);
@@ -138,15 +139,7 @@ function OverviewPage({ api, destination, snapshot, selectedDataset, composerMod
   if (destination === 'new_research') return <div className="quant-page quant-new-page"><div className="quant-page-title"><h1>New research</h1><p>{refinement ? 'Set the next objective from retained evidence, then generate a plan for review.' : 'Select market evidence, define a measurable objective, and generate a plan before Qurio runs experiments.'}</p></div>{refinementLoading ? <p className="quant-inline-note" role="status">Loading continuation source…</p> : refinementError ? <QuantInlineProblem problem={{ kind: 'validation', title: 'Continuation unavailable', detail: refinementError, retryable: false }} action={<Button onClick={onCancelRefinement}>Start new research</Button>} /> : <QuantGoalComposer api={api} snapshot={snapshot} selectedDataset={selectedDataset} initialMode={composerMode} initialGoal={refinement ? `Continue research from ${refinement.candidateName}: ${refinement.sourceQuestion}` : ''} large busy={commandPending} refinement={refinement} onCancelRefinement={onCancelRefinement} onSelectDataset={onSelectDataset} onAddData={onAddData} onSubmit={onComposer} onStartNewRun={onStartNewRun} />}</div>;
   if (destination === 'runs') return <QuantRunsPage api={api} snapshot={snapshot} openingRunId={openingRunId} openRunError={openRunError} onOpenRun={onOpenRun} onOpenReport={onOpenWorkspace} onStartNewResearch={onStartNewResearch} onRefineFromComparison={onRefineFromComparison} evidenceFocus={evidenceFocus} onEvidenceFocusResolved={onEvidenceFocusResolved} />;
   if (destination === 'data') return <QuantDataPage api={api} snapshot={snapshot} selectedDataset={selectedDataset} onSelect={onSelectDataset} onUseForResearch={onUseDatasetForResearch} onImportViewChange={onDataImportViewChange} onPreviewViewChange={onDataPreviewViewChange} />;
-  return <div className="quant-settings-page">
-    <div className="quant-settings-content"><header><h1>Runtime and policy</h1><p>Review the runtime, model and boundaries pinned into each research run.</p></header>
-      <section><header><strong>Runtime</strong><small>Local execution and workspace compatibility</small></header><dl><div><dt>Runtime status</dt><dd className="is-positive">{snapshot.runtimeLabel}</dd></div><div><dt>Workspace schema<small>Decision-sensitive fields are runtime-validated</small></dt><dd className="is-positive">Supported</dd></div></dl></section>
-      <section><header><strong>Agent provider</strong><small>Credentials are managed outside this view</small></header><dl><div><dt>Provider</dt><dd>{snapshot.run.provider}</dd></div><div><dt>Model</dt><dd>{snapshot.modelLabel}</dd></div><div><dt>Provider failure<small>Errors cannot silently change the research result</small></dt><dd className="is-warning">Fail safely</dd></div></dl></section>
-      <section><header><strong>Research policy</strong><small>Pinned into every immutable run</small></header><dl><div><dt>Experiment budget</dt><dd>{snapshot.limits.maxExperiments} experiments</dd></div><div><dt>Repair budget</dt><dd>{snapshot.limits.maxRepairAttempts} repairs</dd></div><div><dt>Validation<small>Required before promotion</small></dt><dd className="is-warning">Sealed holdout</dd></div><div><dt>Execution<small>Arbitrary Python and broker actions</small></dt><dd>Disabled</dd></div></dl></section>
-      <p className="quant-settings-note">Runtime and policy values are read-only in this phase. Provider and policy changes will require explicit confirmation.</p>
-      <p className="quant-settings-audit-copy">Only controlled, server-owned provider imports are available from Data. No code execution in this shell. No broker connection or order action.</p>
-    </div>
-  </div>;
+  return <QuantRuntimeSettings snapshot={snapshot} />;
 }
 
 function QuantWorkspaceView({ api, snapshot, isHistorical, refreshError, refreshing, lastVerifiedAt, openingRunId, openRunError, onRefresh, onOpenRun }: { api: QuantApi; snapshot: QuantWorkspaceSnapshot; isHistorical: boolean; refreshError: string | null; refreshing: boolean; lastVerifiedAt: string | null; openingRunId: string | null; openRunError: string | null; onRefresh: (showLatest?: boolean) => Promise<void>; onOpenRun: (runId: string, options?: { historical?: boolean }) => Promise<void> }) {

@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod cache;
+mod local_runtime;
 mod session;
 
 use tauri::menu::{AboutMetadataBuilder, Menu, MenuBuilder, SubmenuBuilder};
@@ -45,6 +46,7 @@ fn native_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
 
 fn main() {
     tauri::Builder::default()
+        .manage(local_runtime::LocalRuntimeManager::default())
         .plugin(
             tauri_plugin_window_state::Builder::default()
                 .with_state_flags(StateFlags::SIZE | StateFlags::MAXIMIZED)
@@ -58,6 +60,9 @@ fn main() {
             cache::store_offline_cache,
             cache::get_offline_cache,
             cache::clear_offline_cache,
+            local_runtime::start_local_runtime,
+            local_runtime::stop_local_runtime,
+            local_runtime::get_local_runtime_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Qurio");

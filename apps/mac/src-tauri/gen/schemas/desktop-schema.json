@@ -195,10 +195,28 @@
           "markdownDescription": "Enables the get_access_token command without any pre-configured scope."
         },
         {
+          "description": "Enables the get_local_runtime_status command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-local-runtime-status",
+          "markdownDescription": "Enables the get_local_runtime_status command without any pre-configured scope."
+        },
+        {
           "description": "Enables the get_offline_cache command without any pre-configured scope.",
           "type": "string",
           "const": "allow-get-offline-cache",
           "markdownDescription": "Enables the get_offline_cache command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the start_local_runtime command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-start-local-runtime",
+          "markdownDescription": "Enables the start_local_runtime command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the stop_local_runtime command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-stop-local-runtime",
+          "markdownDescription": "Enables the stop_local_runtime command without any pre-configured scope."
         },
         {
           "description": "Enables the store_access_token command without any pre-configured scope.",
@@ -231,10 +249,28 @@
           "markdownDescription": "Denies the get_access_token command without any pre-configured scope."
         },
         {
+          "description": "Denies the get_local_runtime_status command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-local-runtime-status",
+          "markdownDescription": "Denies the get_local_runtime_status command without any pre-configured scope."
+        },
+        {
           "description": "Denies the get_offline_cache command without any pre-configured scope.",
           "type": "string",
           "const": "deny-get-offline-cache",
           "markdownDescription": "Denies the get_offline_cache command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the start_local_runtime command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-start-local-runtime",
+          "markdownDescription": "Denies the start_local_runtime command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the stop_local_runtime command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-stop-local-runtime",
+          "markdownDescription": "Denies the stop_local_runtime command without any pre-configured scope."
         },
         {
           "description": "Denies the store_access_token command without any pre-configured scope.",

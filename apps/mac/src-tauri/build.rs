@@ -7,6 +7,9 @@ fn main() {
             "store_offline_cache",
             "get_offline_cache",
             "clear_offline_cache",
+            "start_local_runtime",
+            "stop_local_runtime",
+            "get_local_runtime_status",
         ]),
     ))
     .expect("failed to build the restricted Qurio Tauri manifest")

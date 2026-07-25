@@ -1,8 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "The main Qurio window may access only scoped Keychain session and redacted offline-cache commands.",
+  "description": "The main Qurio window may access scoped Keychain session, redacted offline-cache and fixed source-checkout local-runtime commands.",
   "windows": ["main"],
   "platforms": ["macOS"],
-  "permissions": ["allow-get-access-token", "allow-store-access-token", "allow-clear-access-token", "allow-store-offline-cache", "allow-get-offline-cache", "allow-clear-offline-cache"]
+  "permissions": ["allow-get-access-token", "allow-store-access-token", "allow-clear-access-token", "allow-store-offline-cache", "allow-get-offline-cache", "allow-clear-offline-cache", "allow-start-local-runtime", "allow-stop-local-runtime", "allow-get-local-runtime-status"]
 }
