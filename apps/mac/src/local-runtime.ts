@@ -25,7 +25,7 @@ export interface LocalRuntimeBoundary {
 
 const boundary: LocalRuntimeBoundary = { isTauri, invoke: (command, args) => invoke(command, args) };
 
-const unavailable = (): Error => new Error('Qurio local runtime is available only in the native source-checkout app. Connect to an already-running API instead.');
+const unavailable = (): Error => new Error('Qurio local runtime is available only in the native app. Connect to an already-running API instead.');
 
 function native<T>(current: LocalRuntimeBoundary, run: () => Promise<T>): Promise<T> {
   if (!current.isTauri()) return Promise.reject(unavailable());

@@ -33,6 +33,8 @@ apps/mac/.vite/
 # Rust / Tauri
 target/
 apps/mac/src-tauri/target/
+apps/mac/src-tauri/resources/qurio-runtime/*
+!apps/mac/src-tauri/resources/qurio-runtime/.gitkeep
 
 # Local runtime data
 data/

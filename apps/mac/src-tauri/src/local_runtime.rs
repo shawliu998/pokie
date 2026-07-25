@@ -77,6 +77,8 @@ pub(crate) struct LocalRuntimeManager {
     child: Mutex<Option<Child>>,
     status: Mutex<LocalRuntimeStatus>,
     lifecycle_lock: Mutex<()>,
+    bundled_executable: Option<PathBuf>,
+    runtime_dir: Option<PathBuf>,
 }
 
 impl Default for LocalRuntimeManager {
@@ -85,6 +87,8 @@ impl Default for LocalRuntimeManager {
             child: Mutex::new(None),
             status: Mutex::new(LocalRuntimeStatus::stopped()),
             lifecycle_lock: Mutex::new(()),
+            bundled_executable: None,
+            runtime_dir: None,
         }
     }
 }
@@ -97,7 +101,7 @@ fn source_root() -> PathBuf {
 }
 
 fn source_checkout_error() -> String {
-    "Qurio local runtime is available only from this source checkout. Ensure the repository, .venv and runtime script are installed, or connect Qurio to an already-running API.".to_string()
+    "Qurio could not find its bundled local runtime or a valid source checkout. Reinstall Qurio, or connect it to an already-running API.".to_string()
 }
 
 fn validate_request(request: &StartLocalRuntimeRequest) -> Result<(), String> {
@@ -227,6 +231,16 @@ fn terminate(child: &mut Child) {
 }
 
 impl LocalRuntimeManager {
+    pub(crate) fn new(resource_dir: PathBuf, app_data_dir: PathBuf) -> Self {
+        Self {
+            child: Mutex::new(None),
+            status: Mutex::new(LocalRuntimeStatus::stopped()),
+            lifecycle_lock: Mutex::new(()),
+            bundled_executable: Some(resource_dir.join("qurio-runtime").join("qurio-runtime")),
+            runtime_dir: Some(app_data_dir.join("local-runtime")),
+        }
+    }
+
     fn reconcile(&self) {
         let mut child = self.child.lock().expect("runtime child lock");
         if let Some(process) = child.as_mut() {
@@ -253,23 +267,41 @@ impl LocalRuntimeManager {
         let root = source_root();
         let python = root.join(".venv/bin/python");
         let script = root.join("scripts/run_qurio_local_runtime.py");
-        if !python.is_file() || !script.is_file() {
+        let bundled = self
+            .bundled_executable
+            .as_ref()
+            .filter(|executable| executable.is_file());
+        if bundled.is_none() && (!python.is_file() || !script.is_file()) {
             let message = source_checkout_error();
             *self.status.lock().expect("runtime status lock") =
                 LocalRuntimeStatus::failed(message.clone());
             return Err(message);
         }
-        let mut command = Command::new(&python);
+        let mut command = match bundled {
+            Some(executable) => {
+                let mut command = Command::new(executable);
+                if let Some(parent) = executable.parent() {
+                    command.current_dir(parent);
+                }
+                command
+            }
+            None => {
+                let mut command = Command::new(&python);
+                command.arg(&script).current_dir(&root);
+                command
+            }
+        };
         command
-            .arg(&script)
             .arg("--provider")
             .arg(match request.provider {
                 Provider::Mock => "mock",
                 Provider::Deepseek => "deepseek",
             })
-            .current_dir(&root)
             .stdout(Stdio::piped())
             .stderr(Stdio::null());
+        if let Some(runtime_dir) = &self.runtime_dir {
+            command.arg("--runtime-dir").arg(runtime_dir);
+        }
         if request.provider == Provider::Deepseek {
             command
                 .arg("--model")
@@ -280,8 +312,7 @@ impl LocalRuntimeManager {
                     key.trim().to_string()
                 }
                 None => saved_deepseek_key()?.ok_or_else(|| {
-                    "Enter a DeepSeek key once to start this local source-checkout runtime."
-                        .to_string()
+                    "Enter a DeepSeek key once to start this local runtime.".to_string()
                 })?,
             };
             command.env("DEEPSEEK_API_KEY", key);
@@ -403,5 +434,25 @@ mod tests {
         assert_eq!(ready.workspace_id, "workspace-1");
         assert!(parse_ready_line("unrelated log").unwrap().is_none());
         assert!(parse_ready_line("QURIO_RUNTIME_READY {}").is_err());
+    }
+
+    #[test]
+    fn resolves_packaged_runtime_and_application_support_paths() {
+        let manager = LocalRuntimeManager::new(
+            PathBuf::from("/Applications/Qurio.app/Contents/Resources"),
+            PathBuf::from("/Users/test/Library/Application Support/com.glint.workbench"),
+        );
+        assert_eq!(
+            manager.bundled_executable,
+            Some(PathBuf::from(
+                "/Applications/Qurio.app/Contents/Resources/qurio-runtime/qurio-runtime"
+            ))
+        );
+        assert_eq!(
+            manager.runtime_dir,
+            Some(PathBuf::from(
+                "/Users/test/Library/Application Support/com.glint.workbench/local-runtime"
+            ))
+        );
     }
 }

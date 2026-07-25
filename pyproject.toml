@@ -21,6 +21,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+bundle = [
+  "pyinstaller>=6.16,<7",
+]
 test = [
   "pyright>=1.1.403,<2",
   "pytest>=9.0.3,<10",

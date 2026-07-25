@@ -4,7 +4,10 @@ mod cache;
 mod local_runtime;
 mod session;
 
-use tauri::menu::{AboutMetadataBuilder, Menu, MenuBuilder, SubmenuBuilder};
+use tauri::{
+    menu::{AboutMetadataBuilder, Menu, MenuBuilder, SubmenuBuilder},
+    Manager,
+};
 use tauri_plugin_window_state::StateFlags;
 
 fn native_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
@@ -46,13 +49,21 @@ fn native_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
 
 fn main() {
     tauri::Builder::default()
-        .manage(local_runtime::LocalRuntimeManager::default())
         .plugin(
             tauri_plugin_window_state::Builder::default()
                 .with_state_flags(StateFlags::SIZE | StateFlags::MAXIMIZED)
                 .build(),
         )
         .menu(native_menu)
+        .setup(|app| {
+            let resource_dir = app.path().resource_dir()?;
+            let app_data_dir = app.path().app_data_dir()?;
+            app.manage(local_runtime::LocalRuntimeManager::new(
+                resource_dir,
+                app_data_dir,
+            ));
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             session::get_access_token,
             session::store_access_token,

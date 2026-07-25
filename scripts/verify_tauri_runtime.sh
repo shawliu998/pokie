@@ -42,14 +42,17 @@ unset GLINT_AUTH_HMAC_SECRET GLINT_AUTH_ACCESS_TOKEN GLINT_AUTH_FORGED_TOKEN GLI
 printf '\n==> Tauri native build and Keychain unit boundary\n'
 "$cargo_bin" test --locked --manifest-path apps/mac/src-tauri/Cargo.toml
 pnpm --filter @glint/mac test -- --run
-pnpm --filter @glint/mac exec tauri build --debug --bundles app --no-sign -- --locked
+pnpm --filter @glint/mac exec tauri build --debug --bundles app -- --locked
 native_app="$CARGO_TARGET_DIR/debug/bundle/macos/Qurio.app"
 native_app_plist="$native_app/Contents/Info.plist"
 native_app_binary="$native_app/Contents/MacOS/glint"
-[[ -d "$native_app" && -f "$native_app_plist" && -x "$native_app_binary" ]] || {
+native_runtime="$native_app/Contents/Resources/qurio-runtime/qurio-runtime"
+[[ -d "$native_app" && -f "$native_app_plist" && -x "$native_app_binary" && -x "$native_runtime" ]] || {
   printf 'Native gate did not produce a runnable Qurio.app bundle.\n' >&2
   exit 2
 }
+"$native_runtime" --help >/dev/null
+codesign --verify --deep --strict "$native_app"
 bundle_identifier=$(plutil -extract CFBundleIdentifier raw -o - "$native_app_plist")
 [[ "$bundle_identifier" == "com.glint.workbench" && "$bundle_identifier" != *.app ]] || {
   printf 'Native Qurio.app bundle identifier is invalid.\n' >&2

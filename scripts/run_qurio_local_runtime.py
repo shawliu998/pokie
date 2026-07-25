@@ -21,7 +21,12 @@ from pathlib import Path
 from typing import Any, Literal
 from uuid import uuid4
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+FROZEN_RUNTIME = bool(getattr(sys, "frozen", False))
+REPO_ROOT = (
+    Path(sys.executable).resolve().parent
+    if FROZEN_RUNTIME
+    else Path(__file__).resolve().parents[1]
+)
 DEFAULT_RUNTIME_DIR = REPO_ROOT / ".run" / "qurio-local-runtime"
 SESSION_FILE_NAME = "qurio-local-runtime.json"
 DATABASE_FILE_NAME = "qurio-local.db"
@@ -38,6 +43,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--provider", choices=("mock", "deepseek"), default="mock")
     parser.add_argument("--model", default=DEFAULT_MODEL, metavar="STRING")
     parser.add_argument("--runtime-dir", type=Path, default=DEFAULT_RUNTIME_DIR, metavar="PATH")
+    parser.add_argument(
+        "--child-role",
+        choices=("api", "worker"),
+        default=None,
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument("--api-port", type=int, default=None, help=argparse.SUPPRESS)
     return parser.parse_args(argv)
 
 
@@ -186,6 +198,13 @@ def build_process_env(
             {
                 "GLINT_WORKSPACE_ID": metadata["workspace_id"],
                 "GLINT_WORKER_POLL_INTERVAL_SECONDS": "1.0",
+                "GLINT_WORKER_MODE": "dev",
+                "GLINT_WORKER_DOMAIN_ADAPTER": (
+                    "services.worker.app.repositories.sqlalchemy_adapter:create_adapter"
+                ),
+                "GLINT_WORKER_OBJECT_STORE": (
+                    "services.api.app.core.object_store:get_object_store"
+                ),
             }
         )
     if model is None:
@@ -202,6 +221,8 @@ def free_loopback_port() -> int:
 
 
 def api_command(port: int) -> list[str]:
+    if FROZEN_RUNTIME:
+        return [sys.executable, "--child-role", "api", "--api-port", str(port)]
     return [
         sys.executable,
         "-m",
@@ -217,6 +238,8 @@ def api_command(port: int) -> list[str]:
 
 
 def worker_command() -> list[str]:
+    if FROZEN_RUNTIME:
+        return [sys.executable, "--child-role", "worker"]
     return [
         sys.executable,
         "-m",
@@ -269,7 +292,24 @@ def terminate_children(processes: list[subprocess.Popen[bytes]]) -> None:
         except subprocess.TimeoutExpired:
             with contextlib.suppress(ProcessLookupError):
                 os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-            process.wait(timeout=5)
+        process.wait(timeout=5)
+
+
+def run_child(role: Literal["api", "worker"], api_port: int | None) -> int:
+    if role == "api":
+        if api_port is None or not 1 <= api_port <= 65535:
+            raise ValueError("The bundled API child requires a valid loopback port.")
+        import uvicorn
+
+        from services.api.app.main import app
+
+        uvicorn.run(app, host="127.0.0.1", port=api_port, log_level="warning")
+        return 0
+    from services.worker.app.main import main as worker_main
+
+    return worker_main(
+        ["poll", "--kind", "quant-agent", "--interval-seconds", "1.0"]
+    )
 
 
 def run(*, provider: str, model: str | None, runtime_dir: Path) -> int:
@@ -332,6 +372,8 @@ def run(*, provider: str, model: str | None, runtime_dir: Path) -> int:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     try:
+        if args.child_role is not None:
+            return run_child(args.child_role, args.api_port)
         provider = str(args.provider)
         model = selected_model(provider, str(args.model))
         return run(
