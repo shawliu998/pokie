@@ -1438,6 +1438,9 @@ test('public 4h market data completes the existing Data to Research to History w
   expect(rootPayload).toMatchObject({ dataset_id: '66666666-6666-4666-8666-666666666604', mode: 'plan', research_start_utc: '2024-03-01T00:00:00Z', research_end_utc: '2025-12-31T20:00:00+00:00' });
   expect(rootPayload.research_loop).toBeUndefined();
   expect(await created.json()).toMatchObject({ id: '77777777-7777-4777-8777-777777777704', parent_run_id: null, seed_candidate_id: null, retry_of_run_id: null });
+  const approveResponse = page.waitForResponse((response) => response.url().endsWith('/v1/quant/market-runs/77777777-7777-4777-8777-777777777704/approve-plan') && response.request().method() === 'POST');
+  await page.getByRole('button', { name: 'Approve & Run' }).click();
+  expect((await approveResponse).ok()).toBe(true);
   await page.getByRole('tab', { name: 'Experiments', exact: true }).click();
   await expectLiveAgentDecision(page, 'quant-running');
   await expect(page.locator('.pq-live-research')).toContainText(question);
@@ -1459,15 +1462,16 @@ test('public 4h market data completes the existing Data to Research to History w
   if (await completionNotice.isVisible()) await completionNotice.click();
   const marketCopilot = page.getByRole('complementary', { name: 'Qurio', exact: true });
   await marketCopilot.getByText('Run details', { exact: true }).click();
-  await expect(marketCopilot).toContainText('Moving-average trend · Price breakout');
-  await expect(marketCopilot).toContainText('Drawdown control');
-  await expect(marketCopilot).toContainText('Backtest all approved candidates and retain one final training comparison.');
+  await expect(marketCopilot).toContainText('StateCompleted');
+  await expect(marketCopilot).toContainText('Plan10 / 10 complete');
+  await expect(marketCopilot).toContainText('DatasetBTCUSDT · 4h');
   await expect(marketCopilot).toContainText('4h · 2,190 PPY');
   await expect(marketCopilot).toContainText('2024-03-01T00:00:00Z');
 
   await page.getByRole('tab', { name: 'Analysis', exact: true }).click();
   await expect(page.getByRole('group', { name: /Inspect .* equity performance/ })).toBeVisible();
-  await expect(page.locator('.pq-strategy-inspection')).toContainText('2025-12-15T04:00:00+00:00');
+  await expect(page.locator('.pq-strategy-inspection time')).toHaveAttribute('datetime', '2025-12-15T04:00:00+00:00');
+  await expect(page.locator('.pq-strategy-inspection')).toContainText('15 Dec 2025, 04:00 UTC');
   await expect(page.locator('.pq-strategy-chart figcaption time').first()).toHaveAttribute('datetime', '2024-03-01T00:00:00+00:00');
   await page.getByRole('tab', { name: 'Trades', exact: true }).click();
   await expect(page.getByText('2 bars · 8h').first()).toBeVisible();
@@ -1508,12 +1512,12 @@ test('public 4h market data completes the existing Data to Research to History w
   await page.getByLabel('Research goal').fill(childQuestion);
   await page.getByLabel('Refinement reason').fill(refinementReason);
   const childResponsePromise = page.waitForResponse((response) => response.url().endsWith('/v1/quant/market-runs') && response.request().method() === 'POST');
-  await page.getByRole('button', { name: 'Start research' }).click();
+  await page.getByRole('button', { name: 'Generate plan' }).click();
   const childResponse = await childResponsePromise;
   expect(childResponse.ok()).toBe(true);
   expect(childResponse.request().postDataJSON()).toMatchObject({
     dataset_id: '66666666-6666-4666-8666-666666666604',
-    mode: 'auto',
+    mode: 'plan',
     research_start_utc: '2024-03-01T00:00:00Z',
     research_end_utc: '2025-12-31T20:00:00+00:00',
     parent_run_id: '77777777-7777-4777-8777-777777777704',
@@ -1527,6 +1531,11 @@ test('public 4h market data completes the existing Data to Research to History w
     attempt_number: 1,
     retry_of_run_id: null,
   });
+  await page.getByRole('tab', { name: 'Overview', exact: true }).click();
+  await expect(page.getByLabel('Research plan awaiting approval')).toBeVisible();
+  const approveChildResponse = page.waitForResponse((response) => response.url().endsWith('/v1/quant/market-runs/77777777-7777-4777-8777-777777777708/approve-plan') && response.request().method() === 'POST');
+  await page.getByRole('button', { name: 'Approve & Run' }).click();
+  expect((await approveChildResponse).ok()).toBe(true);
   await expect.poll(async () => page.locator('.quant-run-monitor-state strong').textContent(), { timeout: 12_000 }).toContain('Completed');
   await page.getByRole('tab', { name: 'Decision', exact: true }).click();
   await expect(page.locator('.quant-report')).toContainText('Continued from source version');
@@ -1592,9 +1601,7 @@ test('public 4h market data completes the existing Data to Research to History w
   await expect(page.locator('.quant-report')).not.toContainText('Retry attempt 2');
   await page.getByTestId('quant-sidebar').getByRole('button', { name: 'History', exact: true }).click();
 
-  const retryCurrentRequest = page.waitForRequest((request) => request.url().endsWith('/v1/quant/workspace-snapshot'));
   await retryRow.getByRole('button', { name: 'Open run' }).click();
-  await retryCurrentRequest;
   await page.getByRole('button', { name: 'Open decision' }).click();
   await expect(page.locator('.quant-report')).toContainText('Continued from source version');
   await expect(page.locator('.quant-report')).toContainText('Retry attempt 2');

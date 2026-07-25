@@ -787,6 +787,7 @@ function marketSnapshot(stateName = 'quant-completed', runId = MARKET_HISTORY_RU
   snapshot.run.model = 'fixture-market-agent';
   snapshot.run.startedAt = '2026-07-20T09:00:00+00:00';
   snapshot.run.completedAt = ['completed', 'failed', 'cancelled'].includes(runtimeState) ? '2026-07-20T09:11:00+00:00' : null;
+  if (['completed', 'failed', 'cancelled'].includes(runtimeState)) snapshot.run.legalCommands = ['retry_run'];
   snapshot.dataset = {
     id: identity.datasetId, name: identity.dataset.name, symbol: identity.dataset.symbol, interval: identity.interval, dateRange: { start, end }, barCount: runtimeBarCount,
     schemaVersion: 'quant-market-bars-v2', parserVersion: identity.dataset.evidence.normalizer_version, digest: identity.datasetDigest, authenticity: identity.dataset.data_authenticity, createdAt: NOW,

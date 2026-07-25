@@ -118,9 +118,12 @@ describe('Quant Workspace components', () => {
     const reconnect = vi.fn(async () => undefined);
     const native = renderToStaticMarkup(<SessionRecovery failure={null} native onReconnect={reconnect} />);
     const browser = renderToStaticMarkup(<SessionRecovery failure={null} native={false} onReconnect={reconnect} />);
-    expect(native).toContain('Start local runtime');
-    expect(native).toContain('Start &amp; connect');
-    expect(browser).not.toContain('Start local runtime');
+    expect(native).toContain('Start Qurio on this Mac');
+    expect(native).toContain('Start Qurio');
+    expect(native).toContain('Offline demo — no API key');
+    expect(native).toContain('<details class="session-advanced">');
+    expect(native.indexOf('Start Qurio')).toBeLessThan(native.indexOf('Connect an existing workspace'));
+    expect(browser).not.toContain('Offline demo — no API key');
   });
 
   it('keeps the workspace geometry stable during initial and slow API loading', () => {
@@ -460,17 +463,18 @@ describe('Quant Workspace components', () => {
     const readout = container.querySelector<HTMLElement>('.pq-strategy-inspection')!;
     plot.getBoundingClientRect = () => ({ left: 0, top: 0, width: 760, height: 250, right: 760, bottom: 250, x: 0, y: 0, toJSON: () => ({}) });
     expect(plot.getAttribute('aria-label')).toContain('Use Left and Right arrows');
-    expect(readout.textContent).toContain(series.points.at(-1)!.date);
+    expect(readout.querySelector('time')?.getAttribute('dateTime')).toBe(series.points.at(-1)!.date);
+    expect(readout.querySelector('time')?.textContent).toContain('UTC');
     await act(async () => { plot.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 0 })); });
-    expect(readout.textContent).toContain(series.points[0]!.date);
+    expect(readout.querySelector('time')?.getAttribute('dateTime')).toBe(series.points[0]!.date);
     await act(async () => { plot.dispatchEvent(new MouseEvent('pointerout', { bubbles: true })); });
-    expect(readout.textContent).toContain(series.points.at(-1)!.date);
+    expect(readout.querySelector('time')?.getAttribute('dateTime')).toBe(series.points.at(-1)!.date);
     await act(async () => { plot.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Home' })); });
-    expect(readout.textContent).toContain(series.points[0]!.date);
+    expect(readout.querySelector('time')?.getAttribute('dateTime')).toBe(series.points[0]!.date);
     await act(async () => { plot.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'ArrowRight' })); });
-    expect(readout.textContent).toContain(series.points[1]!.date);
+    expect(readout.querySelector('time')?.getAttribute('dateTime')).toBe(series.points[1]!.date);
     await act(async () => { plot.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'ArrowLeft' })); });
-    expect(readout.textContent).toContain(series.points[0]!.date);
+    expect(readout.querySelector('time')?.getAttribute('dateTime')).toBe(series.points[0]!.date);
     expect(readout.textContent).toContain('Difference');
     await act(async () => { root.unmount(); });
     container.remove();
@@ -517,6 +521,9 @@ describe('Quant Workspace components', () => {
     expect(markup).toContain('aria-label="SMA 50/200 equity compared with benchmark"');
     expect(markup).toContain('pq-strategy-line is-candidate');
     expect(markup).toContain('pq-strategy-line is-benchmark');
+    expect(markup).not.toContain('pq-strategy-area is-candidate is-drawdown');
+    const drawdownMarkup = renderToStaticMarkup(<StrategyPerformanceChart snapshot={quantFixtureSnapshot} selectedCandidateId="candidate-b" view="drawdown" />);
+    expect(drawdownMarkup).toContain('pq-strategy-area is-candidate is-drawdown');
   });
 
   it('renders the complete adaptation Decision Ledger without holdout evidence', () => {
@@ -1394,7 +1401,7 @@ describe('Quant Workspace components', () => {
     expect([...container.querySelectorAll<HTMLButtonElement>('.pq-analysis-tabs button')].find((button) => button.textContent === 'Drawdown')?.getAttribute('aria-selected')).toBe('true');
     const lowestDrawdownPoint = snapshot.performanceSeries.find((series) => series.id === 'candidate-b')!.points
       .reduce((lowest, point) => point.drawdown < lowest.drawdown ? point : lowest);
-    expect(container.querySelector('.pq-strategy-inspection')?.textContent).toContain(lowestDrawdownPoint.date);
+    expect(container.querySelector('.pq-strategy-inspection time')?.getAttribute('dateTime')).toBe(lowestDrawdownPoint.date);
     expect(consumed.mock.calls.filter(([id]) => id === 'focus-drawdown')).toHaveLength(1);
 
     await act(async () => {
@@ -1402,7 +1409,7 @@ describe('Quant Workspace components', () => {
       [...container.querySelectorAll<HTMLButtonElement>('.pq-analysis-tabs button')].find((button) => button.textContent === 'Drawdown')?.click();
     });
     const latestPoint = snapshot.performanceSeries.find((series) => series.id === 'candidate-b')!.points.at(-1)!;
-    expect(container.querySelector('.pq-strategy-inspection')?.textContent).toContain(latestPoint.date);
+    expect(container.querySelector('.pq-strategy-inspection time')?.getAttribute('dateTime')).toBe(latestPoint.date);
 
     const tradeFocus: QuantEvidenceFocusIntent = {
       id: 'focus-trade',
@@ -2384,6 +2391,32 @@ describe('Quant Workspace components', () => {
     container.remove();
   });
 
+  it('opens Research setup for a new local workspace and labels the bundled demo honestly', async () => {
+    sessionStorage.removeItem('pokiequant.destination');
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const api: QuantApi = {
+      ...createFixtureQuantApi(),
+      getWorkspaceSnapshot: async () => quantFixtureSnapshot,
+      listRuns: async () => [],
+      listMarketRuns: async () => [],
+    };
+    await act(async () => {
+      root.render(<QuantWorkspace api={api} />);
+    });
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))));
+    });
+    expect(container.textContent).toContain('New research');
+    expect(container.querySelector('[aria-label="Research setup"]')).toBeTruthy();
+    expect(container.textContent).toContain('Offline demo data.');
+    expect(container.textContent).toContain('not live market evidence');
+    await act(async () => { root.unmount(); });
+    container.remove();
+    sessionStorage.removeItem('pokiequant.destination');
+  });
+
   it('rejects a wrong-bound historical snapshot and keeps the current snapshot visible', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -2578,7 +2611,8 @@ describe('Quant Workspace components', () => {
     expect(markup).toContain('>Connections<');
     expect(markup).toContain('Available research datasets');
     expect(markup).toContain('class="quant-research-table"');
-    expect(markup).toContain('class="is-numeric">Bars');
+    expect(markup).toContain('>Coverage<');
+    expect(markup).toContain('>Quality<');
     expect(markup).toContain('1 dataset');
     expect(markup).toContain('Current');
     expect(markup).not.toContain('Research datasets');

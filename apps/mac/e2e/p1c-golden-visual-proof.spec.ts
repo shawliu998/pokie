@@ -46,8 +46,8 @@ test('P1-C golden visual proof: deterministic BTCUSDT 4h data to approved plan, 
   await expect(preview).toContainText('Coverage');
   await expect(preview).toContainText('Bars');
   await expect(preview).toContainText('4,386');
-  await expect(preview).toContainText('Quality');
   await expect(preview).toContainText('Verified');
+  await expect(preview).toContainText('Research ready');
   await expect(preview).toContainText('Binance Spot deterministic API fixture');
   await expect(preview.getByRole('img', { name: 'BTCUSDT 4h price and volume chart' })).toBeVisible();
   await expect(preview.getByRole('button', { name: 'Use for research' })).toBeVisible();
@@ -71,8 +71,8 @@ test('P1-C golden visual proof: deterministic BTCUSDT 4h data to approved plan, 
     research_start_utc: '2024-03-01T00:00:00Z',
     research_end_utc: '2025-12-31T20:00:00+00:00',
   });
-  await expect(page.getByText(question, { exact: true })).toBeVisible();
   const planSurface = page.locator('.pq-overview-main').getByLabel('Research plan awaiting approval');
+  await expect(planSurface.getByText(question, { exact: true })).toBeVisible();
   await expect(planSurface).toContainText('Plan for approval');
   await expect(planSurface).toContainText('Moving-average trend');
   await expect(planSurface).toContainText('Price breakout');
@@ -108,6 +108,21 @@ test('P1-C golden visual proof: deterministic BTCUSDT 4h data to approved plan, 
   await expect(ledger).toContainText(/Final choice[\s\S]*SMA 50\/200 · Approved comparison objective/);
   await noHorizontalOverflow(page);
   await capture(page, 'p1c-04-observation-to-c-1440x960.png');
+
+  await page.getByRole('tab', { name: 'Analysis', exact: true }).click();
+  const analysis = page.locator('.pq-strategy-analysis');
+  await expect(analysis.getByRole('heading', { name: 'SMA 50/200', exact: true })).toBeVisible();
+  await expect(analysis.getByRole('img', { name: 'SMA 50/200 equity compared with benchmark' })).toBeVisible();
+  await expect(analysis.getByLabel('Performance inspection')).toContainText('Difference');
+  await expect(analysis.locator('.pq-strategy-chart figcaption time').first()).toHaveAttribute('datetime', '2024-03-01T00:00:00+00:00');
+  await analysis.getByRole('tab', { name: 'Drawdown', exact: true }).click();
+  await expect(analysis.getByRole('img', { name: 'SMA 50/200 drawdown compared with benchmark' })).toBeVisible();
+  await analysis.getByRole('tab', { name: 'Trades', exact: true }).click();
+  const retainedTrades = analysis.getByRole('table', { name: 'SMA 50/200 trades' });
+  await expect(retainedTrades).toBeVisible();
+  await expect(retainedTrades.locator('tbody tr')).not.toHaveCount(0);
+  await expect(retainedTrades.getByText('2 bars · 8h').first()).toBeVisible();
+  await noHorizontalOverflow(page);
 
   await page.getByRole('tab', { name: 'Decision', exact: true }).click();
   const terminal = page.locator('.quant-terminal-decision');
