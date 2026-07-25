@@ -182,11 +182,27 @@ pnpm --filter @glint/mac dev
 The `VITE_GLINT_*` environment names and `@glint/*` package identifiers are retained compatibility names; they are not product-domain aliases.
 
 The packaged `Qurio.app` does not require API or workspace values at build time.
-On first launch, enter the API URL, workspace ID and access token in the Qurio
-connection screen. The non-secret endpoint and workspace are saved locally;
-the access token is stored only in macOS Keychain. A local API must allow the
-packaged `tauri://localhost` origin; `scripts/launch_quant_live_session.py`
-configures both the browser-development and packaged-app origins automatically.
+A build made from this source checkout can start its fixed local FastAPI plus
+Quant Agent worker from the first-launch screen or Settings. Choose DeepSeek
+and a model, or Offline deterministic for a no-key path. The app creates and
+reuses one empty local workspace, saves its development session and optional
+DeepSeek credential in macOS Keychain, and reconnects automatically. Existing
+Runs retain their recorded provider/model; changing the managed runtime requires
+a restart and is unavailable while the current Run is active.
+
+This convenience requires this repository and its `.venv` to remain at the
+build-time path. It is not a self-contained Python sidecar for distribution.
+Alternatively, enter an API URL, workspace ID and access token in the connection
+screen. The non-secret endpoint and workspace are saved locally; the access
+token is stored only in macOS Keychain. A local API must allow the packaged
+`tauri://localhost` origin.
+
+The same no-key source-checkout runtime can be started from a terminal when
+diagnosing the native entry:
+
+```bash
+.venv/bin/python scripts/run_qurio_local_runtime.py --provider mock
+```
 
 Run the API and the default no-key autonomous Agent:
 

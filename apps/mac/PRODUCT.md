@@ -103,6 +103,11 @@ The current phase is post-mainline capability consolidation. **W4-lite Workspace
 complete**: the existing Overview, Qurio decision rail, Decision Ledger, Run Monitor and Decision
 surface make the approved plan, latest material observation and next legal research action easier to
 identify. It added no Agent aggregate, route, table, tool, execution surface or quantitative path.
+**L0 Local Runtime Setup is also complete for source checkouts**: first launch and Settings can
+start, stop or restart the existing FastAPI plus Quant Agent worker with either DeepSeek or the
+deterministic offline provider. DeepSeek model selection is explicit, credentials remain in macOS
+Keychain, and an existing Run keeps its recorded provider/model identity. This is a developer and
+portfolio-build convenience, not a distributable bundled Python sidecar or a new research runtime.
 The next product expansion remains intentionally undecided until a demonstrated research-scope gap
 justifies it.
 S0 has made a **no-go / defer**
