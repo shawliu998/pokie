@@ -33,7 +33,9 @@ user-demand claim. S0-lite Strategy Scope is complete: plans now classify reques
 supported, bounded proxies that require explicit approval, or unsupported requests that retain
 zero experiments and holdout evidence. Plan-external candidate calls return a typed coupled
 template/parameter repair and retain its resolved or stopped learning trace across restore. The
-constrained SDK remains deferred.
+constrained strategy-execution SDK remains deferred. A separate read-only Python SDK, CLI and
+bounded MCP server expose retained datasets, Runs and evidence without adding another research or
+execution path.
 
 The Phase 0 and Phase 1A material below is retained as implementation history. Current capability and next-direction truth lives in [the capability inventory](./docs/POKIEQUANT_CAPABILITY_INVENTORY.md), with product and layout boundaries in [PRODUCT.md](./apps/mac/PRODUCT.md) and [DESIGN.md](./apps/mac/DESIGN.md).
 
@@ -214,6 +216,45 @@ diagnosing the native entry:
 ```bash
 .venv/bin/python scripts/run_qurio_local_runtime.py --provider mock
 ```
+
+### Paper Trading
+
+Qurio includes an independent workspace-scoped Paper Trading destination. A
+completed Research Report can hand off only its retained final candidate to a
+reviewable Market/Day order draft. Submission produces a deterministic local
+fill, account balance, position and reconciliation history. This boundary has
+no live broker host, credentials or live-order route.
+
+### Python SDK, CLI and MCP
+
+Qurio includes a typed Python client and JSON CLI over the existing
+workspace-scoped API. The bounded MCP server registers only four read tools:
+`list_datasets`, `list_runs`, `get_run` and `get_run_evidence`. It cannot start
+research, execute Python, access a Broker or place orders.
+
+Configure all three surfaces with inherited environment variables so the
+access token is not placed in process arguments:
+
+```bash
+export QURIO_API_URL=http://127.0.0.1:8000
+export QURIO_WORKSPACE_ID=<workspace-uuid>
+export QURIO_ACCESS_TOKEN=<access-token>
+```
+
+For repository development:
+
+```bash
+uv sync --locked --extra test --extra mcp
+uv run --project sdk/python qurio datasets
+uv run --project sdk/python qurio runs --limit 20
+uv run --project sdk/python qurio snapshot --run-id <run-uuid>
+uv run --project sdk/python --extra mcp qurio-mcp
+```
+
+Installed wheels also provide the `qurio` and `qurio-mcp` commands. The MCP
+entry uses stdio and the stable MCP Python SDK v1 contract. See
+[`docs/QURIO_EXTERNAL_AGENT_ACCESS.md`](./docs/QURIO_EXTERNAL_AGENT_ACCESS.md)
+for the client API and integration boundary.
 
 Run the API and the default no-key autonomous Agent:
 

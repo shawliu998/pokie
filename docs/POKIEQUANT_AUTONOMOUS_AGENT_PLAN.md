@@ -5,7 +5,9 @@ Current checkpoint: the mainline through D0-lite, W1-lite, G1–G3, W2-lite, W3,
 E0 is complete. P16–P19 remain the Agent-native v0.1 research method, and R0 Agent Execution Repair
 remains the frozen real-provider repair baseline. D1's deterministic browser/API gates and live
 no-key Kraken `4h`/`1D` transport smoke pass. S0 has made a no-go / defer decision for constrained
-SDK implementation because retained evidence does not yet demonstrate a strategy-template gap.
+strategy-execution SDK implementation because retained evidence does not yet demonstrate a
+strategy-template gap. The separate `qurio-sdk` read-only client, CLI and four-tool MCP server
+expose retained API evidence without adding strategy execution or another calculation path.
 V1 real Connector → Evidence proof is complete through its accepted `A/B → C → decision` branch in
 `.run/v1-kraken-deepseek-20260724-183209`. S0-lite
 Strategy Scope Contract is complete and independently reviewed with no P0/P1 blocker. Target-user
@@ -64,8 +66,9 @@ Product category:
 
 The Agent owns the bounded progression from goal to plan, tool use, observations, correction and
 completion. The Workspace lets the researcher define, supervise, understand and continue research.
-This keeps the product Agent-native without turning the interface into a chat shell, an Agent Builder
-or a trading surface.
+This keeps the research loop Agent-native without turning it into a chat shell, an Agent Builder or
+a live-trading surface. The explicitly approved Paper Trading v1 is a separate local simulation
+handoff from one final retained Research Report; it adds no Research Agent tool or live permission.
 
 The initial service population is deliberately narrower than “all quants”:
 

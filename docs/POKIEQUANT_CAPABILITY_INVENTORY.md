@@ -23,11 +23,13 @@ tests pass; a live no-key read-only smoke on 2026-07-24 verified both intervals,
 response boundary and removal of the current uncommitted bar. The seven-tool Agent registry and
 authoritative quantitative kernel remain unchanged.
 
-S0 is complete as a **no-go / defer** decision for constrained SDK implementation because retained
-evidence does not demonstrate a strategy-template gap. V1 is complete with one retained real
-Kraken-to-DeepSeek-to-E0 proof; S0-lite Strategy Scope Contract is complete. R3–R5, broad Skills/MCP
-ecosystems, Broker/live trading, portfolio/ML expansion, SDK implementation and additional
-audit/security polish remain deferred. Target-user validation is not a delivery gate. The ordered roadmap,
+S0 is complete as a **no-go / defer** decision for constrained strategy-execution SDK
+implementation because retained evidence does not demonstrate a strategy-template gap. A separate
+read-only Python SDK, JSON CLI and four-tool stdio MCP server expose the existing authoritative API
+without accepting arbitrary strategies or creating another calculation path. V1 is complete with
+one retained real Kraken-to-DeepSeek-to-E0 proof; S0-lite Strategy Scope Contract is complete.
+R3–R5, broad Skills/MCP ecosystems, Broker/live trading, portfolio/ML expansion, strategy execution
+SDKs and additional audit/security polish remain deferred. Target-user validation is not a delivery gate. The ordered roadmap,
 conditional professional expansion and Research Playbook boundaries are specified in
 [`POKIEQUANT_AUTONOMOUS_AGENT_PLAN.md`](./POKIEQUANT_AUTONOMOUS_AGENT_PLAN.md).
 
@@ -101,6 +103,8 @@ evidence and cannot be reused under a fresh sealed-holdout claim.
 | Dataset preview bars | Reuse | Workspace-scoped legacy and v2 preview endpoints return bounded latest-contiguous stored OHLCV; production and fixture transports share discriminated typed contracts. |
 | Agent runtime | Reuse | OpenAI-compatible DeepSeek provider, Mock provider, runner, context builder and tool registry. It plans and executes bounded research tools; it is not an order, position, deployment or trading runtime. |
 | Desktop local runtime entry | Reuse | The Apple-silicon macOS 11+ app embeds a PyInstaller onedir sidecar built from locked managed Python 3.12. Tauri starts one persistent FastAPI plus Quant Agent worker, stores runtime data in Application Support, bootstraps a local workspace, retains session/provider credentials in Keychain and exposes start/stop/restart without a terminal. Provider/model changes require restart and are locked while the current Run is active; source builds keep a fixed development fallback. |
+| External Agent access | Reuse / complete | `sdk/python` builds the lightweight `qurio-sdk` wheel with a typed, workspace-scoped Python client, JSON CLI and stable-v1 stdio MCP server over retained datasets, Runs, workspace projections and evidence. MCP registers exactly four read tools and has no research mutation, arbitrary Python, Broker or order capability. |
+| Independent Paper Trading | Reuse / complete | `packages/contracts/paper`, `routes_paper.py`, `modules/paper`, `PaperTradingState` and `QuantPaperTradingPage` form a workspace-scoped local simulator. Only the candidate retained by a completed final Research Report can create a draft; submit, cancel, fill, position and reconcile state are versioned. No live host, credential, Broker account or live-order route exists. |
 | Verified repair learning | Reuse | R1 retains digest-verified `learning_trace_v1` outcomes; R2 reuses only validator-proven, schema/tool-compatible repair memory. This is tool-contract repair learning, not alpha, hidden-reasoning, metric or holdout memory. |
 | Structured Research Memory | Reuse | P17 pins at most five same-evidence terminal source Runs and fifteen canonical candidate identities on each new Run, verifies the canonical digest on restore, clones the exact pin for Retry, makes create/revise/Mock use the one pinned de-duplication set, and projects only source/candidate counts in existing Overview details. Real DeepSeek acceptance pinned one source Run and three tested keys, created two canonical-distinct candidates with zero overlap and retained no prohibited prior evidence. |
 | Evidence-driven replan | Reuse | P18 forces the first A/B training comparison before another provider decision, binds candidate C to one typed refine-or-switch decision and the exact feedback artifact, and supports honest no-novelty or insufficient-budget A/B stops. Canonical identity, legacy restore markers, Research Series conflicts and zero-mutation failures are enforced server-side; the seven-tool UI contract is unchanged. |

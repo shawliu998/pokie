@@ -233,6 +233,7 @@ The four-stage Training → Walk-forward → Sealed holdout → Promotion sequen
 - **Directory and composer:** Data and New research use the same two-column utility frame when the inspector or preflight context is useful; the secondary column disappears below the desktop breakpoint.
 - **Wide utility:** Runs uses the shared 44px utility header and one uninterrupted content column, capped at 1440px. It never reserves an empty Copilot column.
 - **Reading utility:** Settings uses the same header and a centered 900px content sheet. Its narrower width is deliberate for label/value scanning, not a generic page constraint.
+- **Paper utility:** Paper Trading uses one wide uninterrupted column. Account state, research handoff, order review and positions stay on this page; no live-trading or deployment controls appear.
 - Page width follows the task. Do not force directory, master-detail, workspace, and settings surfaces into one universal maximum width.
 
 ### Research workspace layout boundary
@@ -240,7 +241,7 @@ The four-stage Training → Walk-forward → Sealed holdout → Promotion sequen
 - Preserve the current navigation + main work area + right rail structure. Do not add a fixed second left rail or a fourth Context column.
 - Put research-series context in a compact strip at the top of the main work area when it materially helps the current decision. The strip may identify the source version, selected candidate and current objective; it must not become a metadata panel.
 - The right rail may evolve into Research Copilot, but its primary structure is **Current research / Material observation / Next legal research action** derived from retained state. Chat is a secondary interaction inside that rail, not the page shell or the research record.
-- Do not introduce an Agent console, deployment drawer, replay monitor, position surface or independent Activity page. Agent activity explains a Run only when it changes a research decision.
+- Do not introduce an Agent console, deployment drawer, replay monitor, live position surface or independent Activity page. The independent Paper Trading destination may show only its simulation account, drafts, fills and positions; Agent activity explains a Run only when it changes a research decision.
 - At 1440, keep the existing main + right-rail two-column workbench. At 1024, stack or collapse the rail so the main research evidence remains readable without document-level horizontal scrolling.
 
 ### Information hierarchy by page

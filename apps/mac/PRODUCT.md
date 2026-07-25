@@ -53,7 +53,7 @@ Agent-native means the user does not manually assemble the research procedure. A
 7. Final selection follows the approved objective or carries a server-validated evidence-based deviation.
 8. The user supervises through plan approval, quantitative evidence, report, Continue / Refine and history rather than a transcript-first chat surface.
 
-The number of visible Agents is not a product metric. Planning, execution and review may later use different internal model calls when evaluation proves a benefit, but the user continues to work with one Research Agent and one authoritative quantitative evaluator. The product does not offer an Agent Builder, Agent marketplace, deployment model, replay session or trading surface.
+The number of visible Agents is not a product metric. Planning, execution and review may later use different internal model calls when evaluation proves a benefit, but the user continues to work with one Research Agent and one authoritative quantitative evaluator. The product does not offer an Agent Builder, Agent marketplace, deployment model, replay session or live-trading surface. Paper Trading is a separate simulation-only handoff from one retained final Research Report; it is not part of the Research Agent loop and grants no live execution permission.
 
 ## Current Product Phase
 
@@ -112,6 +112,10 @@ builds retain the fixed-path development fallback; this packaging change adds no
 runtime.
 The next product expansion remains intentionally undecided until a demonstrated research-scope gap
 justifies it.
+**Paper Trading v1 is complete as an explicitly approved independent boundary.** One workspace-scoped
+local simulator accepts only the candidate retained by a completed final Research Report, creates a
+reviewable order draft, requires a separate submit action, records deterministic fills, positions
+and account reconciliation, and exposes no live host, live credentials or live-order route.
 S0 has made a **no-go / defer**
 decision for constrained SDK implementation: retained evidence does not yet show that valuable
 approved research questions require arbitrary strategy code, while a complete SDK would add a
@@ -125,7 +129,7 @@ package sequence and stopping rules live in
 
 Agent-native Research Loop v1 reuses Project, Run, Continue / Refine and the existing seven-tool Agent; it does not add a Campaign table, a new page, arbitrary code execution, automatic Retry or an unbounded loop. Retry remains available for ordinary Runs but is deliberately unavailable inside an opted-in bounded series so its declared total experiment and action budgets remain truthful.
 
-The one-Agent, seven-tool and single authoritative quantitative-evaluator boundaries remain unchanged. Before each named package starts, check the capability inventory and extend the listed reusable assets. Do not open R3–R5, broad Skills/MCP ecosystems, Broker/live trading, portfolio/ML expansion or SDK implementation without an explicit product decision and a demonstrated capability gap.
+The one-Agent, seven-tool and single authoritative quantitative-evaluator boundaries remain unchanged. Before each named package starts, check the capability inventory and extend the listed reusable assets. Paper Trading was explicitly activated as a separate local simulation boundary; R3–R5, broad Skills/MCP ecosystems, Broker/live trading and portfolio/ML expansion remain deferred.
 
 Do not spend a development cycle polishing safety copy, provenance metadata, focus choreography or rare failure states while a primary research surface is still missing charts, comparison tools, tables or meaningful actions.
 
@@ -180,6 +184,7 @@ Reuse the current destinations:
 - **Research:** the existing Workspace and New Research flow.
 - **Runs:** research history, comparison and reopening.
 - **Data:** dataset discovery, preview and selection.
+- **Paper Trading:** isolated account, report-selected strategy handoff, order review, simulated fills and positions.
 - **Settings:** runtime and product configuration.
 
 A separate Library, Agents, Activity, Deployments or Portfolio destination is not planned until a demonstrated research job cannot be handled by Research, Runs or Data.
