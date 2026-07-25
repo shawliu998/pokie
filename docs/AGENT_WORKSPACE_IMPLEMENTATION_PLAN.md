@@ -1,5 +1,10 @@
 # Agent Workspace Implementation Plan
 
+> Historical plan only. PokieQuant no longer exposes the Glint Investigation
+> workspace as a supported product route, and its dedicated fixture-state
+> selector and E2E contract have been retired. Current implementation planning
+> is governed by `docs/POKIEQUANT_CAPABILITY_INVENTORY.md`.
+
 ## Delivery strategy
 
 The redesign is split into three stacked, independently reviewable frontend PRs. None changes backend graph behavior, review semantics, or database contracts.
@@ -24,7 +29,7 @@ Implementation sequence:
 1. Audit current Investigation layout, state sources, review actions, responsive behavior, and tokens.
 2. Freeze copy, information architecture, and state matrix.
 3. Build and test the pure presentation model.
-4. Add explicit fixture-state selection through `GLINT_E2E_AGENT_STATE`; never expose a production selector.
+4. Add a test-only fixture-state selector; never expose a production selector. (Retired with this historical surface.)
 5. Implement the shell components in `features/agent/`.
 6. Replace the default Investigation detail composition while reusing existing API actions.
 7. Add E2E state assertions and screenshot capture.

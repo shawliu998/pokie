@@ -1,8 +1,10 @@
-# Agent Workspace Screenshots
+# Historical Agent Workspace Screenshots
 
-These images are captured from the real React Workbench against the explicit API fixture states in `apps/mac/e2e/api-fixture.mjs`.
-
-Every fixture screenshot is 1440×960 and visibly labeled `Imported Demo Fixture`. The state selector is provided only through `GLINT_E2E_AGENT_STATE` in the test process; no production UI selector exists.
+These images are retained only as historical design evidence from the former
+Glint Investigation workspace. They are not current PokieQuant acceptance
+assets, and their dedicated fixture selector and E2E contract have been
+retired. Current screenshots and browser acceptance live under
+`docs/assets/pokiequant/` and the Quant capability inventory.
 
 - `glint-agent-ready.png`
 - `glint-agent-running.png`

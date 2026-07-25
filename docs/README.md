@@ -1,14 +1,27 @@
-# Glint document index
+# Documentation index
 
-> Status: Phase 0 accepted; Phase 1 and Phase 2 deterministic local acceptance complete; the first
+## Current quantitative-research product authority
+
+- [Product direction](../apps/mac/PRODUCT.md)
+- [Design and layout boundaries](../apps/mac/DESIGN.md)
+- [Capability inventory and Research Series plan](./POKIEQUANT_CAPABILITY_INVENTORY.md)
+- [Repository entry point](../README.md)
+
+The active Mac product is the AI-native quant research workspace described by those documents, powered by one verifiable autonomous Research Agent. C1–C5 implementation facts and the planned Research Series packages are deliberately separated in the capability inventory.
+
+## Inherited Glint documentation
+
+The remaining documents describe inherited Glint infrastructure and historical acceptance. They are retained for architecture compatibility and do not define the current quantitative-research information architecture.
+
+> Historical status: Phase 0 accepted; Phase 1 and Phase 2 deterministic local acceptance complete; the first
 > Phase 3 model-assisted Evidence/Claim slice is implemented but Phase 3 is not accepted.
 >
-> Verification date: 2026-07-16
+> Historical verification date: 2026-07-16
 >
 > Boundary: live GitHub/RSS smoke, production deployment, pilot and GA are not verified.
 > Acceptance evidence: [Phase 0 acceptance](./PHASE0_ACCEPTANCE.md), [P1/P2 acceptance](./PHASE1_P2_ACCEPTANCE.md), and [independent Phase 0 review](./PHASE0_REVIEW.md).
 
-## Canonical product chain
+## Historical Glint product chain
 
 Inbox Signal → Investigation → one or more ResearchRuns → Evidence → immutable ClaimVersions + ClaimReviews → one verified InvestigationSynthesisVersion → one grounded DecisionBriefVersion + readiness review → version-bound PRD Research Input Preview / terminal BriefExport.
 
@@ -46,13 +59,15 @@ Locked boundaries:
 - [Quality gates](./QUALITY_GATES.md)
 - [Seed dataset specification](./SEED_DATASET_SPEC.md)
 - [Reuse matrix](./REUSE_MATRIX.md)
+- [PokieQuant UI source reuse boundary](./POKIEQUANT_UI_SOURCE_REUSE_BOUNDARY.md)
 - [Risk register](./RISK_REGISTER.md)
 - [Phase 0 acceptance](./PHASE0_ACCEPTANCE.md)
 - [Phase 1 / Phase 2 deterministic acceptance](./PHASE1_P2_ACCEPTANCE.md)
 - [P2.5 conditional acceptance](./P2_5_ACCEPTANCE.md)
 - [Phase 3 model research runtime](./MODEL_RESEARCH.md)
 - [Phase 3 model-quality provisional acceptance](./PHASE3_QUALITY_ACCEPTANCE.md)
-- [P2.5 demo script](./DEMO_SCRIPT.md)
+- [P2.5 demo script](./DEMO_SCRIPT.md) (historical Glint phase)
+- [Qurio 3–5 minute interview demo script](./QURIO_DEMO_3_TO_5_MIN.md)
 - [P2.5 pilot plan](./PILOT_PLAN.md)
 - [Live connector smoke](./LIVE_CONNECTOR_SMOKE.md)
 - [Independent Phase 0 review](./PHASE0_REVIEW.md)

@@ -1,5 +1,8 @@
 # Phase 3 Scope Audit
 
+> Historical Glint scope audit only. It records inherited repository provenance and does not define
+> the current Qurio quantitative-research product or navigation.
+
 Audit date: 2026-07-16  
 Repository: `https://github.com/shawliu998/Glint`  
 Audited branch: `codex/phase3-model-research`  
@@ -124,7 +127,7 @@ Commit `6b99134` changes the following 42 files:
 .env.example
 README.md
 THIRD_PARTY_NOTICES.md
-apps/mac/e2e/api-contract.spec.ts
+(legacy Glint API-contract browser spec; retired during PokieQuant C4)
 apps/mac/e2e/api-fixture.mjs
 apps/mac/src/api.test.ts
 apps/mac/src/api.ts

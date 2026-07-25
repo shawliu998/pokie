@@ -1,5 +1,11 @@
 # Agent Workspace State Matrix
 
+> Historical reference only. These states describe the retired Glint
+> Investigation workspace and are not an active PokieQuant browser-test or
+> fixture contract. Supported Quant states live in the generated Quant fixture
+> repository and are reset to their configured startup baseline before each
+> Playwright test.
+
 The presentation model uses domain state and persisted artifacts; it does not add lifecycle values to `Investigation` or `ResearchRun`.
 
 ## Primary session states

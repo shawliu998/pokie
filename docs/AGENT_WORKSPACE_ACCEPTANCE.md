@@ -1,5 +1,11 @@
 # Agent Workspace UI PR 1 Acceptance
 
+> Historical record only. The Glint Investigation workspace and its dedicated
+> browser-fixture variants are retired from the supported PokieQuant product
+> route. Their focused E2E contract was removed rather than skipped or adapted
+> to the Quant workspace; current browser acceptance is recorded in the
+> PokieQuant capability inventory.
+
 Date: 2026-07-16
 Branch: `codex/phase31-agent-workspace-ui`
 Base: `codex/phase31-pr0-scope-cleanup`
@@ -67,10 +73,9 @@ pnpm test                         18 files · 77 tests
 pnpm build                        Vite production build
 GLINT_E2E_API_MODE=fixture pnpm test:e2e
                                    2 passed · 2 intentionally skipped
-GLINT_E2E_AGENT_STATE=agent-ready pnpm --filter @glint/mac test:e2e -- agent-workspace.spec.ts
-GLINT_E2E_AGENT_STATE=agent-running pnpm --filter @glint/mac test:e2e -- agent-workspace.spec.ts
-GLINT_E2E_AGENT_STATE=agent-waiting-review pnpm --filter @glint/mac test:e2e -- agent-workspace.spec.ts
-GLINT_E2E_AGENT_STATE=agent-completed pnpm --filter @glint/mac test:e2e -- agent-workspace.spec.ts
+The four historical Agent Workspace fixture captures passed when this record
+was written. Those commands and variants are no longer part of the runnable
+product contract.
 ./scripts/verify_phase2.sh
 ./scripts/verify_phase3_quality.sh
 ./scripts/verify_tauri_runtime.sh

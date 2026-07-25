@@ -1,6 +1,9 @@
 # PokieQuant Phase 0 Repository Audit
 
-Status: baseline and read-only architecture audit
+Status: historical baseline and read-only architecture audit
+
+> This preserves the Glint-to-PokieQuant fork boundary and remains architecture provenance. Current
+> product authority is `apps/mac/PRODUCT.md`, `apps/mac/DESIGN.md` and the capability inventory.
 
 Audit date: 2026-07-17 (Asia/Shanghai)
 
@@ -230,8 +233,7 @@ Especially relevant files include:
 
 - `apps/mac/src/features/agent/agent-presentation.test.ts`
 - `apps/mac/src/features/agent/agent-components.test.tsx`
-- `apps/mac/e2e/agent-workspace.spec.ts`
-- `apps/mac/e2e/api-contract.spec.ts`
+- Retired Glint Agent Workspace and API-contract browser specs (historical audit inputs; removed during PokieQuant C4)
 - `apps/mac/e2e/workbench-layout.spec.ts`
 - `tests/contract/test_run_events.py`
 - `tests/contract/test_schema_export.py`
