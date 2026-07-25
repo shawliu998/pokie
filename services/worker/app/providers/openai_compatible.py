@@ -17,7 +17,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError
 
 DEFAULT_OPENAI_COMPATIBLE_BASE_URL = "https://api.deepseek.com"
-DEFAULT_OPENAI_COMPATIBLE_MODEL = "deepseek-chat"
+DEFAULT_OPENAI_COMPATIBLE_MODEL = "deepseek-v4-flash"
 MAX_RESPONSE_BYTES = 100_000
 
 

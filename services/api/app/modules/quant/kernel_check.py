@@ -14,15 +14,15 @@ from packages.contracts.quant.fixture_data import SPY_DAILY_FIXTURE
 from packages.domain.quant_backtest import (
     BacktestResult,
     DailyBar,
-    ExecutionConfig,
     StrategySpec,
     backtest_buy_and_hold,
     run_backtest,
 )
+from services.api.app.modules.quant.execution import BASELINE_EXECUTION
 
 ENGINE_VERSION = "daily-bar-kernel-v1"
 VALIDATOR_VERSION = "synthetic-validator-v1"
-EXECUTION = ExecutionConfig(fee_rate=0.001, slippage_rate=0.0005)
+EXECUTION = BASELINE_EXECUTION
 
 
 class _CandidateDefinition(TypedDict):
@@ -88,6 +88,32 @@ def _candidate_metrics(result: BacktestResult) -> dict[str, float | int]:
     }
 
 
+def _performance_points(result: BacktestResult, *, limit: int = 160) -> list[dict[str, Any]]:
+    """Project a bounded, normalized equity and drawdown series for the UI."""
+
+    curve = result.equity_curve
+    if not curve:
+        return []
+    step = max(1, (len(curve) + limit - 1) // limit)
+    sampled = list(curve[::step])
+    if sampled[-1] != curve[-1]:
+        sampled.append(curve[-1])
+    base = sampled[0].equity or 1.0
+    peak = base
+    points: list[dict[str, Any]] = []
+    for point in sampled:
+        normalized = point.equity / base * 100
+        peak = max(peak, normalized)
+        points.append(
+            {
+                "date": point.date.isoformat(),
+                "equity": round(normalized, 4),
+                "drawdown": round((normalized / peak - 1) * 100, 4),
+            }
+        )
+    return points
+
+
 def _sensitivity_range(left: BacktestResult, right: BacktestResult) -> float:
     returns = (left.metrics.annualized_return, right.metrics.annualized_return)
     return round((max(returns) - min(returns)) * 100, 2)
@@ -146,12 +172,8 @@ def build_quant_research_projection(*, no_viable: bool = False) -> dict[str, Any
     """Build computed candidates, benchmark, trades, and validation copy."""
 
     results = _computed_results()
-    sensitivity_a = _sensitivity_range(
-        results["candidate-a-low"], results["candidate-a-high"]
-    )
-    sensitivity_b = _sensitivity_range(
-        results["candidate-b-low"], results["candidate-b-high"]
-    )
+    sensitivity_a = _sensitivity_range(results["candidate-a-low"], results["candidate-a-high"])
+    sensitivity_b = _sensitivity_range(results["candidate-b-low"], results["candidate-b-high"])
     definitions: tuple[_CandidateDefinition, ...] = (
         {
             "id": "candidate-a",
@@ -159,7 +181,9 @@ def build_quant_research_projection(*, no_viable: bool = False) -> dict[str, Any
             "parameters": "fast=20 · slow=100",
             "verdict": "rejected",
             "verdictReason": f"Parameter sensitivity · {sensitivity_a:.2f} pp range",
-            "strategySpec": "family: sma\nfast_period: 20\nslow_period: 100\nposition: long_or_cash",
+            "strategySpec": (
+                "family: sma\nfast_period: 20\nslow_period: 100\nposition: long_or_cash"
+            ),
             "robustness": [
                 f"10/80 versus 30/120 annualized-return range: {sensitivity_a:.2f} pp",
                 "Rejected by the configured >5 pp sensitivity rule",
@@ -172,7 +196,9 @@ def build_quant_research_projection(*, no_viable: bool = False) -> dict[str, Any
             "parameters": "fast=50 · slow=200",
             "verdict": "promising",
             "verdictReason": "Candidate for paper evaluation",
-            "strategySpec": "family: sma\nfast_period: 50\nslow_period: 200\nposition: long_or_cash",
+            "strategySpec": (
+                "family: sma\nfast_period: 50\nslow_period: 200\nposition: long_or_cash"
+            ),
             "robustness": [
                 f"40/180 versus 60/220 annualized-return range: {sensitivity_b:.2f} pp",
                 "Passes the configured ≤5 pp sensitivity rule",
@@ -209,6 +235,41 @@ def build_quant_research_projection(*, no_viable: bool = False) -> dict[str, Any
             ]
         candidates.append(candidate)
 
+    fixture_hypotheses = {
+        "candidate-a": "Test a faster moving-average trend signal against buy and hold.",
+        "candidate-b": "Test a slower moving-average trend signal for lower drawdown.",
+        "candidate-c": "Test whether a long-horizon breakout remains robust with sparse trades.",
+    }
+    training_ranking = sorted(
+        candidates,
+        key=lambda item: (
+            item["metrics"]["sharpe"],
+            item["metrics"]["annualizedReturn"],
+            item["metrics"]["maxDrawdown"],
+            item["id"],
+        ),
+        reverse=True,
+    )
+    for candidate in candidates:
+        rank = next(
+            index
+            for index, item in enumerate(training_ranking, start=1)
+            if item["id"] == candidate["id"]
+        )
+        candidate["evolution"] = {
+            "hypothesis": fixture_hypotheses[candidate["id"]],
+            "origin": "initial",
+            "changeRationale": None,
+            "feedbackReferenceCandidateId": None,
+            "feedbackReferenceCandidateName": None,
+            "comparisonRank": rank,
+            "comparisonCandidateCount": len(candidates),
+            "selectionReason": (
+                f"Ranked {rank} of {len(candidates)} in the final training comparison; this "
+                "synthetic fixture retains no sealed-holdout selection."
+            ),
+        }
+
     benchmark_metrics = _candidate_metrics(results["benchmark"])
     trades = [
         {
@@ -225,19 +286,45 @@ def build_quant_research_projection(*, no_viable: bool = False) -> dict[str, Any
     conclusion = (
         "No candidate passed validation; the computed research process still completed normally."
         if no_viable
-        else "Candidate B passes the configured synthetic validation; Candidate A is rejected for sensitivity and Candidate C is inconclusive because it has too few closed trades."
+        else (
+            "Candidate B passes the configured synthetic validation; Candidate A is "
+            "rejected for sensitivity and Candidate C is inconclusive because it has "
+            "too few closed trades."
+        )
     )
     return {
         "benchmark": benchmark_metrics,
         "candidates": candidates,
+        "performanceSeries": [
+            {
+                "id": "benchmark",
+                "label": "Buy and hold",
+                "kind": "benchmark",
+                "points": _performance_points(results["benchmark"]),
+            },
+            *[
+                {
+                    "id": definition["id"],
+                    "label": definition["name"]
+                    .replace("Candidate A · ", "")
+                    .replace("Candidate B · ", "")
+                    .replace("Candidate C · ", ""),
+                    "kind": "candidate",
+                    "points": _performance_points(results[definition["id"]]),
+                }
+                for definition in definitions
+            ],
+        ],
         "trades": trades,
         "conclusion": conclusion,
         "validatorVersion": VALIDATOR_VERSION,
         "generationMethod": f"Computed by {ENGINE_VERSION} from a digest-pinned synthetic dataset",
         "limitations": [
             "All bars and computed results are synthetic and are not market evidence.",
-            "The weekday generator omits exchange holidays, corporate actions, taxes, and liquidity constraints.",
-            "Validation thresholds are fixed demonstration policy, not an investment recommendation.",
+            "The weekday generator omits exchange holidays, corporate actions, taxes, "
+            "and liquidity constraints.",
+            "Validation thresholds are fixed demonstration policy, not an investment "
+            "recommendation.",
         ],
     }
 

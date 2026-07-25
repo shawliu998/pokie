@@ -30,9 +30,7 @@ def _daily_csv(
     rows = ["date,open,high,low,close,volume"]
     start = date(2023, 1, 1)
     for index in range(300):
-        trading_date = start + timedelta(
-            days=index + (gap_days_after_150 if index >= 150 else 0)
-        )
+        trading_date = start + timedelta(days=index + (gap_days_after_150 if index >= 150 else 0))
         baseline = 100 + index / 50
         open_price = baseline + 8 * math.sin((index - 1) / 8)
         close_price = baseline + 8 * math.sin(index / 8)
@@ -63,6 +61,36 @@ def _headers(principal_id: str, workspace_id: str | None = None) -> dict[str, st
     if workspace_id is not None:
         headers["X-Workspace-ID"] = workspace_id
     return headers
+
+
+def test_dataset_preview_returns_a_workspace_scoped_contiguous_tail(
+    client: TestClient, principal_id: str
+) -> None:
+    workspace = _workspace(client, principal_id, "Dataset preview workspace")
+    workspace_id = workspace["workspace_id"]
+    dataset = _import(client, principal_id, workspace_id, CSV_V1)
+
+    response = client.get(
+        f"/v1/quant/datasets/{dataset['dataset_id']}/preview?max_points=60",
+        headers=_headers(principal_id, workspace_id),
+    )
+    assert response.status_code == 200, response.text
+    preview = response.json()
+    assert preview["data_authenticity"] == "imported"
+    assert preview["sampling_rule"] == "latest_contiguous"
+    assert preview["total_bar_count"] == 300
+    assert preview["returned_bar_count"] == 60
+    assert preview["max_points"] == 60
+    assert preview["bars"][0]["date"] == "2023-08-29"
+    assert preview["bars"][-1]["date"] == "2023-10-27"
+    assert preview["bars"][-1]["close"] == "103.43"
+
+    other_workspace = _workspace(client, principal_id, "Other preview workspace")
+    missing = client.get(
+        f"/v1/quant/datasets/{dataset['dataset_id']}/preview",
+        headers=_headers(principal_id, other_workspace["workspace_id"]),
+    )
+    assert missing.status_code == 404
 
 
 def _workspace(client: TestClient, principal_id: str, name: str) -> dict[str, Any]:
@@ -111,6 +139,8 @@ def _create_run(
     workspace_id: str,
     project: dict[str, Any],
     dataset_id: str,
+    research_start: str | None = None,
+    research_end: str | None = None,
 ) -> Any:
     return client.post(
         "/v1/quant/runs",
@@ -121,8 +151,58 @@ def _create_run(
             "mode": "auto",
             "expected_project_row_version": project["row_version"],
             "dataset_id": dataset_id,
+            **({"research_start": research_start} if research_start else {}),
+            **({"research_end": research_end} if research_end else {}),
         },
     )
+
+
+def test_quant_run_pins_and_executes_a_supported_research_range(
+    client: TestClient, principal_id: str
+) -> None:
+    workspace_id = _workspace(client, principal_id, "Research range workspace")["workspace_id"]
+    dataset = _import(client, principal_id, workspace_id, CSV_V1)
+    project = _project(client, principal_id, workspace_id)
+    created = _create_run(
+        client,
+        principal_id,
+        workspace_id,
+        project,
+        dataset["dataset_id"],
+        research_start="2023-01-10",
+        research_end="2023-10-27",
+    )
+    assert created.status_code == 201, created.text
+    run = created.json()
+    assert run["research_start"] == "2023-01-10"
+    assert run["research_end"] == "2023-10-27"
+    summary = get_quant_store().agent_context_data(workspace_id=workspace_id, run_id=run["id"])[
+        "dataset_summary"
+    ]
+    assert summary["start"] == "2023-01-10"
+    assert summary["end"] == "2023-10-27"
+    assert summary["bars"] == 291
+
+
+def test_quant_run_rejects_a_range_outside_dataset_coverage(
+    client: TestClient, principal_id: str
+) -> None:
+    workspace_id = _workspace(client, principal_id, "Invalid research range workspace")[
+        "workspace_id"
+    ]
+    dataset = _import(client, principal_id, workspace_id, CSV_V1)
+    project = _project(client, principal_id, workspace_id)
+    created = _create_run(
+        client,
+        principal_id,
+        workspace_id,
+        project,
+        dataset["dataset_id"],
+        research_start="2022-12-31",
+        research_end="2023-10-27",
+    )
+    assert created.status_code == 409
+    assert "inside dataset coverage" in created.text
 
 
 def _quality_snapshot(quality: dict[str, Any]) -> dict[str, Any]:
@@ -162,8 +242,7 @@ def test_imported_ohlcv_dataset_is_listed_pinned_and_exposed_to_agent_context(
         "file_name": "acme-daily.csv",
         "source_name": "ACME Research Export",
         "source_reference": "internal-export:acme-daily-v1",
-        "submitted_csv_digest": "sha256:"
-        + sha256(CSV_V1.strip().encode("utf-8")).hexdigest(),
+        "submitted_csv_digest": "sha256:" + sha256(CSV_V1.strip().encode("utf-8")).hexdigest(),
         "provider_id": None,
         "provider_response_digest": None,
         "provider_response_attestations": [],
@@ -189,10 +268,9 @@ def test_imported_ohlcv_dataset_is_listed_pinned_and_exposed_to_agent_context(
     run = created.json()
     assert run["dataset_id"] == dataset["dataset_id"]
     assert run["dataset_digest"] == dataset["digest"]
+    assert run["data_authenticity"] == "imported"
 
-    context = get_quant_store().agent_context_data(
-        workspace_id=workspace_id, run_id=run["id"]
-    )
+    context = get_quant_store().agent_context_data(workspace_id=workspace_id, run_id=run["id"])
     assert context["dataset_summary"] == {
         "dataset_id": dataset["dataset_id"],
         "symbol": "ACME",
@@ -201,7 +279,7 @@ def test_imported_ohlcv_dataset_is_listed_pinned_and_exposed_to_agent_context(
         "start": "2023-01-01",
         "end": "2023-10-27",
         "digest": dataset["digest"],
-        "authenticity": "imported_fixture",
+        "authenticity": "imported",
         "source_metadata": dataset["source_metadata"],
         "data_quality": dataset["data_quality"],
         "evaluation_partition": "train",
@@ -224,7 +302,7 @@ def test_imported_ohlcv_dataset_is_listed_pinned_and_exposed_to_agent_context(
         headers=_headers(principal_id, workspace_id),
     )
     assert snapshot.status_code == 200, snapshot.text
-    assert snapshot.json()["authenticity"] == "imported_fixture"
+    assert snapshot.json()["authenticity"] == "imported"
     assert snapshot.json()["dataset"] == {
         "id": dataset["dataset_id"],
         "name": "Acme daily bars",
@@ -235,7 +313,7 @@ def test_imported_ohlcv_dataset_is_listed_pinned_and_exposed_to_agent_context(
         "schemaVersion": "quant-daily-bars-v1",
         "parserVersion": "quant-ohlcv-csv-v1",
         "digest": dataset["digest"],
-        "authenticity": "imported_fixture",
+        "authenticity": "imported",
         "source": {
             "kind": "csv_upload",
             "fileName": "acme-daily.csv",
@@ -263,11 +341,29 @@ def test_imported_ohlcv_dataset_is_listed_pinned_and_exposed_to_agent_context(
     assert snapshot.json()["kernelCheck"]["datasetDigest"] == dataset["digest"]
     assert snapshot.json()["kernelCheck"]["barCount"] == 300
 
+    saw_live_candidate_projection = False
     for _ in range(12):
-        if not run_quant_agent_once(
-            provider=MockQuantAgentProvider(), workspace_id=workspace_id
-        ):
+        if not run_quant_agent_once(provider=MockQuantAgentProvider(), workspace_id=workspace_id):
             break
+        active_response = client.get(
+            "/v1/quant/workspace-snapshot",
+            headers=_headers(principal_id, workspace_id),
+        )
+        assert active_response.status_code == 200, active_response.text
+        live_research = active_response.json()["liveResearch"]
+        if live_research and live_research["candidates"]:
+            saw_live_candidate_projection = True
+            projected = live_research["candidates"][0]
+            assert projected["hypothesis"]
+            assert projected["parameters"]
+            assert projected["state"] in {
+                "completed",
+                "running",
+                "queued",
+                "repairing",
+                "revised",
+                "failed",
+            }
     completed = client.get(
         "/v1/quant/workspace-snapshot",
         headers=_headers(principal_id, workspace_id),
@@ -275,12 +371,39 @@ def test_imported_ohlcv_dataset_is_listed_pinned_and_exposed_to_agent_context(
     assert completed.status_code == 200, completed.text
     completed_snapshot = completed.json()
     assert completed_snapshot["run"]["state"] == "completed"
+    assert saw_live_candidate_projection
+    assert completed_snapshot["liveResearch"] is None
     assert completed_snapshot["kernelCheck"]["status"] == "verified"
     assert completed_snapshot["kernelCheck"]["datasetId"] == dataset["dataset_id"]
     assert completed_snapshot["kernelCheck"]["benchmark"] is not None
     assert completed_snapshot["kernelCheck"]["strategies"]
     assert completed_snapshot["trades"]
-    assert any("marker" in bar for bar in completed_snapshot["bars"])
+    assert all(
+        "holdingDays" in trade
+        and "holdingBars" not in trade
+        and "holdingElapsedSeconds" not in trade
+        for trade in completed_snapshot["trades"]
+    )
+    report_artifact = next(
+        artifact
+        for artifact in get_quant_store().artifacts_for_run(
+            workspace_id=workspace_id, run_id=run["id"]
+        )
+        if artifact.kind.value == "research_report"
+    )
+    selected_candidate_id = report_artifact.content["selected_candidate_id"]
+    selected_trades = [
+        trade
+        for trade in completed_snapshot["trades"]
+        if trade["candidateId"] == selected_candidate_id
+    ]
+    marker_dates = {bar["date"] for bar in completed_snapshot["bars"] if "marker" in bar}
+    expected_marker_dates = {
+        trade[date_key] for trade in selected_trades for date_key in ("entryDate", "exitDate")
+    }
+    # A final candidate without trades must not borrow another candidate's
+    # chart markers.  When it has trades, every marker belongs to it.
+    assert marker_dates == expected_marker_dates
     assert completed_snapshot["composerLegalCommands"] == ["start_auto_research"]
     generalization = completed_snapshot["report"]["generalization"]
     assert generalization["status"] in {"pass", "fail", "inconclusive"}
@@ -326,9 +449,7 @@ def test_imported_ohlcv_dataset_is_listed_pinned_and_exposed_to_agent_context(
         workspace_id=workspace_id, dataset_id=dataset["dataset_id"]
     )
     assert restored_dataset is not None
-    assert restored_dataset.source_metadata.model_dump(mode="json") == dataset[
-        "source_metadata"
-    ]
+    assert restored_dataset.source_metadata.model_dump(mode="json") == dataset["source_metadata"]
     assert restored_dataset.data_quality is not None
     assert restored_dataset.data_quality.model_dump(mode="json") == dataset["data_quality"]
     with pytest.raises(ValidationError):
@@ -338,20 +459,13 @@ def test_imported_ohlcv_dataset_is_listed_pinned_and_exposed_to_agent_context(
     ]
     assert len(research_reports) == 1
     assert research_reports[0].content["dataset"]["digest"] == dataset["digest"]
-    assert (
-        research_reports[0].content["dataset"]["source_metadata"]
-        == dataset["source_metadata"]
-    )
-    assert research_reports[0].content["dataset"]["data_quality"] == dataset[
-        "data_quality"
-    ]
+    assert research_reports[0].content["dataset"]["source_metadata"] == dataset["source_metadata"]
+    assert research_reports[0].content["dataset"]["data_quality"] == dataset["data_quality"]
     assert research_reports[0].content["generalization"]["split"]["train_bar_count"] == 240
-    assert not run_quant_agent_once(
-        provider=MockQuantAgentProvider(), workspace_id=workspace_id
+    assert not run_quant_agent_once(provider=MockQuantAgentProvider(), workspace_id=workspace_id)
+    assert len(QuantStore().artifacts_for_run(workspace_id=workspace_id, run_id=run["id"])) == len(
+        persisted_artifacts
     )
-    assert len(
-        QuantStore().artifacts_for_run(workspace_id=workspace_id, run_id=run["id"])
-    ) == len(persisted_artifacts)
 
     next_run = client.post(
         "/v1/quant/workspace-snapshot/commands",
@@ -391,9 +505,12 @@ def test_changed_csv_creates_new_dataset_while_existing_run_remains_pinned(
     assert retrieved.status_code == 200, retrieved.text
     assert retrieved.json()["dataset_id"] == first["dataset_id"]
     assert retrieved.json()["dataset_digest"] == first["digest"]
-    assert get_quant_store().agent_context_data(
-        workspace_id=workspace_id, run_id=old_run["id"]
-    )["dataset_summary"]["digest"] == first["digest"]
+    assert (
+        get_quant_store().agent_context_data(workspace_id=workspace_id, run_id=old_run["id"])[
+            "dataset_summary"
+        ]["digest"]
+        == first["digest"]
+    )
 
 
 def test_holdout_changes_do_not_change_training_selection(
@@ -403,9 +520,7 @@ def test_holdout_changes_do_not_change_training_selection(
         workspace_id = _workspace(client, principal_id, name)["workspace_id"]
         dataset = _import(client, principal_id, workspace_id, csv_text)
         project = _project(client, principal_id, workspace_id)
-        created = _create_run(
-            client, principal_id, workspace_id, project, dataset["dataset_id"]
-        )
+        created = _create_run(client, principal_id, workspace_id, project, dataset["dataset_id"])
         assert created.status_code == 201, created.text
         run_id = created.json()["id"]
         for _ in range(12):
@@ -413,27 +528,19 @@ def test_holdout_changes_do_not_change_training_selection(
                 provider=MockQuantAgentProvider(), workspace_id=workspace_id
             )
             if (
-                QuantStore()
-                .get_run(workspace_id=workspace_id, run_id=run_id)
-                .state.value
+                QuantStore().get_run(workspace_id=workspace_id, run_id=run_id).state.value
                 == "completed"
             ):
                 break
-        artifacts = QuantStore().artifacts_for_run(
-            workspace_id=workspace_id, run_id=run_id
-        )
+        artifacts = QuantStore().artifacts_for_run(workspace_id=workspace_id, run_id=run_id)
         comparison = next(
             item.content for item in artifacts if item.kind.value == "validation_report"
         )
-        report = next(
-            item.content for item in artifacts if item.kind.value == "research_report"
-        )
+        report = next(item.content for item in artifacts if item.kind.value == "research_report")
         return comparison, report
 
     baseline_comparison, baseline_report = complete(CSV_V1, "Baseline holdout")
-    changed_comparison, changed_report = complete(
-        CSV_HOLDOUT_TREND, "Changed holdout"
-    )
+    changed_comparison, changed_report = complete(CSV_HOLDOUT_TREND, "Changed holdout")
 
     def training_evidence(comparison: dict[str, Any]) -> dict[str, Any]:
         return {
@@ -498,9 +605,7 @@ def test_too_short_import_is_retained_but_rejected_for_autonomous_research(
     )
     project = _project(client, principal_id, workspace_id)
 
-    response = _create_run(
-        client, principal_id, workspace_id, project, dataset["dataset_id"]
-    )
+    response = _create_run(client, principal_id, workspace_id, project, dataset["dataset_id"])
 
     assert response.status_code == 409
     assert "at least 252 daily bars" in response.json()["error"]["message"]
@@ -515,14 +620,11 @@ def test_blocking_data_quality_issue_is_retained_but_cannot_start_a_run(
     assert dataset["data_quality"]["status"] == "blocked"
     assert dataset["data_quality"]["verification_status"] == "rejected"
     assert any(
-        issue["code"] == "EXCESSIVE_ELAPSED_GAP"
-        for issue in dataset["data_quality"]["issues"]
+        issue["code"] == "EXCESSIVE_ELAPSED_GAP" for issue in dataset["data_quality"]["issues"]
     )
     project = _project(client, principal_id, workspace_id)
 
-    response = _create_run(
-        client, principal_id, workspace_id, project, dataset["dataset_id"]
-    )
+    response = _create_run(client, principal_id, workspace_id, project, dataset["dataset_id"])
 
     assert response.status_code == 409
     assert "EXCESSIVE_ELAPSED_GAP" in response.json()["error"]["message"]
@@ -532,9 +634,7 @@ def test_binance_provider_fetch_retains_attestation_and_can_start_a_run(
     client: TestClient, principal_id: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     class FakeBinanceClient:
-        def fetch_daily_klines(
-            self, *, symbol: str, limit: int
-        ) -> BinanceDailyBarsResult:
+        def fetch_daily_klines(self, *, symbol: str, limit: int) -> BinanceDailyBarsResult:
             assert symbol == "BTCUSDT"
             assert limit == 365
             return BinanceDailyBarsResult(
@@ -551,9 +651,7 @@ def test_binance_provider_fetch_retains_attestation_and_can_start_a_run(
                 normalization_note="Base-asset volume rounded to whole units.",
             )
 
-    monkeypatch.setattr(
-        routes_quant, "_binance_market_data_client", lambda: FakeBinanceClient()
-    )
+    monkeypatch.setattr(routes_quant, "_binance_market_data_client", lambda: FakeBinanceClient())
     workspace = _workspace(client, principal_id, "Binance provider workspace")
     workspace_id = workspace["workspace_id"]
     response = client.post(
@@ -568,9 +666,7 @@ def test_binance_provider_fetch_retains_attestation_and_can_start_a_run(
         "kind": "provider_fetch",
         "file_name": None,
         "source_name": "Binance Spot public market data",
-        "source_reference": (
-            "binance-vision:/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=365"
-        ),
+        "source_reference": ("binance-vision:/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=365"),
         "submitted_csv_digest": dataset["source_metadata"]["submitted_csv_digest"],
         "provider_id": "binance_spot",
         "provider_response_digest": "sha256:binance-provider-response-v1",
@@ -596,10 +692,17 @@ def test_binance_provider_fetch_retains_attestation_and_can_start_a_run(
         "price_adjustment": "unadjusted",
     }
     project = _project(client, principal_id, workspace_id)
-    run = _create_run(
-        client, principal_id, workspace_id, project, dataset["dataset_id"]
-    )
+    run = _create_run(client, principal_id, workspace_id, project, dataset["dataset_id"])
     assert run.status_code == 201, run.text
+
+    snapshot = client.get(
+        "/v1/quant/workspace-snapshot",
+        headers=_headers(principal_id, workspace_id),
+    )
+    assert snapshot.status_code == 200, snapshot.text
+    assert snapshot.json()["scope"]["market"] == "Crypto Spot"
+
+
 def test_nasdaq_provider_fetch_retains_dividend_and_listing_evidence(
     client: TestClient, principal_id: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -629,17 +732,13 @@ def test_nasdaq_provider_fetch_retains_dividend_and_listing_evidence(
                 split_coverage_end=date(2026, 8, 4),
                 split_event_count=1,
                 split_events=(
-                    NasdaqSplitEvent(
-                        symbol="AAPL", ratio="4:1", execution_date=date(2026, 7, 20)
-                    ),
+                    NasdaqSplitEvent(symbol="AAPL", ratio="4:1", execution_date=date(2026, 7, 20)),
                 ),
                 exchange="NASDAQ-GS",
                 company_name="Apple Inc. Common Stock",
             )
 
-    monkeypatch.setattr(
-        routes_quant, "_nasdaq_market_data_client", lambda: FakeNasdaqClient()
-    )
+    monkeypatch.setattr(routes_quant, "_nasdaq_market_data_client", lambda: FakeNasdaqClient())
     workspace = _workspace(client, principal_id, "Nasdaq provider workspace")
     workspace_id = workspace["workspace_id"]
     response = client.post(
@@ -689,9 +788,7 @@ def test_nasdaq_provider_fetch_retains_dividend_and_listing_evidence(
         ),
     }
     project = _project(client, principal_id, workspace_id)
-    run = _create_run(
-        client, principal_id, workspace_id, project, dataset["dataset_id"]
-    )
+    run = _create_run(client, principal_id, workspace_id, project, dataset["dataset_id"])
     assert run.status_code == 201, run.text
     snapshot = client.get(
         "/v1/quant/workspace-snapshot",
@@ -699,9 +796,12 @@ def test_nasdaq_provider_fetch_retains_dividend_and_listing_evidence(
     )
     assert snapshot.status_code == 200, snapshot.text
     projected_source = snapshot.json()["dataset"]["source"]
-    assert [
-        item["kind"] for item in projected_source["providerResponseAttestations"]
-    ] == ["daily_bars", "instrument_info", "dividends", "splits"]
+    assert [item["kind"] for item in projected_source["providerResponseAttestations"]] == [
+        "daily_bars",
+        "instrument_info",
+        "dividends",
+        "splits",
+    ]
     assert projected_source["corporateActionsAttestation"]["dividendsStatus"] == (
         "retrieved_unverified"
     )

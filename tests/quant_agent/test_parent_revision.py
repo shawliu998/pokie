@@ -57,6 +57,13 @@ def test_revised_candidate_carries_parent_experiment_id(
     workspace_id, run = _create_auto_run(
         client, principal_id, "Find more trading opportunities without excessive drawdown."
     )
+    # The default three-experiment contract is reserved for the strict 2+1
+    # sequence. Exercise the still-supported repair lineage on a non-default
+    # budget so an automatic revision cannot displace candidate C.
+    setup_store = QuantStore()
+    configured = setup_store.get_run(workspace_id=workspace_id, run_id=run["id"])
+    configured.max_experiments = 4
+    setup_store._persist_workspace(workspace_id)  # pyright: ignore[reportPrivateUsage]
     for _ in range(25):
         if not run_quant_agent_once(workspace_id=workspace_id):
             break

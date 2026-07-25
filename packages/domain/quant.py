@@ -80,6 +80,9 @@ class QuantArtifactKind(StrEnum):
     EQUITY_CURVE = "equity_curve"
     TRADE_LOG = "trade_log"
     VALIDATION_REPORT = "validation_report"
+    ITERATION_FEEDBACK = "iteration_feedback"
+    ROBUSTNESS_SENSITIVITY = "robustness_sensitivity"
+    LEARNING_TRACE = "learning_trace"
     RESEARCH_REPORT = "research_report"
     EXECUTION_LOG = "execution_log"
     DIAGNOSTICS = "diagnostics"
@@ -119,10 +122,11 @@ PENDING_QUANT_RUN_STATES = frozenset(
 
 _QUANT_RUN_TRANSITIONS: dict[tuple[QuantRunState, QuantRunAction], QuantRunState] = {
     (QuantRunState.QUEUED, QuantRunAction.BEGIN_PLANNING): QuantRunState.PLANNING,
-    (QuantRunState.PLANNING, QuantRunAction.PUBLISH_PLAN): (
-        QuantRunState.WAITING_PLAN_APPROVAL
-    ),
-    (QuantRunState.WAITING_PLAN_APPROVAL, QuantRunAction.APPROVE_PLAN): QuantRunState.RUNNING_EXPERIMENTS,
+    (QuantRunState.PLANNING, QuantRunAction.PUBLISH_PLAN): (QuantRunState.WAITING_PLAN_APPROVAL),
+    (
+        QuantRunState.WAITING_PLAN_APPROVAL,
+        QuantRunAction.APPROVE_PLAN,
+    ): QuantRunState.RUNNING_EXPERIMENTS,
     (QuantRunState.WAITING_PLAN_APPROVAL, QuantRunAction.REQUEST_PLAN_CHANGES): (
         QuantRunState.PLANNING
     ),
@@ -196,7 +200,9 @@ class QuantPlan:
 _FIXTURE_PLAN_STEPS: tuple[QuantPlanStep, ...] = (
     QuantPlanStep("pin-dataset", "Pin the synthetic demo dataset snapshot", "fixture_worker"),
     QuantPlanStep("draft-hypotheses", "Draft bounded strategy hypotheses", "fixture_worker"),
-    QuantPlanStep("evaluate-candidates", "Evaluate candidates against fixture bars", "fixture_worker"),
+    QuantPlanStep(
+        "evaluate-candidates", "Evaluate candidates against fixture bars", "fixture_worker"
+    ),
     QuantPlanStep("record-findings", "Record validation findings and verdicts", "fixture_worker"),
     QuantPlanStep("publish-report", "Publish the fixture research report", "fixture_worker"),
 )

@@ -92,14 +92,33 @@ class QuantRepositoryState(Timestamped, Versioned, Authentic, Base):
     """
 
     __tablename__ = "quant_repository_states"
-    workspace_id: Mapped[str] = mapped_column(
-        ForeignKey("workspaces.id"), primary_key=True
-    )
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id"), primary_key=True)
     state_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    research_memory_contract_version: Mapped[str] = mapped_column(
+        String(64),
+        default="quant-research-memory-v1",
+        server_default=text("'quant-research-memory-v1'"),
+        nullable=False,
+    )
+    evidence_replan_contract_marker: Mapped[str] = mapped_column(
+        String(64),
+        default="legacy-pre-p18",
+        server_default=text("'legacy-pre-p18'"),
+        nullable=False,
+    )
+    research_decision_contract_marker: Mapped[str] = mapped_column(
+        String(64),
+        default="legacy-pre-p19",
+        server_default=text("'legacy-pre-p19'"),
+        nullable=False,
+    )
     fixture_state: Mapped[str | None] = mapped_column(String(48), nullable=True)
     fixture_input_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     fixture_row_version: Mapped[int] = mapped_column(Integer, default=8)
     worker_lease_token: Mapped[str | None] = mapped_column(String(96), nullable=True)
+    worker_lease_run_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    worker_lease_worker_id: Mapped[str | None] = mapped_column(String(96), nullable=True)
+    worker_lease_attempt_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
     worker_lease_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

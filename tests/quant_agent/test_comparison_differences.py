@@ -117,6 +117,10 @@ def test_comparison_includes_difference_fields(
     assert generalization["train"]["benchmark"] == comparison["benchmark"]
     assert generalization["holdout"]["candidate"]
     assert generalization["holdout"]["benchmark"]
+    if generalization["status"] == "fail":
+        assert research_report["next_step"] == "revise_research"
+    elif generalization["status"] == "inconclusive":
+        assert research_report["next_step"] == "collect_more_evidence"
     selected_walk_forward = next(
         item["walk_forward"]
         for item in comparison["candidates"]

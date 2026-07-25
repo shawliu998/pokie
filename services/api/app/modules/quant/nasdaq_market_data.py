@@ -13,7 +13,7 @@ from typing import Protocol
 import httpx
 
 NASDAQ_API_BASE_URL = "https://api.nasdaq.com"
-NASDAQ_USER_AGENT = "PokieQuant/0.1"
+NASDAQ_USER_AGENT = "Qurio/0.1"
 MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 MAX_HISTORY_LIMIT = 5_000
 DEFAULT_HISTORY_DAYS = 730

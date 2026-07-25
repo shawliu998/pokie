@@ -10,7 +10,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, Field, model_validator
 
-from ..base import ContractModel, NonEmptyString
+from ..base import ContractModel, Digest, NonEmptyString
 from ..enums import DataAuthenticity
 from .enums import (
     QuantArtifactKind,
@@ -20,6 +20,8 @@ from .enums import (
     QuantRunState,
     QuantStreamControlEventType,
 )
+from .learning import QuantRepairMemoryReuseReceipt
+from .tools import QuantToolRepair
 
 QUANT_EVENT_PERSISTENCE_TO_WIRE = MappingProxyType(
     {
@@ -88,6 +90,13 @@ class QuantRunEventPayload(ContractModel):
     metrics_summary: dict[str, object] | None = None
     error_code: NonEmptyString | None = None
     retryable: bool | None = None
+    call_fingerprint: Digest | None = None
+    tool_repair: QuantToolRepair | None = None
+    rejected_action: NonEmptyString | None = None
+    attempted_action: NonEmptyString | None = None
+    rejected_call_fingerprint: Digest | None = None
+    attempted_call_fingerprint: Digest | None = None
+    repair_memory_reuse: QuantRepairMemoryReuseReceipt | None = None
 
 
 _PLAN_EVENT_TYPES = {
@@ -144,6 +153,16 @@ class QuantRunEvent(ContractModel):
             raise ValueError("artifact.published requires artifact_id and artifact_kind")
         if self.type == QuantRunEventType.RUN_FAILED and not payload.reason_code:
             raise ValueError("run.failed requires reason_code")
+        if (
+            self.type == QuantRunEventType.AGENT_REPAIR_MEMORY_REUSED
+            and payload.repair_memory_reuse is None
+        ):
+            raise ValueError("agent.repair_memory_reused requires its typed receipt")
+        if (
+            self.type != QuantRunEventType.AGENT_REPAIR_MEMORY_REUSED
+            and payload.repair_memory_reuse is not None
+        ):
+            raise ValueError("repair memory reuse receipt is bound to its event type")
         if self.occurred_at.tzinfo is None or self.occurred_at.utcoffset() != UTC.utcoffset(
             self.occurred_at
         ):
@@ -195,7 +214,8 @@ class QuantStreamResetEvent(ContractModel):
 
     @model_validator(mode="after")
     def validate_snapshot_url(self) -> QuantStreamResetEvent:
-        if not self.snapshot_url.startswith("/v1/quant/runs/") or "?" in self.snapshot_url:
+        allowed_prefix = self.snapshot_url.startswith(("/v1/quant/runs/", "/v1/quant/market-runs/"))
+        if not allowed_prefix or "?" in self.snapshot_url:
             raise ValueError("snapshot_url must be an unsigned Quant run API route")
         return self
 

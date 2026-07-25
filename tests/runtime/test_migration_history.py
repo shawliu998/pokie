@@ -6,6 +6,7 @@ import ast
 import json
 import re
 import runpy
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +34,10 @@ REVISION_CHAIN = (
     ("20260715_0004", "20260715_0003"),
     ("20260715_0005", "20260715_0004"),
     ("20260717_0006", "20260715_0005"),
+    ("20260722_0007", "20260717_0006"),
+    ("20260723_0008", "20260722_0007"),
+    ("20260723_0009", "20260723_0008"),
+    ("20260723_0010", "20260723_0009"),
 )
 
 
@@ -169,20 +174,30 @@ def _assert_critical_head_shape(engine: Engine) -> None:
     assert "stateinqueued,claimed" in _normalized_sql(sqlite_where)
 
     if "quant_repository_states" in inspector.get_table_names():
-        quant_columns = {
-            row["name"] for row in inspector.get_columns("quant_repository_states")
-        }
+        quant_column_rows = inspector.get_columns("quant_repository_states")
+        quant_columns = {row["name"] for row in quant_column_rows}
         assert {
             "workspace_id",
             "state_json",
             "fixture_state",
             "fixture_input_json",
             "fixture_row_version",
+            "research_memory_contract_version",
+            "evidence_replan_contract_marker",
+            "research_decision_contract_marker",
             "worker_lease_token",
+            "worker_lease_run_id",
+            "worker_lease_worker_id",
+            "worker_lease_attempt_number",
             "worker_lease_expires_at",
             "worker_heartbeat_at",
             "worker_fencing_version",
         }.issubset(quant_columns)
+        decision_marker = next(
+            row for row in quant_column_rows if row["name"] == "research_decision_contract_marker"
+        )
+        assert decision_marker["nullable"] is False
+        assert "legacy-pre-p19" in str(decision_marker["default"])
 
 
 def test_revision_files_are_static_and_chain_is_linear() -> None:
@@ -208,7 +223,7 @@ def test_revision_files_are_static_and_chain_is_linear() -> None:
                 assert node.value.id != "Base", path.name
 
     script = ScriptDirectory.from_config(_config())
-    assert script.get_heads() == ["20260717_0006"]
+    assert script.get_heads() == ["20260723_0010"]
     observed = tuple(
         (revision.revision, revision.down_revision)
         for revision in reversed(list(script.walk_revisions()))
@@ -252,7 +267,7 @@ def test_baseline_lists_are_literal_and_cover_every_frozen_table() -> None:
         ("20260715_0002", "20260715_0002"),
         ("20260715_0003", "20260715_0003"),
         ("20260715_0004", "20260715_0004"),
-        ("head", "20260717_0006"),
+        ("head", "20260723_0010"),
     ),
 )
 def test_empty_sqlite_database_upgrades_to_every_revision(
@@ -350,6 +365,104 @@ def test_fresh_head_schema_matches_current_orm_metadata_on_sqlite(tmp_path: Path
         engine.dispose()
 
 
+def test_research_memory_migration_marks_existing_rows_legacy_and_new_rows_current(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "research-memory-boundary.sqlite3"
+    url = _database_url(path)
+    engine = _upgrade(path, "20260722_0007")
+    now = datetime.now(tz=UTC)
+    metadata = sa.MetaData()
+    workspaces = sa.Table("workspaces", metadata, autoload_with=engine)
+    repository = sa.Table("quant_repository_states", metadata, autoload_with=engine)
+    with engine.begin() as connection:
+        connection.execute(
+            workspaces.insert().values(
+                id="workspace-pre-p17",
+                name="Pre-P17 workspace",
+                status="active",
+                data_region="local",
+                retention_policy_version="retention-v1",
+                created_by="migration-test",
+                created_at=now,
+                updated_at=now,
+                row_version=1,
+                data_authenticity="human_authored",
+            )
+        )
+        connection.execute(
+            repository.insert().values(
+                workspace_id="workspace-pre-p17",
+                created_at=now,
+                updated_at=now,
+                row_version=1,
+                data_authenticity="generated",
+                state_json={},
+                fixture_state=None,
+                fixture_input_json={},
+                fixture_row_version=8,
+                worker_lease_token=None,
+                worker_lease_run_id=None,
+                worker_lease_worker_id=None,
+                worker_lease_attempt_number=None,
+                worker_lease_expires_at=None,
+                worker_heartbeat_at=None,
+                worker_fencing_version=0,
+            )
+        )
+    engine.dispose()
+
+    command.upgrade(_config(url), "head")
+    engine = create_engine(url)
+    try:
+        assert _current_revision(engine) == "20260723_0010"
+        columns = {
+            row["name"]: row for row in inspect(engine).get_columns("quant_repository_states")
+        }
+        assert columns["research_memory_contract_version"]["nullable"] is False
+        assert "quant-research-memory-v1" in str(
+            columns["research_memory_contract_version"]["default"]
+        )
+        with engine.connect() as connection:
+            assert (
+                connection.scalar(
+                    text(
+                        "SELECT research_memory_contract_version "
+                        "FROM quant_repository_states "
+                        "WHERE workspace_id = 'workspace-pre-p17'"
+                    )
+                )
+                == "legacy-pre-p17"
+            )
+    finally:
+        engine.dispose()
+
+
+def test_research_memory_contract_boundary_refuses_revision_downgrade(tmp_path: Path) -> None:
+    path = tmp_path / "research-memory-irreversible.sqlite3"
+    url = _database_url(path)
+    engine = _upgrade(path, "head")
+    engine.dispose()
+
+    with pytest.raises(
+        RuntimeError,
+        match="irreversible P19 research-decision boundary",
+    ):
+        command.downgrade(_config(url), "20260722_0007")
+
+    engine = create_engine(url)
+    try:
+        assert _current_revision(engine) == "20260723_0010"
+        columns = {
+            row["name"]: row for row in inspect(engine).get_columns("quant_repository_states")
+        }
+        boundary = columns["research_memory_contract_version"]
+        assert boundary["nullable"] is False
+        assert "quant-research-memory-v1" in str(boundary["default"])
+    finally:
+        engine.dispose()
+
+
 def _create_synthetic_legacy_0001(engine: Engine) -> None:
     """Create only the old objects needed to exercise additive compatibility paths."""
 
@@ -415,7 +528,7 @@ def test_synthetic_legacy_0001_runs_additive_migrations_and_backfills(tmp_path: 
 
     engine = create_engine(url)
     try:
-        assert _current_revision(engine) == "20260717_0006"
+        assert _current_revision(engine) == "20260723_0010"
         _assert_critical_head_shape(engine)
         synthetic_columns = {
             table: {row["name"]: row for row in inspect(engine).get_columns(table)}

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -10,15 +9,29 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Query
 from fastapi.responses import StreamingResponse
 
+from packages.contracts.enums import DataAuthenticity
 from packages.contracts.quant import (
+    QUANT_MARKET_RUN_CONTRACT_VERSION,
     QuantAgentPlan,
     QuantArtifactResponse,
     QuantBinanceSpotFetchRequest,
+    QuantConnectorDirectoryResponse,
     QuantCorporateActionsAttestation,
     QuantDatasetImportRequest,
+    QuantDatasetPreviewResponse,
     QuantDatasetResponse,
     QuantExperimentResponse,
     QuantFixtureCommandRequest,
+    QuantKrakenSpotFetchRequest,
+    QuantMarketBinanceFetchRequest,
+    QuantMarketDataProvenance,
+    QuantMarketDatasetCadenceQuality,
+    QuantMarketDatasetEvidence,
+    QuantMarketDatasetV2ImportRequest,
+    QuantMarketDatasetV2PreviewResponse,
+    QuantMarketDatasetV2Response,
+    QuantMarketRunV2CreateRequest,
+    QuantMarketRunV2Response,
     QuantNasdaqEquityFetchRequest,
     QuantPlanApproveRequest,
     QuantPlanChangesRequest,
@@ -30,6 +43,8 @@ from packages.contracts.quant import (
     QuantRunResponse,
     QuantRunRetryRequest,
     QuantSplitEventSummary,
+    QuantStrategyReportExportRequest,
+    QuantStrategyReportExportResponse,
     QuantStreamResetEvent,
     decode_quant_event,
     encode_quant_sse,
@@ -41,11 +56,24 @@ from services.api.app.modules.quant.binance_market_data import (
     BinanceMarketDataClient,
     BinanceMarketDataError,
 )
+from services.api.app.modules.quant.binance_market_data_v2 import (
+    BinanceMarketDataV2Client,
+    BinanceMarketDataV2Error,
+)
+from services.api.app.modules.quant.evidence_export import build_strategy_evidence_bundle_export
+from services.api.app.modules.quant.kraken_market_data_v2 import (
+    KRAKEN_SPOT_CONNECTOR_VERSION,
+    KRAKEN_SPOT_DOCUMENTATION_REFERENCE,
+    KRAKEN_SPOT_TERMS_REFERENCE,
+    KrakenMarketDataV2Client,
+    KrakenMarketDataV2Error,
+)
 from services.api.app.modules.quant.nasdaq_market_data import (
     MAX_HISTORY_LIMIT,
     NasdaqMarketDataClient,
     NasdaqMarketDataError,
 )
+from services.api.app.modules.quant.report_export import build_strategy_report_export
 from services.api.app.modules.quant.snapshot import (
     apply_fixture_command,
     quant_agent_workspace_snapshot,
@@ -53,7 +81,6 @@ from services.api.app.modules.quant.snapshot import (
 )
 from services.api.app.modules.quant.store import get_quant_store
 from services.worker.app.quant_agent.provider import (
-    MockQuantAgentProvider,
     QuantAgentProviderError,
     load_quant_agent_provider,
 )
@@ -70,23 +97,33 @@ def _binance_market_data_client() -> BinanceMarketDataClient:
     return BinanceMarketDataClient()
 
 
+def _binance_market_data_v2_client() -> BinanceMarketDataV2Client:
+    return BinanceMarketDataV2Client()
+
+
+def _kraken_market_data_v2_client() -> KrakenMarketDataV2Client:
+    return KrakenMarketDataV2Client()
+
+
 def _nasdaq_market_data_client() -> NasdaqMarketDataClient:
     return NasdaqMarketDataClient()
 
 
 def _generate_agent_plan(research_goal: str) -> QuantAgentPlan:
-    provider = load_quant_agent_provider()
     try:
+        provider = load_quant_agent_provider()
         return provider.plan(research_goal)
     except QuantAgentProviderError:
-        allow_fallback = os.environ.get(
-            "POKIEQUANT_AGENT_ALLOW_MOCK_FALLBACK", "true"
-        ).lower() not in {"0", "false", "no"}
-        if not allow_fallback:
-            raise invalid_state(
-                "The configured Agent provider could not generate a plan."
-            ) from None
-        return MockQuantAgentProvider().plan(research_goal)
+        # A plan is produced before the run exists, so there is no durable run
+        # on which an Agent provider fallback could be attributed. Runtime
+        # fallback remains available only through the audited worker path.
+        raise invalid_state("The configured Agent provider could not generate a plan.") from None
+
+
+def _generate_revised_agent_plan(research_goal: str, change_request: str) -> QuantAgentPlan:
+    return _generate_agent_plan(
+        f"{research_goal}\n\nUser-requested plan change: {change_request.strip()}"
+    )
 
 
 @router.get("/workspace-snapshot")
@@ -96,6 +133,26 @@ def get_workspace_snapshot(context: Ctx) -> dict[str, Any]:
     return quant_agent_workspace_snapshot(
         workspace_id=context.workspace_id
     ) or quant_workspace_fixture(workspace_id=context.workspace_id)
+
+
+@router.post(
+    "/strategy-report-exports/preview",
+    response_model=QuantStrategyReportExportResponse,
+)
+def preview_strategy_report_export(
+    body: QuantStrategyReportExportRequest, context: Ctx
+) -> dict[str, Any]:
+    if body.export_type == "strategy_evidence_bundle_json":
+        return build_strategy_evidence_bundle_export(
+            workspace_id=context.workspace_id,
+            run_id=str(body.run_id),
+            candidate_id=str(body.candidate_id),
+        )
+    return build_strategy_report_export(
+        workspace_id=context.workspace_id,
+        run_id=str(body.run_id),
+        candidate_id=str(body.candidate_id),
+    )
 
 
 @router.post("/workspace-snapshot/commands")
@@ -108,9 +165,7 @@ def command_workspace_snapshot(body: QuantFixtureCommandRequest, context: Ctx) -
         if dataset_id is not None and not isinstance(dataset_id, str):
             raise invalid_state("dataset_id must be text when supplied.")
         store = _store()
-        store.validate_dataset_for_run(
-            workspace_id=context.workspace_id, dataset_id=dataset_id
-        )
+        store.validate_dataset_for_run(workspace_id=context.workspace_id, dataset_id=dataset_id)
         projects = store.list_projects(workspace_id=context.workspace_id)
         project = (
             projects[0]
@@ -158,12 +213,23 @@ def command_workspace_snapshot(body: QuantFixtureCommandRequest, context: Ctx) -
             change_request = body.payload.get("change_request", "Revise the bounded plan.")
             if not isinstance(change_request, str):
                 raise invalid_state("Plan change request must be text.")
+            research_goal = store.prepare_plan_changes(
+                workspace_id=context.workspace_id,
+                run_id=run.id,
+                expected_row_version=body.expected_row_version,
+                plan_revision=run.plan_revision,
+            )
             store.request_plan_changes(
                 workspace_id=context.workspace_id,
                 run_id=run.id,
                 expected_row_version=body.expected_row_version,
                 plan_revision=run.plan_revision,
                 change_request=change_request,
+                agent_plan=(
+                    _generate_revised_agent_plan(research_goal, change_request)
+                    if research_goal is not None
+                    else None
+                ),
             )
         elif body.command == "cancel_run":
             store.cancel_run(
@@ -228,9 +294,7 @@ def get_project(project_id: UUID, context: Ctx) -> dict[str, Any]:
 
 
 @router.post("/datasets/import-csv", response_model=QuantDatasetResponse, status_code=201)
-def import_dataset_csv(
-    body: QuantDatasetImportRequest, context: Ctx
-) -> dict[str, Any]:
+def import_dataset_csv(body: QuantDatasetImportRequest, context: Ctx) -> dict[str, Any]:
     store = _store()
     try:
         record = store.import_dataset_csv(
@@ -247,9 +311,9 @@ def import_dataset_csv(
         )
     except ValueError as exc:
         raise invalid_state(str(exc)) from exc
-    return QuantDatasetResponse.model_validate(
-        store.to_dataset_response(record)
-    ).model_dump(mode="json")
+    return QuantDatasetResponse.model_validate(store.to_dataset_response(record)).model_dump(
+        mode="json"
+    )
 
 
 @router.post(
@@ -257,9 +321,7 @@ def import_dataset_csv(
     response_model=QuantDatasetResponse,
     status_code=201,
 )
-def fetch_binance_spot_dataset(
-    body: QuantBinanceSpotFetchRequest, context: Ctx
-) -> dict[str, Any]:
+def fetch_binance_spot_dataset(body: QuantBinanceSpotFetchRequest, context: Ctx) -> dict[str, Any]:
     try:
         fetched = _binance_market_data_client().fetch_daily_klines(
             symbol=body.symbol,
@@ -295,9 +357,9 @@ def fetch_binance_spot_dataset(
         )
     except (BinanceMarketDataError, ValueError) as exc:
         raise invalid_state(str(exc)) from exc
-    return QuantDatasetResponse.model_validate(
-        _store().to_dataset_response(record)
-    ).model_dump(mode="json")
+    return QuantDatasetResponse.model_validate(_store().to_dataset_response(record)).model_dump(
+        mode="json"
+    )
 
 
 @router.post(
@@ -400,9 +462,9 @@ def fetch_nasdaq_equity_dataset(
         )
     except (NasdaqMarketDataError, ValueError) as exc:
         raise invalid_state(str(exc)) from exc
-    return QuantDatasetResponse.model_validate(
-        _store().to_dataset_response(record)
-    ).model_dump(mode="json")
+    return QuantDatasetResponse.model_validate(_store().to_dataset_response(record)).model_dump(
+        mode="json"
+    )
 
 
 @router.get("/datasets", response_model=list[QuantDatasetResponse])
@@ -416,11 +478,355 @@ def list_datasets(context: Ctx) -> list[dict[str, Any]]:
     ]
 
 
+@router.get("/datasets/{dataset_id}/preview", response_model=QuantDatasetPreviewResponse)
+def get_dataset_preview(
+    dataset_id: str,
+    context: Ctx,
+    max_points: int = Query(default=240, ge=50, le=400),
+) -> dict[str, Any]:
+    preview = _store().dataset_preview(
+        workspace_id=context.workspace_id,
+        dataset_id=dataset_id,
+        max_points=max_points,
+    )
+    return QuantDatasetPreviewResponse.model_validate(preview).model_dump(mode="json")
+
+
+@router.post(
+    "/datasets/v2/import-csv",
+    response_model=QuantMarketDatasetV2Response,
+    status_code=201,
+)
+def import_market_dataset_v2_csv(
+    body: QuantMarketDatasetV2ImportRequest, context: Ctx
+) -> dict[str, Any]:
+    try:
+        record = _store().import_market_dataset_v2_csv(
+            workspace_id=context.workspace_id,
+            name=body.name,
+            symbol=body.symbol,
+            interval=body.interval,
+            csv_text=body.csv_text,
+            file_name=body.file_name,
+            source_name=body.source_name,
+            source_reference=body.source_reference,
+        )
+    except ValueError as exc:
+        raise invalid_state(str(exc)) from exc
+    return QuantMarketDatasetV2Response.model_validate(
+        _store().to_market_dataset_v2_response(record)
+    ).model_dump(mode="json")
+
+
+@router.get("/connectors", response_model=list[QuantConnectorDirectoryResponse])
+def list_quant_connectors(context: Ctx) -> list[dict[str, Any]]:
+    del context
+    connector = QuantConnectorDirectoryResponse(
+        data_authenticity=DataAuthenticity.GENERATED,
+        connector_id=KRAKEN_SPOT_CONNECTOR_VERSION,
+        provider="kraken_spot",
+        display_name="Kraken Spot public OHLC",
+        source_kind="market_bars",
+        supported_symbols=("BTCUSD", "BTCUSDT", "ETHUSD", "ETHUSDT"),
+        supported_intervals=("4h", "1D"),
+        minimum_recent_bars={"4h": 548, "1D": 252},
+        maximum_recent_bars=719,
+        fetch_endpoint="/v1/quant/connectors/kraken-spot-ohlc-v1/fetch",
+        connector_version=KRAKEN_SPOT_CONNECTOR_VERSION,
+        source_terms_url=KRAKEN_SPOT_TERMS_REFERENCE,
+        source_documentation_url=KRAKEN_SPOT_DOCUMENTATION_REFERENCE,
+    )
+    return [connector.model_dump(mode="json")]
+
+
+@router.post(
+    "/connectors/kraken-spot-ohlc-v1/fetch",
+    response_model=QuantMarketDatasetV2Response,
+    status_code=201,
+)
+def fetch_market_dataset_v2_kraken(
+    body: QuantKrakenSpotFetchRequest, context: Ctx
+) -> dict[str, Any]:
+    try:
+        fetched = _kraken_market_data_v2_client().fetch_market_bars(
+            symbol=body.symbol,
+            interval=body.interval,
+            limit=body.limit,
+        )
+        evidence = QuantMarketDatasetEvidence(
+            source_kind=QuantMarketDataProvenance.PROVIDER_FETCH,
+            source_name="Kraken Spot public OHLC",
+            source_reference=fetched.evidence.source_reference,
+            retrieved_at_utc=fetched.evidence.retrieved_at_utc,
+            requested_bar_count=fetched.evidence.requested_bar_count,
+            returned_bar_count=fetched.evidence.returned_bar_count,
+            retained_bar_count=fetched.evidence.retained_bar_count,
+            closed_dropped_count=fetched.evidence.closed_dropped_count,
+            deduplicated_count=fetched.evidence.deduplicated_count,
+            page_raw_sha256=fetched.evidence.page_raw_sha256,
+            batch_digest=fetched.evidence.batch_digest,
+            termination_reason=fetched.evidence.termination_reason,
+            target_satisfied=fetched.evidence.target_satisfied,
+            normalizer_version=fetched.evidence.normalizer_version,
+            connector_version=fetched.evidence.connector_version,
+            source_request_digest=fetched.evidence.source_request_digest,
+            terms_reference=fetched.evidence.terms_reference,
+        )
+        quality = QuantMarketDatasetCadenceQuality(
+            status="blocked" if fetched.quality.status == "blocked" else "accepted",
+            cadence_gap_count=fetched.quality.cadence_gap_count,
+            normalization_note=fetched.quality.normalization_note,
+        )
+        record = _store().import_market_dataset_v2(
+            workspace_id=context.workspace_id,
+            name=body.name or f"{body.symbol} Kraken Spot {body.interval.value}",
+            dataset=fetched.dataset,
+            evidence=evidence,
+            quality=quality,
+        )
+    except (KrakenMarketDataV2Error, ValueError) as exc:
+        raise invalid_state(str(exc)) from exc
+    return QuantMarketDatasetV2Response.model_validate(
+        _store().to_market_dataset_v2_response(record)
+    ).model_dump(mode="json")
+
+
+@router.post(
+    "/datasets/v2/fetch-binance",
+    response_model=QuantMarketDatasetV2Response,
+    status_code=201,
+)
+def fetch_market_dataset_v2_binance(
+    body: QuantMarketBinanceFetchRequest, context: Ctx
+) -> dict[str, Any]:
+    try:
+        fetched = _binance_market_data_v2_client().fetch_market_bars(
+            symbol=body.symbol,
+            interval=body.interval,
+            limit=body.limit,
+        )
+        evidence = QuantMarketDatasetEvidence(
+            source_kind=QuantMarketDataProvenance.PROVIDER_FETCH,
+            source_name="Binance Spot public market data",
+            source_reference=fetched.evidence.source_reference,
+            retrieved_at_utc=fetched.evidence.retrieved_at_utc,
+            requested_bar_count=fetched.evidence.requested_bar_count,
+            returned_bar_count=fetched.evidence.returned_bar_count,
+            retained_bar_count=fetched.evidence.retained_bar_count,
+            closed_dropped_count=fetched.evidence.closed_dropped_count,
+            deduplicated_count=fetched.evidence.deduplicated_count,
+            page_raw_sha256=fetched.evidence.page_raw_sha256,
+            batch_digest=fetched.evidence.batch_digest,
+            termination_reason=fetched.evidence.termination_reason.value,
+            target_satisfied=fetched.evidence.target_satisfied,
+            normalizer_version=fetched.evidence.normalizer_version,
+        )
+        quality = QuantMarketDatasetCadenceQuality(
+            status="blocked" if fetched.quality.status == "blocked" else "accepted",
+            cadence_gap_count=fetched.quality.cadence_gap_count,
+            normalization_note=fetched.quality.normalization_note,
+        )
+        record = _store().import_market_dataset_v2(
+            workspace_id=context.workspace_id,
+            name=body.name or f"{body.symbol} Binance Spot {body.interval.value}",
+            dataset=fetched.dataset,
+            evidence=evidence,
+            quality=quality,
+        )
+    except (BinanceMarketDataV2Error, ValueError) as exc:
+        raise invalid_state(str(exc)) from exc
+    return QuantMarketDatasetV2Response.model_validate(
+        _store().to_market_dataset_v2_response(record)
+    ).model_dump(mode="json")
+
+
+@router.get("/datasets/v2", response_model=list[QuantMarketDatasetV2Response])
+def list_market_datasets_v2(context: Ctx) -> list[dict[str, Any]]:
+    store = _store()
+    return [
+        QuantMarketDatasetV2Response.model_validate(
+            store.to_market_dataset_v2_response(record)
+        ).model_dump(mode="json")
+        for record in store.list_market_datasets_v2(workspace_id=context.workspace_id)
+    ]
+
+
+@router.get("/datasets/v2/{dataset_id}/preview", response_model=QuantMarketDatasetV2PreviewResponse)
+def get_market_dataset_v2_preview(
+    dataset_id: str,
+    context: Ctx,
+    max_points: int = Query(default=240, ge=1, le=400),
+) -> dict[str, Any]:
+    preview = _store().market_dataset_v2_preview(
+        workspace_id=context.workspace_id,
+        dataset_id=dataset_id,
+        max_points=max_points,
+    )
+    return QuantMarketDatasetV2PreviewResponse.model_validate(preview).model_dump(mode="json")
+
+
+@router.get("/datasets/v2/{dataset_id}", response_model=QuantMarketDatasetV2Response)
+def get_market_dataset_v2(dataset_id: str, context: Ctx) -> dict[str, Any]:
+    store = _store()
+    record = store.get_market_dataset_v2(workspace_id=context.workspace_id, dataset_id=dataset_id)
+    return QuantMarketDatasetV2Response.model_validate(
+        store.to_market_dataset_v2_response(record)
+    ).model_dump(mode="json")
+
+
+@router.post("/market-runs", response_model=QuantMarketRunV2Response, status_code=201)
+def create_market_run(body: QuantMarketRunV2CreateRequest, context: Ctx) -> dict[str, Any]:
+    store = _store()
+    store.validate_market_run_create(
+        workspace_id=context.workspace_id,
+        project_id=str(body.project_id),
+        expected_project_row_version=body.expected_project_row_version,
+        dataset_id=body.dataset_id,
+        research_start_utc=body.research_start_utc,
+        research_end_utc=body.research_end_utc,
+        parent_run_id=str(body.parent_run_id) if body.parent_run_id else None,
+        seed_candidate_id=str(body.seed_candidate_id) if body.seed_candidate_id else None,
+        refinement_reason=body.refinement_reason,
+    )
+    run = store.create_market_run(
+        workspace_id=context.workspace_id,
+        project_id=str(body.project_id),
+        question=body.question,
+        mode=body.mode,
+        expected_project_row_version=body.expected_project_row_version,
+        agent_plan=_generate_agent_plan(body.question),
+        dataset_id=body.dataset_id,
+        research_start_utc=body.research_start_utc,
+        research_end_utc=body.research_end_utc,
+        parent_run_id=str(body.parent_run_id) if body.parent_run_id else None,
+        seed_candidate_id=str(body.seed_candidate_id) if body.seed_candidate_id else None,
+        refinement_reason=body.refinement_reason,
+        research_loop=body.research_loop,
+    )
+    return QuantMarketRunV2Response.model_validate(store.to_market_run_response(run)).model_dump(
+        mode="json"
+    )
+
+
+@router.get("/market-runs", response_model=list[QuantMarketRunV2Response])
+def list_market_runs(
+    context: Ctx,
+    project_id: UUID | None = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+) -> list[dict[str, Any]]:
+    store = _store()
+    runs = store.list_market_runs(
+        workspace_id=context.workspace_id,
+        project_id=str(project_id) if project_id else None,
+    )
+    return [
+        QuantMarketRunV2Response.model_validate(store.to_market_run_response(run)).model_dump(
+            mode="json"
+        )
+        for run in runs[:limit]
+    ]
+
+
+@router.get("/market-runs/{run_id}", response_model=QuantMarketRunV2Response)
+def get_market_run(run_id: UUID, context: Ctx) -> dict[str, Any]:
+    store = _store()
+    run = store.get_market_run(workspace_id=context.workspace_id, run_id=str(run_id))
+    return QuantMarketRunV2Response.model_validate(store.to_market_run_response(run)).model_dump(
+        mode="json"
+    )
+
+
+@router.post(
+    "/market-runs/{run_id}/approve-plan",
+    response_model=QuantMarketRunV2Response,
+)
+def approve_market_run_plan(
+    run_id: UUID, body: QuantPlanApproveRequest, context: Ctx
+) -> dict[str, Any]:
+    store = _store()
+    run = store.approve_market_run_plan(
+        workspace_id=context.workspace_id,
+        run_id=str(run_id),
+        expected_row_version=body.expected_row_version,
+        plan_revision=body.plan_revision,
+        reason=body.reason,
+    )
+    return QuantMarketRunV2Response.model_validate(store.to_market_run_response(run)).model_dump(
+        mode="json"
+    )
+
+
+@router.post(
+    "/market-runs/{run_id}/request-plan-changes",
+    response_model=QuantMarketRunV2Response,
+)
+def request_market_run_plan_changes(
+    run_id: UUID, body: QuantPlanChangesRequest, context: Ctx
+) -> dict[str, Any]:
+    store = _store()
+    research_goal = store.prepare_market_run_plan_changes(
+        workspace_id=context.workspace_id,
+        run_id=str(run_id),
+        expected_row_version=body.expected_row_version,
+        plan_revision=body.plan_revision,
+    )
+    run = store.request_market_run_plan_changes(
+        workspace_id=context.workspace_id,
+        run_id=str(run_id),
+        expected_row_version=body.expected_row_version,
+        plan_revision=body.plan_revision,
+        change_request=body.change_request,
+        agent_plan=(
+            _generate_revised_agent_plan(research_goal, body.change_request)
+            if research_goal is not None
+            else None
+        ),
+    )
+    return QuantMarketRunV2Response.model_validate(store.to_market_run_response(run)).model_dump(
+        mode="json"
+    )
+
+
+@router.post("/market-runs/{run_id}/cancel", response_model=QuantMarketRunV2Response)
+def cancel_market_run(run_id: UUID, body: QuantRunCancelRequest, context: Ctx) -> dict[str, Any]:
+    store = _store()
+    run = store.cancel_market_run(
+        workspace_id=context.workspace_id,
+        run_id=str(run_id),
+        expected_row_version=body.expected_row_version,
+        reason=body.reason,
+    )
+    return QuantMarketRunV2Response.model_validate(store.to_market_run_response(run)).model_dump(
+        mode="json"
+    )
+
+
+@router.post(
+    "/market-runs/{run_id}/retry",
+    response_model=QuantMarketRunV2Response,
+    status_code=201,
+)
+def retry_market_run(run_id: UUID, body: QuantRunRetryRequest, context: Ctx) -> dict[str, Any]:
+    store = _store()
+    run = store.retry_market_run(
+        workspace_id=context.workspace_id,
+        run_id=str(run_id),
+        expected_row_version=body.expected_row_version,
+        reason=body.reason,
+    )
+    return QuantMarketRunV2Response.model_validate(store.to_market_run_response(run)).model_dump(
+        mode="json"
+    )
+
+
 @router.post("/runs", response_model=QuantRunResponse, status_code=201)
 def create_run(body: QuantRunCreateRequest, context: Ctx) -> dict[str, Any]:
     store = _store()
     store.validate_dataset_for_run(
-        workspace_id=context.workspace_id, dataset_id=body.dataset_id
+        workspace_id=context.workspace_id,
+        dataset_id=body.dataset_id,
+        research_start=body.research_start,
+        research_end=body.research_end,
     )
     run = store.create_run(
         workspace_id=context.workspace_id,
@@ -430,6 +836,11 @@ def create_run(body: QuantRunCreateRequest, context: Ctx) -> dict[str, Any]:
         expected_project_row_version=body.expected_project_row_version,
         agent_plan=_generate_agent_plan(body.question),
         dataset_id=body.dataset_id,
+        research_start=body.research_start,
+        research_end=body.research_end,
+        parent_run_id=str(body.parent_run_id) if body.parent_run_id else None,
+        seed_candidate_id=str(body.seed_candidate_id) if body.seed_candidate_id else None,
+        refinement_reason=body.refinement_reason,
     )
     return QuantRunResponse.model_validate(store.to_run_response(run)).model_dump(mode="json")
 
@@ -441,7 +852,7 @@ def list_runs(
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> list[dict[str, Any]]:
     store = _store()
-    runs = store.list_runs(
+    runs = store.list_legacy_runs(
         workspace_id=context.workspace_id, project_id=str(project_id) if project_id else None
     )
     return [
@@ -453,8 +864,20 @@ def list_runs(
 @router.get("/runs/{run_id}", response_model=QuantRunResponse)
 def get_run(run_id: UUID, context: Ctx) -> dict[str, Any]:
     store = _store()
-    run = store.get_run(workspace_id=context.workspace_id, run_id=str(run_id))
+    run = store.get_legacy_run(workspace_id=context.workspace_id, run_id=str(run_id))
     return QuantRunResponse.model_validate(store.to_run_response(run)).model_dump(mode="json")
+
+
+@router.get("/runs/{run_id}/workspace-snapshot")
+def get_run_workspace_snapshot(run_id: UUID, context: Ctx) -> dict[str, Any]:
+    """Return the complete, read-only UI projection for one retained run."""
+
+    snapshot = quant_agent_workspace_snapshot(workspace_id=context.workspace_id, run_id=str(run_id))
+    if snapshot is None:  # pragma: no cover - the requested run implies history exists
+        raise invalid_state("The requested Quant run has no workspace snapshot.")
+    snapshot["run"]["legalCommands"] = []
+    snapshot["composerLegalCommands"] = []
+    return snapshot
 
 
 @router.post("/runs/{run_id}/approve-plan", response_model=QuantRunResponse)
@@ -475,12 +898,23 @@ def request_plan_changes(
     run_id: UUID, body: QuantPlanChangesRequest, context: Ctx
 ) -> dict[str, Any]:
     store = _store()
+    research_goal = store.prepare_plan_changes(
+        workspace_id=context.workspace_id,
+        run_id=str(run_id),
+        expected_row_version=body.expected_row_version,
+        plan_revision=body.plan_revision,
+    )
     run = store.request_plan_changes(
         workspace_id=context.workspace_id,
         run_id=str(run_id),
         expected_row_version=body.expected_row_version,
         plan_revision=body.plan_revision,
         change_request=body.change_request,
+        agent_plan=(
+            _generate_revised_agent_plan(research_goal, body.change_request)
+            if research_goal is not None
+            else None
+        ),
     )
     return QuantRunResponse.model_validate(store.to_run_response(run)).model_dump(mode="json")
 
@@ -528,8 +962,14 @@ def stream_run_events(
                 if event["event_id"] == last_event_id
             )
         except StopIteration:
+            if run.market_run_contract_version == QUANT_MARKET_RUN_CONTRACT_VERSION:
+                snapshot_url = f"/v1/quant/market-runs/{run.id}"
+            elif run.runtime_interval is not None:
+                snapshot_url = f"/v1/quant/runs/{run.id}/workspace-snapshot"
+            else:
+                snapshot_url = f"/v1/quant/runs/{run.id}"
             reset = QuantStreamResetEvent(
-                snapshot_url=f"/v1/quant/runs/{run.id}",
+                snapshot_url=snapshot_url,
                 latest_sequence=run.latest_sequence,
             )
             return StreamingResponse(

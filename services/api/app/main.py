@@ -244,6 +244,14 @@ async def request_policy(request: Request, call_next: Any) -> Response:
         response = await call_next(request)
         response.headers["X-Request-ID"] = request_id
         return response
+    # This preview endpoint is a deterministic renderer over retained records;
+    # it must remain usable when the database is opened read-only for evidence
+    # reopen, so it bypasses idempotency claim/update writes while keeping auth
+    # and workspace isolation in the route dependencies.
+    if request.method == "POST" and request.url.path == "/v1/quant/strategy-report-exports/preview":
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        return response
     if request.method == "PUT" and request.url.path.endswith("/object"):
         response = await call_next(request)
         response.headers["X-Request-ID"] = request_id

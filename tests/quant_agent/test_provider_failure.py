@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Generator
 from typing import Any
 from uuid import uuid4
 
@@ -9,15 +10,21 @@ from fastapi.testclient import TestClient
 
 from packages.contracts.quant import QuantAgentDecision, QuantAgentPlan
 from packages.contracts.quant.enums import QuantRunState
+from services.api.app.api import routes_quant
 from services.api.app.modules.quant.store import QuantStore
 from services.worker.app.quant_agent.provider import (
+    MockQuantAgentProvider,
+    OpenAICompatibleProvider,
     QuantAgentProviderError,
+    allow_mock_fallback,
+    load_quant_agent_provider,
 )
 from services.worker.app.quant_agent.runner import QuantAgentRunner
 
 _PROVIDER_ENV_KEYS = (
     "POKIEQUANT_AGENT_PROVIDER",
     "POKIEQUANT_AGENT_API_KEY",
+    "POKIEQUANT_AGENT_BASE_URL",
     "POKIEQUANT_AGENT_MODEL",
     "DEEPSEEK_API_KEY",
     "POKIEQUANT_AGENT_ALLOW_MOCK_FALLBACK",
@@ -25,7 +32,7 @@ _PROVIDER_ENV_KEYS = (
 
 
 @pytest.fixture(autouse=True)
-def _reset_provider_env() -> None:
+def _reset_provider_env() -> Generator[None, None, None]:  # pyright: ignore[reportUnusedFunction]
     for key in _PROVIDER_ENV_KEYS:
         os.environ.pop(key, None)
     yield
@@ -35,7 +42,7 @@ def _reset_provider_env() -> None:
 
 class _FailingProvider:
     provider_name = "failing"
-    model_name = "failing-model"
+    model_name: str | None = "failing-model"
 
     def __init__(self, error: Exception = QuantAgentProviderError("boom")) -> None:
         self._error = error
@@ -52,8 +59,70 @@ def test_openai_compatible_key_and_model_are_recorded_as_deepseek_provenance() -
     os.environ["POKIEQUANT_AGENT_API_KEY"] = "test-placeholder"
     os.environ["POKIEQUANT_AGENT_MODEL"] = "deepseek-v4-flash"
 
-    assert QuantStore._configured_agent_provider() == "deepseek"
-    assert QuantStore._configured_agent_model() == "deepseek-v4-flash"
+    assert QuantStore._configured_agent_provider() == "deepseek"  # pyright: ignore[reportPrivateUsage]
+    assert QuantStore._configured_agent_model() == "deepseek-v4-flash"  # pyright: ignore[reportPrivateUsage]
+
+
+@pytest.mark.parametrize("allow_fallback", ["true", "false"])
+@pytest.mark.parametrize("provider", ["deepseek", "openai_compatible"])
+def test_explicit_live_provider_without_key_fails_closed(
+    provider: str, allow_fallback: str
+) -> None:
+    os.environ["POKIEQUANT_AGENT_PROVIDER"] = provider
+    os.environ["POKIEQUANT_AGENT_ALLOW_MOCK_FALLBACK"] = allow_fallback
+
+    with pytest.raises(QuantAgentProviderError, match="credential is missing"):
+        load_quant_agent_provider()
+
+    # Provider identity is configuration, not a key-presence heuristic. A
+    # store path that is reached after preflight therefore cannot mislabel the
+    # requested live provider as Mock.
+    assert QuantStore._configured_agent_provider() == "deepseek"  # pyright: ignore[reportPrivateUsage]
+
+
+def test_provider_loader_accepts_explicit_mock_without_a_key() -> None:
+    os.environ["POKIEQUANT_AGENT_PROVIDER"] = "mock"
+    assert isinstance(load_quant_agent_provider(), MockQuantAgentProvider)
+
+
+def test_provider_loader_builds_real_provider_without_network() -> None:
+    os.environ["POKIEQUANT_AGENT_PROVIDER"] = "deepseek"
+    os.environ["POKIEQUANT_AGENT_API_KEY"] = "test-placeholder"
+    os.environ["POKIEQUANT_AGENT_MODEL"] = "deepseek-v4-flash"
+    os.environ["POKIEQUANT_AGENT_ALLOW_MOCK_FALLBACK"] = "false"
+
+    provider = load_quant_agent_provider()
+
+    assert isinstance(provider, OpenAICompatibleProvider)
+    assert provider.model_name == "deepseek-v4-flash"
+    assert provider.config.max_tokens == 2_500
+
+
+@pytest.mark.parametrize(
+    ("name", "value", "message"),
+    [
+        ("POKIEQUANT_AGENT_PROVIDER", "other", "PROVIDER is invalid"),
+        ("POKIEQUANT_AGENT_ALLOW_MOCK_FALLBACK", "sometimes", "must be true or false"),
+        ("POKIEQUANT_AGENT_BASE_URL", "http://insecure.example", "configuration is invalid"),
+        ("POKIEQUANT_AGENT_MODEL", " ", "configuration is invalid"),
+    ],
+)
+def test_provider_loader_rejects_invalid_configuration(name: str, value: str, message: str) -> None:
+    os.environ["POKIEQUANT_AGENT_PROVIDER"] = "deepseek"
+    os.environ["POKIEQUANT_AGENT_API_KEY"] = "test-placeholder"
+    os.environ["POKIEQUANT_AGENT_ALLOW_MOCK_FALLBACK"] = "false"
+    os.environ[name] = value
+
+    with pytest.raises(QuantAgentProviderError, match=message):
+        load_quant_agent_provider()
+
+
+def test_mock_fallback_requires_explicit_true() -> None:
+    assert allow_mock_fallback() is False
+    os.environ["POKIEQUANT_AGENT_ALLOW_MOCK_FALLBACK"] = "true"
+    assert allow_mock_fallback() is True
+    os.environ["POKIEQUANT_AGENT_ALLOW_MOCK_FALLBACK"] = "false"
+    assert allow_mock_fallback() is False
 
 
 def _headers(principal_id: str, workspace_id: str | None = None) -> dict[str, str]:
@@ -101,8 +170,58 @@ def _create_auto_run(
     run = store.get_run(workspace_id=workspace_id, run_id=run_response.json()["id"])
     run.provider = "deepseek"
     run.model = "failing-model"
-    store._persist_workspace(workspace_id)
+    store._persist_workspace(workspace_id)  # pyright: ignore[reportPrivateUsage]
     return workspace_id, run_response.json()
+
+
+@pytest.mark.parametrize("allow_fallback", ["true", "false"])
+def test_plan_failure_cannot_use_unaudited_mock_before_a_run_exists(
+    client: TestClient,
+    principal_id: str,
+    monkeypatch: pytest.MonkeyPatch,
+    allow_fallback: str,
+) -> None:
+    os.environ["POKIEQUANT_AGENT_PROVIDER"] = "deepseek"
+    os.environ["POKIEQUANT_AGENT_API_KEY"] = "test-placeholder"
+    os.environ["POKIEQUANT_AGENT_ALLOW_MOCK_FALLBACK"] = allow_fallback
+    monkeypatch.setattr(routes_quant, "load_quant_agent_provider", lambda: _FailingProvider())
+    workspace_response = client.post(
+        "/v1/workspaces",
+        headers=_headers(principal_id),
+        json={
+            "name": f"Plan failure {uuid4().hex[:8]}",
+            "data_region": "local",
+            "retention_policy_version": "retention-v1",
+        },
+    )
+    assert workspace_response.status_code == 201
+    workspace_id = workspace_response.json()["workspace_id"]
+    project_response = client.post(
+        "/v1/quant/projects",
+        headers=_headers(principal_id, workspace_id),
+        json={"name": "Fail-closed plan", "objective": "Do not use Mock."},
+    )
+    assert project_response.status_code == 201
+    project = project_response.json()
+
+    run_response = client.post(
+        "/v1/quant/runs",
+        headers=_headers(principal_id, workspace_id),
+        json={
+            "project_id": project["id"],
+            "mode": "auto",
+            "question": "Do not use Mock.",
+            "expected_project_row_version": project["row_version"],
+        },
+    )
+
+    assert run_response.status_code == 409
+    assert client.get("/v1/quant/runs", headers=_headers(principal_id, workspace_id)).json() == []
+    unchanged_project = client.get(
+        f"/v1/quant/projects/{project['id']}",
+        headers=_headers(principal_id, workspace_id),
+    ).json()
+    assert unchanged_project["row_version"] == project["row_version"]
 
 
 def test_first_provider_failure_records_decision_failed_and_allows_retry(
@@ -120,12 +239,10 @@ def test_first_provider_failure_records_decision_failed_and_allows_retry(
     assert refreshed.state is QuantRunState.RUNNING_EXPERIMENTS
     assert refreshed.consecutive_provider_failures == 1
     events = store.events_for_run(workspace_id=workspace_id, run_id=run["id"])
-    assert any(
-        item["event_type"] == "agent.decision_failed" for item in events
-    )
+    assert any(item["event_type"] == "agent.decision_failed" for item in events)
 
 
-def test_second_provider_failure_switches_to_mock_when_fallback_enabled(
+def test_third_provider_failure_switches_to_mock_when_fallback_enabled(
     client: TestClient, principal_id: str
 ) -> None:
     os.environ["POKIEQUANT_AGENT_ALLOW_MOCK_FALLBACK"] = "true"
@@ -133,7 +250,7 @@ def test_second_provider_failure_switches_to_mock_when_fallback_enabled(
     store = QuantStore()
     provider = _FailingProvider()
 
-    for _ in range(2):
+    for _ in range(3):
         lease = store.claim_agent_run(workspace_id=workspace_id, worker_id="test")
         assert lease is not None
         QuantAgentRunner(store=store, provider=provider).run_step(claim=lease)
@@ -145,7 +262,7 @@ def test_second_provider_failure_switches_to_mock_when_fallback_enabled(
     del os.environ["POKIEQUANT_AGENT_ALLOW_MOCK_FALLBACK"]
 
 
-def test_second_provider_failure_fails_run_when_fallback_disabled(
+def test_third_provider_failure_fails_run_when_fallback_disabled(
     client: TestClient, principal_id: str
 ) -> None:
     os.environ["POKIEQUANT_AGENT_ALLOW_MOCK_FALLBACK"] = "false"
@@ -153,7 +270,7 @@ def test_second_provider_failure_fails_run_when_fallback_disabled(
     store = QuantStore()
     provider = _FailingProvider()
 
-    for _ in range(2):
+    for _ in range(3):
         lease = store.claim_agent_run(workspace_id=workspace_id, worker_id="test")
         assert lease is not None
         QuantAgentRunner(store=store, provider=provider).run_step(claim=lease)
@@ -162,3 +279,39 @@ def test_second_provider_failure_fails_run_when_fallback_disabled(
     assert refreshed.state is QuantRunState.FAILED
     assert refreshed.failure_reason is not None
     del os.environ["POKIEQUANT_AGENT_ALLOW_MOCK_FALLBACK"]
+
+
+def test_default_provider_failure_policy_is_fail_closed(
+    client: TestClient, principal_id: str
+) -> None:
+    workspace_id, run = _create_auto_run(client, principal_id, "Test default no fallback.")
+    store = QuantStore()
+
+    for _ in range(3):
+        lease = store.claim_agent_run(workspace_id=workspace_id, worker_id="test")
+        assert lease is not None
+        QuantAgentRunner(store=store, provider=_FailingProvider()).run_step(claim=lease)
+
+    refreshed = store.get_run(workspace_id=workspace_id, run_id=run["id"])
+    assert refreshed.state is QuantRunState.FAILED
+    events = store.events_for_run(workspace_id=workspace_id, run_id=run["id"])
+    assert not any(item["event_type"] == "agent.provider_fallback" for item in events)
+
+
+def test_deepseek_run_cannot_execute_injected_mock_without_audited_fallback(
+    client: TestClient, principal_id: str
+) -> None:
+    workspace_id, run = _create_auto_run(client, principal_id, "Reject silent Mock identity.")
+    store = QuantStore()
+    lease = store.claim_agent_run(workspace_id=workspace_id, worker_id="test")
+    assert lease is not None
+
+    QuantAgentRunner(store=store, provider=MockQuantAgentProvider()).run_step(claim=lease)
+
+    refreshed = store.get_run(workspace_id=workspace_id, run_id=run["id"])
+    assert refreshed.provider == "deepseek"
+    assert refreshed.consecutive_provider_failures == 1
+    events = store.events_for_run(workspace_id=workspace_id, run_id=run["id"])
+    assert any(item["event_type"] == "agent.decision_failed" for item in events)
+    assert not any(item["event_type"] == "agent.action_selected" for item in events)
+    assert not any(item["event_type"] == "agent.provider_fallback" for item in events)
