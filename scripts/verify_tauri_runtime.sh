@@ -43,16 +43,16 @@ printf '\n==> Tauri native build and Keychain unit boundary\n'
 "$cargo_bin" test --locked --manifest-path apps/mac/src-tauri/Cargo.toml
 pnpm --filter @glint/mac test -- --run
 pnpm --filter @glint/mac exec tauri build --debug --bundles app --no-sign -- --locked
-native_app="$CARGO_TARGET_DIR/debug/bundle/macos/Glint.app"
+native_app="$CARGO_TARGET_DIR/debug/bundle/macos/Qurio.app"
 native_app_plist="$native_app/Contents/Info.plist"
 native_app_binary="$native_app/Contents/MacOS/glint"
 [[ -d "$native_app" && -f "$native_app_plist" && -x "$native_app_binary" ]] || {
-  printf 'Native gate did not produce a runnable Glint.app bundle.\n' >&2
+  printf 'Native gate did not produce a runnable Qurio.app bundle.\n' >&2
   exit 2
 }
 bundle_identifier=$(plutil -extract CFBundleIdentifier raw -o - "$native_app_plist")
 [[ "$bundle_identifier" == "com.glint.workbench" && "$bundle_identifier" != *.app ]] || {
-  printf 'Native Glint.app bundle identifier is invalid.\n' >&2
+  printf 'Native Qurio.app bundle identifier is invalid.\n' >&2
   exit 2
 }
 if rg -n 'className="traffic"|>●[[:space:]]+●[[:space:]]+●<' apps/mac/src >/dev/null; then
@@ -278,7 +278,7 @@ cache_state_modified=1
 rm -f "$cache_path" "$ready_marker"
 native_binary="$CARGO_TARGET_DIR/debug/glint"
 [[ -x "$native_binary" ]] || {
-  printf 'Native gate did not build the Glint debug binary.\n' >&2
+  printf 'Native gate did not build the Qurio debug binary.\n' >&2
   exit 2
 }
 
@@ -522,7 +522,7 @@ fi
 if [[ "${GLINT_REQUIRE_NATIVE_UI_ACCESSIBILITY:-0}" == "1" ]]; then
   ui_text=$(osascript <<'APPLESCRIPT' 2>/dev/null || true
 tell application "System Events"
-  tell process "Glint"
+  tell process "glint"
     set values to value of every static text of entire contents of front window
     return values as text
   end tell

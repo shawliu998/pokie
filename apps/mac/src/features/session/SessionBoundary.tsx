@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Button } from '@glint/ui';
 import { createApi, type GlintApi } from '../../api';
 import { clearAccessToken, isNativeRuntime, SessionExpiredError, SessionFailure, storeAccessToken } from '../../session';
+import { clearConnectionProfile, connectionDraft, storeConnectionProfile } from '../../connection';
 import { sessionRecoveryMode } from '../../lib/workbench-state';
 
 interface SessionBoundaryProps {
@@ -26,34 +27,51 @@ export function SessionBoundary({ children }: SessionBoundaryProps) {
       setApi(connected.api);
     } catch (reason) {
       setApi(null);
-      setFailure(reason instanceof SessionFailure ? reason : new SessionFailure('unavailable', reason instanceof Error ? reason.message : 'Secure session bootstrap failed.'));
+      setFailure(reason instanceof SessionFailure ? reason : new SessionFailure('unavailable', 'Qurio could not connect to this workspace.'));
     } finally {
       setLoading(false);
     }
   }, [expire]);
   useEffect(() => { void connect(); }, [connect]);
-  if (loading) return <div className="loading-shell" aria-live="polite"><div className="skeleton title" /><div className="skeleton wide" /><p>Loading secure session…</p></div>;
+  if (loading) return <div className="loading-shell" aria-live="polite"><div className="skeleton title" /><div className="skeleton wide" /><p>Connecting Qurio…</p></div>;
   if (!api) return <SessionRecovery failure={failure} native={native} onReconnect={connect} />;
   return children(api);
 }
 
 function SessionRecovery({ failure, native, onReconnect }: { failure: SessionFailure | null; native: boolean; onReconnect: () => Promise<void> }) {
   const [token, setToken] = useState('');
+  const [connection, setConnection] = useState(connectionDraft);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const mode = sessionRecoveryMode(native);
+  const tokenRequired = failure?.kind === 'expired' || /access token/i.test(failure?.message ?? '');
   const save = async () => {
     setBusy(true);
     setError(null);
     try {
-      await storeAccessToken(token);
+      storeConnectionProfile(connection);
+      if (token.trim()) await storeAccessToken(token);
       setToken('');
       await onReconnect();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Unable to store the secure session.');
+      setError(reason instanceof Error ? reason.message : 'Unable to save the Qurio connection.');
     } finally {
       setBusy(false);
     }
   };
-  return <main className="fatal"><section className="session-recovery" aria-labelledby="session-title"><h1 id="session-title">Secure session required</h1><p role="alert">{failure?.message ?? 'Glint could not initialize its secure session.'}</p>{mode === 'native-keychain' ? <><p>Paste a current access token. It is sent directly to the native macOS Keychain command and is never written to localStorage.</p><label>Access token<input type="password" autoComplete="off" spellCheck={false} value={token} disabled={busy} onChange={(event) => setToken(event.target.value)} /></label>{error && <p role="alert">{error}</p>}<div className="actions"><Button className="primary" disabled={busy || !token.trim()} onClick={() => void save()}>Store in Keychain & reconnect</Button><Button disabled={busy} onClick={() => void clearAccessToken().then(onReconnect).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : 'Unable to clear the secure session.'))}>Clear stored session</Button></div></> : <><p>Browser sessions are allowed only in development and API-mode E2E. Configure VITE_GLINT_ACCESS_TOKEN in that process and restart it.</p><Button onClick={() => void onReconnect()}>Retry secure bootstrap</Button></>}</section></main>;
+  const clear = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      clearConnectionProfile();
+      await clearAccessToken();
+      setConnection({ apiUrl: '', workspaceId: '' });
+      await onReconnect();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Unable to clear the Qurio connection.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return <main className="fatal"><section className="session-recovery" aria-labelledby="session-title"><p className="session-kicker">Qurio desktop</p><h1 id="session-title">Connect a research workspace</h1><p>Enter the local or hosted Qurio workspace you want to use on this Mac.</p>{failure && <p className="session-error" role="alert">{failure.message}</p>}{mode === 'native-keychain' ? <><div className="session-fields"><label>API URL<input type="url" autoComplete="url" placeholder="http://127.0.0.1:8135" value={connection.apiUrl} disabled={busy} onChange={(event) => setConnection((current) => ({ ...current, apiUrl: event.target.value }))} /></label><label>Workspace ID<input autoComplete="off" spellCheck={false} placeholder="Workspace UUID" value={connection.workspaceId} disabled={busy} onChange={(event) => setConnection((current) => ({ ...current, workspaceId: event.target.value }))} /></label></div><label>Access token<input type="password" autoComplete="off" spellCheck={false} value={token} disabled={busy} onChange={(event) => setToken(event.target.value)} /></label><p className="hint">The endpoint and workspace are saved on this Mac. The token stays in macOS Keychain; leave it blank only to reuse an existing Keychain session.</p>{error && <p className="session-error" role="alert">{error}</p>}<div className="actions"><Button className="primary" disabled={busy || (tokenRequired && !token.trim()) || !connection.apiUrl.trim() || !connection.workspaceId.trim()} onClick={() => void save()}>Save & connect</Button><Button disabled={busy} onClick={() => void clear()}>Clear connection</Button></div></> : <><p>Browser sessions are available only in development and API-mode E2E. Start Qurio with its development session configuration, then retry.</p><Button onClick={() => void onReconnect()}>Retry connection</Button></>}</section></main>;
 }

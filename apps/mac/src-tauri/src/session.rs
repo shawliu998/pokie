@@ -21,17 +21,17 @@ pub(crate) fn read_keychain() -> Result<Option<String>, String> {
     match get_generic_password(KEYCHAIN_SERVICE, KEYCHAIN_ACCOUNT) {
         Ok(bytes) => {
             let token = String::from_utf8(bytes)
-                .map_err(|_| "macOS Keychain returned an invalid Glint session".to_string())?;
+                .map_err(|_| "macOS Keychain returned an invalid Qurio session".to_string())?;
             Ok(Some(validate_access_token(&token)?.to_string()))
         }
         Err(error) if error.code() == ERR_SEC_ITEM_NOT_FOUND => Ok(None),
-        Err(_) => Err("macOS Keychain could not read the Glint session".to_string()),
+        Err(_) => Err("macOS Keychain could not read the Qurio session".to_string()),
     }
 }
 
 #[cfg(not(target_os = "macos"))]
 pub(crate) fn read_keychain() -> Result<Option<String>, String> {
-    Err("Glint secure sessions require macOS Keychain".to_string())
+    Err("Qurio secure sessions require macOS Keychain".to_string())
 }
 
 #[cfg(target_os = "macos")]
@@ -40,12 +40,12 @@ fn write_keychain(access_token: &str) -> Result<(), String> {
 
     let token = validate_access_token(access_token)?;
     set_generic_password(KEYCHAIN_SERVICE, KEYCHAIN_ACCOUNT, token.as_bytes())
-        .map_err(|_| "macOS Keychain could not store the Glint session".to_string())
+        .map_err(|_| "macOS Keychain could not store the Qurio session".to_string())
 }
 
 #[cfg(not(target_os = "macos"))]
 fn write_keychain(_access_token: &str) -> Result<(), String> {
-    Err("Glint secure sessions require macOS Keychain".to_string())
+    Err("Qurio secure sessions require macOS Keychain".to_string())
 }
 
 #[cfg(target_os = "macos")]
@@ -55,13 +55,13 @@ fn delete_keychain() -> Result<(), String> {
     match delete_generic_password(KEYCHAIN_SERVICE, KEYCHAIN_ACCOUNT) {
         Ok(()) => Ok(()),
         Err(error) if error.code() == ERR_SEC_ITEM_NOT_FOUND => Ok(()),
-        Err(_) => Err("macOS Keychain could not clear the Glint session".to_string()),
+        Err(_) => Err("macOS Keychain could not clear the Qurio session".to_string()),
     }
 }
 
 #[cfg(not(target_os = "macos"))]
 fn delete_keychain() -> Result<(), String> {
-    Err("Glint secure sessions require macOS Keychain".to_string())
+    Err("Qurio secure sessions require macOS Keychain".to_string())
 }
 
 #[tauri::command]

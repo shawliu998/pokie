@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 320" role="img" aria-labelledby="qurio-wordmark-title">
+  <title id="qurio-wordmark-title">Qurio</title>
+  <path fill="#071B4E" fill-rule="evenodd" d="M154 0a154 154 0 1 0 0 308 154 154 0 0 0 0-308Zm0 52a102 102 0 1 1 0 204 102 102 0 0 1 0-204Z"/>
+  <path fill="#071B4E" d="m268.4 231.6 42 42a26 26 0 0 1-36.8 36.8l-42-42a26 26 0 0 1 36.8-36.8Z"/>
+  <path fill="#071B4E" d="M380 84a26 26 0 0 1 26 26v93c0 28 18 46 48 46s48-18 48-46v-93a26 26 0 0 1 52 0v93c0 59-43 98-100 98s-100-39-100-98v-93a26 26 0 0 1 26-26Z"/>
+  <path fill="#071B4E" d="M620 301a26 26 0 0 1-26-26V174c0-54 37-90 91-90h31a26 26 0 0 1 0 52h-31c-24 0-39 14-39 38v101a26 26 0 0 1-26 26Z"/>
+  <rect x="782" y="84" width="52" height="217" rx="26" fill="#071B4E"/>
+  <path fill="#071B4E" fill-rule="evenodd" d="M970 84a109 109 0 1 0 0 218 109 109 0 0 0 0-218Zm0 52a57 57 0 1 1 0 114 57 57 0 0 1 0-114Z"/>
+  <circle cx="808" cy="44" r="24" fill="#0059FE"/>
+</svg>

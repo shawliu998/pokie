@@ -113,15 +113,15 @@ fn cache_directory(app: &AppHandle) -> Result<PathBuf, String> {
     let directory = app
         .path()
         .app_data_dir()
-        .map_err(|_| "Glint app-data directory is unavailable".to_string())?
+        .map_err(|_| "Qurio app-data directory is unavailable".to_string())?
         .join("offline-cache");
     fs::create_dir_all(&directory)
-        .map_err(|_| "Glint offline cache directory could not be created".to_string())?;
+        .map_err(|_| "Qurio offline cache directory could not be created".to_string())?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
         fs::set_permissions(&directory, fs::Permissions::from_mode(0o700))
-            .map_err(|_| "Glint offline cache permissions could not be restricted".to_string())?;
+            .map_err(|_| "Qurio offline cache permissions could not be restricted".to_string())?;
     }
     Ok(directory)
 }
@@ -136,15 +136,15 @@ fn cache_path(app: &AppHandle, workspace_id: &str) -> Result<PathBuf, String> {
 fn restricted_write(path: &Path, contents: &[u8]) -> Result<(), String> {
     let temporary = path.with_extension("tmp");
     fs::write(&temporary, contents)
-        .map_err(|_| "Glint offline cache could not be written".to_string())?;
+        .map_err(|_| "Qurio offline cache could not be written".to_string())?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
         fs::set_permissions(&temporary, fs::Permissions::from_mode(0o600))
-            .map_err(|_| "Glint offline cache permissions could not be restricted".to_string())?;
+            .map_err(|_| "Qurio offline cache permissions could not be restricted".to_string())?;
     }
     fs::rename(&temporary, path)
-        .map_err(|_| "Glint offline cache could not be replaced atomically".to_string())
+        .map_err(|_| "Qurio offline cache could not be replaced atomically".to_string())
 }
 
 #[tauri::command]
@@ -173,7 +173,7 @@ pub(crate) fn store_offline_cache(
         projection_json,
     };
     let bytes = serde_json::to_vec(&envelope)
-        .map_err(|_| "Glint offline cache could not be encoded".to_string())?;
+        .map_err(|_| "Qurio offline cache could not be encoded".to_string())?;
     restricted_write(&cache_path(&app, &workspace_id)?, &bytes)
 }
 
@@ -186,10 +186,10 @@ pub(crate) fn get_offline_cache(
     let bytes = match fs::read(path) {
         Ok(value) => value,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(_) => return Err("Glint offline cache could not be read".to_string()),
+        Err(_) => return Err("Qurio offline cache could not be read".to_string()),
     };
     let envelope: NativeCacheEnvelope = serde_json::from_slice(&bytes)
-        .map_err(|_| "Glint offline cache envelope is invalid".to_string())?;
+        .map_err(|_| "Qurio offline cache envelope is invalid".to_string())?;
     if envelope.schema_version != NATIVE_CACHE_SCHEMA || envelope.workspace_id != workspace_id {
         return Ok(None);
     }
@@ -213,7 +213,7 @@ pub(crate) fn clear_offline_cache(app: AppHandle, workspace_id: String) -> Resul
     match fs::remove_file(path) {
         Ok(()) => Ok(()),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(_) => Err("Glint offline cache could not be cleared".to_string()),
+        Err(_) => Err("Qurio offline cache could not be cleared".to_string()),
     }
 }
 

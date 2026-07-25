@@ -37,6 +37,7 @@ import {
 } from './mappers';
 import { subscribeRunEvents, type RunStreamEvent, type StreamReset } from './sse';
 import { resolveAccessToken, SessionExpiredError } from './session';
+import { resolveConnectionProfile } from './connection';
 
 export interface ExportPreview {
   renderedContent: string;
@@ -912,9 +913,9 @@ export function projectRunEvent(investigation: Investigation, event: RunStreamEv
 }
 
 export async function createApi(onUnauthorized?: () => void): Promise<{ api: GlintApi; mode: 'api' }> {
-  const apiUrl = import.meta.env.VITE_GLINT_API_URL as string | undefined;
-  const workspaceId = import.meta.env.VITE_GLINT_WORKSPACE_ID as string | undefined;
-  if (!apiUrl || !workspaceId) throw new Error('VITE_GLINT_API_URL and VITE_GLINT_WORKSPACE_ID are required.');
+  const { apiUrl, workspaceId } = resolveConnectionProfile();
   const accessToken = await resolveAccessToken();
-  return { api: new RestAdapter(apiUrl, workspaceId, accessToken, onUnauthorized), mode: 'api' };
+  const api = new RestAdapter(apiUrl, workspaceId, accessToken, onUnauthorized);
+  await api.quantRequest('/quant/workspace-snapshot');
+  return { api, mode: 'api' };
 }

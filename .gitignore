@@ -22,6 +22,7 @@ build/
 # Node / frontend
 node_modules/
 .pnpm-store/
+opendesign/.npm-cache/
 coverage/
 playwright-report/
 test-results/
@@ -36,11 +37,13 @@ apps/mac/src-tauri/target/
 # Local runtime data
 data/
 .glint-objects/
+.run/
 *.db
 *.db-shm
 *.db-wal
 *.sqlite
 *.sqlite3
+*.live-session.json
 .minio/
 
 # Editors and OS

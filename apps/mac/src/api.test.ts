@@ -21,7 +21,7 @@ describe('RestAdapter import contract', () => {
   it('invalidates the secure session on API 401 without persisting the credential', async () => {
     const invalidated = vi.fn();
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ error: { message: 'expired' } }), { status: 401, headers: { 'Content-Type': 'application/json' } })));
-    await expect(new RestAdapter('http://api.test', 'workspace-1', 'opaque-token', invalidated).sourceHealth('source-1')).rejects.toThrow(/secure Glint session/i);
+    await expect(new RestAdapter('http://api.test', 'workspace-1', 'opaque-token', invalidated).sourceHealth('source-1')).rejects.toThrow(/Qurio session/i);
     expect(invalidated).toHaveBeenCalledOnce();
     expect(Object.values(localStorage)).not.toContain('opaque-token');
   });

@@ -1,4 +1,4 @@
-name: Glint verification
+name: Qurio verification
 
 on:
   pull_request:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: glint-${{ github.workflow }}-${{ github.ref }}
+  group: qurio-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -241,11 +241,11 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Verify native Tauri runtime
         run: ./scripts/verify_tauri_runtime.sh
-      - name: Package Glint.app artifact
-        run: ditto -c -k --sequesterRsrc --keepParent apps/mac/src-tauri/target/debug/bundle/macos/Glint.app "$RUNNER_TEMP/Glint.app.zip"
-      - name: Upload Glint.app bundle
+      - name: Package Qurio.app artifact
+        run: ditto -c -k --sequesterRsrc --keepParent apps/mac/src-tauri/target/debug/bundle/macos/Qurio.app "$RUNNER_TEMP/Qurio.app.zip"
+      - name: Upload Qurio.app bundle
         uses: actions/upload-artifact@v4
         with:
-          name: glint-macos-app-${{ github.sha }}
-          path: ${{ runner.temp }}/Glint.app.zip
+          name: qurio-macos-app-${{ github.sha }}
+          path: ${{ runner.temp }}/Qurio.app.zip
           if-no-files-found: error

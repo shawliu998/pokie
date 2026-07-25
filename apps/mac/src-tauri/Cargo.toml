@@ -1,8 +1,8 @@
 [package]
 name = "glint"
 version = "0.1.0"
-description = "Glint pilot-ready Mac workbench"
-authors = ["Glint"]
+description = "Qurio AI-native quantitative research workbench"
+authors = ["Qurio"]
 edition = "2021"
 
 [build-dependencies]

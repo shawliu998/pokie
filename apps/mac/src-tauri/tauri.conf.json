@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Glint",
+  "productName": "Qurio",
   "version": "0.1.0",
   "identifier": "com.glint.workbench",
   "build": {
@@ -10,10 +10,10 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [{ "title": "Glint", "width": 1180, "height": 760, "minWidth": 760, "minHeight": 640, "decorations": true, "resizable": true }],
+    "windows": [{ "title": "Qurio", "width": 1180, "height": 760, "minWidth": 760, "minHeight": 640, "decorations": true, "resizable": true }],
     "security": {
       "capabilities": ["default"],
-      "csp": "default-src 'none'; base-uri 'none'; connect-src 'self' ipc: http://ipc.localhost https:; font-src 'self'; form-action 'none'; frame-ancestors 'none'; img-src 'self' data:; script-src 'self'; style-src 'self'",
+      "csp": "default-src 'none'; base-uri 'none'; connect-src 'self' ipc: http://ipc.localhost http://localhost:* http://127.0.0.1:* https:; font-src 'self'; form-action 'none'; frame-ancestors 'none'; img-src 'self' data:; script-src 'self'; style-src 'self'",
       "devCsp": "default-src 'none'; base-uri 'none'; connect-src 'self' ipc: http://ipc.localhost http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:* https:; font-src 'self'; form-action 'none'; frame-ancestors 'none'; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'"
     }
   },

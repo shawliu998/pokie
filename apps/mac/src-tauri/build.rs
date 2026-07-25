@@ -9,5 +9,5 @@ fn main() {
             "clear_offline_cache",
         ]),
     ))
-    .expect("failed to build the restricted Glint Tauri manifest")
+    .expect("failed to build the restricted Qurio Tauri manifest")
 }
