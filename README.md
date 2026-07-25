@@ -181,21 +181,32 @@ pnpm --filter @glint/mac dev
 
 The `VITE_GLINT_*` environment names and `@glint/*` package identifiers are retained compatibility names; they are not product-domain aliases.
 
-The packaged `Qurio.app` does not require API or workspace values at build time.
-A build made from this source checkout can start its fixed local FastAPI plus
-Quant Agent worker from the first-launch screen or Settings. Choose DeepSeek
-and a model, or Offline deterministic for a no-key path. The app creates and
-reuses one empty local workspace, saves its development session and optional
-DeepSeek credential in macOS Keychain, and reconnects automatically. Existing
-Runs retain their recorded provider/model; changing the managed runtime requires
-a restart and is unavailable while the current Run is active.
+The Apple-silicon macOS 11+ `Qurio.app` embeds its local FastAPI and Quant Agent
+worker. End users do not need this repository, Python, Node or `.venv`. From
+first launch or Settings, choose DeepSeek and a model, or Offline deterministic
+for a no-key path. Qurio creates and reuses one workspace under macOS
+Application Support, retains its session and optional DeepSeek credential in
+Keychain, and reconnects automatically. Existing Runs retain their recorded
+provider/model; changing the managed runtime requires a restart and is
+unavailable while the current Run is active.
 
-This convenience requires this repository and its `.venv` to remain at the
-build-time path. It is not a self-contained Python sidecar for distribution.
 Alternatively, enter an API URL, workspace ID and access token in the connection
 screen. The non-secret endpoint and workspace are saved locally; the access
-token is stored only in macOS Keychain. A local API must allow the packaged
-`tauri://localhost` origin.
+token remains in macOS Keychain. A remote or separately managed API must allow
+the packaged `tauri://localhost` origin.
+
+Release builds automatically create the relocatable runtime with managed Python
+3.12.13 and locked dependencies, embed it into the app Resources directory and
+apply an ad-hoc signature:
+
+```bash
+pnpm --dir apps/mac exec tauri build --bundles app
+```
+
+The resulting app is under
+`apps/mac/src-tauri/target/release/bundle/macos/Qurio.app`. A Developer ID
+certificate and Apple notarization are still required before distributing a
+browser-downloaded build without the macOS Privacy & Security approval step.
 
 The same no-key source-checkout runtime can be started from a terminal when
 diagnosing the native entry:

@@ -251,7 +251,7 @@ The four-stage Training → Walk-forward → Sealed holdout → Promotion sequen
 - **Decision:** conclusion → comparative metrics → equity and drawdown → trades and robustness → limitations.
 - **Data:** searchable catalog → coverage and quality → selection/import action → retained metadata.
 - **History:** searchable/filterable runs → state and key outcome → open run. Audit identifiers stay inside details.
-- **Settings:** current connection → current Run's pinned provider/model → source-checkout local-runtime controls → policy. Internal compatibility and restrictions are secondary.
+- **Settings:** current connection → current Run's pinned provider/model → packaged local-runtime controls → policy. Internal compatibility and the source-build fallback are secondary.
 - **First-launch recovery:** offer the same familiar provider/model inputs before the manual endpoint fields. The recovery sheet must remain vertically scrollable on a 1200×760 viewport.
 
 ## Do's and Don'ts
