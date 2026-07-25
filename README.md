@@ -192,23 +192,31 @@ Keychain, and reconnects automatically. Existing Runs retain their recorded
 provider/model; changing the managed runtime requires a restart and is
 unavailable while the current Run is active.
 
+A fresh local workspace with no retained Runs opens directly in New research.
+The bundled synthetic SPY dataset is visibly labelled as Offline demo data, so
+the complete plan → approve → experiments → comparison → decision path can run
+without a network or API key without presenting the fixture as market evidence.
+
 Alternatively, enter an API URL, workspace ID and access token in the connection
 screen. The non-secret endpoint and workspace are saved locally; the access
 token remains in macOS Keychain. A remote or separately managed API must allow
 the packaged `tauri://localhost` origin.
 
 Release builds automatically create the relocatable runtime with managed Python
-3.12.13 and locked dependencies, embed it into the app Resources directory and
-apply an ad-hoc signature:
+3.12.13 and locked dependencies, embed it into the app Resources directory,
+apply an ad-hoc signature and produce a checked DMG with a SHA-256 checksum:
 
 ```bash
-pnpm --dir apps/mac exec tauri build --bundles app
+pnpm package:mac
 ```
 
-The resulting app is under
-`apps/mac/src-tauri/target/release/bundle/macos/Qurio.app`. A Developer ID
-certificate and Apple notarization are still required before distributing a
-browser-downloaded build without the macOS Privacy & Security approval step.
+The resulting app and installer are under
+`apps/mac/src-tauri/target/release/bundle/macos/Qurio.app` and
+`apps/mac/src-tauri/target/release/bundle/dmg/`. Drag Qurio into Applications
+from the DMG, then launch it and choose DeepSeek or the no-key Offline demo.
+The current build is Apple-silicon only. A Developer ID certificate and Apple
+notarization are still required before distributing a browser-downloaded build
+without the macOS Privacy & Security approval step.
 
 The same no-key source-checkout runtime can be started from a terminal when
 diagnosing the native entry:
