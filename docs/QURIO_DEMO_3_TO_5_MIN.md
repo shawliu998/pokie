@@ -10,7 +10,7 @@ Qurio 是由一个受界自主 Research Agent 驱动的 AI-native 量化研究�
 
 ### 1. 独立安装与首次启动
 
-> 这是可独立安装的 Apple-silicon macOS 应用。DMG 内置 FastAPI、Quant Agent worker 和本地数据库，面试演示不需要仓库、Python 或 Node。首次启动可以选择 Offline deterministic，无需 API key；也可以在 Settings 配置 DeepSeek。
+> 这是可独立安装的 Apple-silicon macOS 应用。DMG 内置 FastAPI、Quant Agent worker 和本地数据库，面试演示不需要仓库、Python 或 Node。首次启动默认使用 Offline deterministic，无需 API key；也可以在 Settings 配置 DeepSeek，或填写一个 OpenAI-compatible HTTPS Base URL、模型和独立 Keychain API key。
 
 不要在主讲中展示终端。若被追问，再说明当前包采用 ad-hoc 签名，公开分发前仍需 Developer ID 与 Apple notarization。
 

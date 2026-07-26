@@ -1,0 +1,8 @@
+{
+  "principal_id": "66c54575-9e06-45cc-b874-9669d40d451f",
+  "workspace_id": "3ac2822d-9220-4559-9f1b-644702e80123",
+  "run_id": "c5a33be3-16df-5b65-8187-25abfcf466b8",
+  "dataset_id": "binance-BTCUSDT-4h-ec61e63b39a90e4f",
+  "database_path": "pokiequant-live.db",
+  "model": "deepseek-chat"
+}
