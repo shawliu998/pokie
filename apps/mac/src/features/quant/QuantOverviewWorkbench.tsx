@@ -79,6 +79,7 @@ function ResearchPlanForApproval({ snapshot }: { snapshot: QuantWorkspaceSnapsho
       <div><dt>Candidate families</dt><dd>{candidateFamilySummary(snapshot)}</dd></div>
       <div><dt>Comparison objective</dt><dd>{selectionObjectiveLabels[snapshot.researchPlan.selectionObjective]}</dd></div>
       <div><dt>Completion criteria</dt><dd>{snapshot.researchPlan.completionCriteria.join(' ')}</dd></div>
+      {snapshot.researchMemory && <div><dt>Prior-work constraint</dt><dd>{snapshot.researchMemory.sourceRunCount} same-evidence runs · {snapshot.researchMemory.testedCandidateCount} exact strategies. Approved execution excludes the same template + parameters; prior holdout evidence is not reused.</dd></div>}
       <div><dt>Budgets</dt><dd>{snapshot.run.maxAgentIterations} Agent actions · {snapshot.limits.maxExperiments} experiments · {snapshot.limits.maxRepairAttempts} repairs per experiment</dd></div>
     </dl>
   </section>;
@@ -146,7 +147,81 @@ function liveCandidateState(value: string) {
   return `${value[0]?.toUpperCase() ?? ''}${value.slice(1).replaceAll('_', ' ')}`;
 }
 
-export function ResearchCopilotContent({ projection, snapshot, recentEvents, evidenceFocusActions, busy, compact = false, mode = 'full', onAction, onAsk, onEvidenceFocus }: {
+type ResearchEvidenceAnswer = {
+  title: string;
+  detail: string;
+};
+
+function retainedCandidateName(value: string) {
+  return value.replace(/^Candidate [A-Z] · /, '');
+}
+
+function answerFromRetainedResearch(snapshot: QuantWorkspaceSnapshot, question: string): ResearchEvidenceAnswer {
+  const decision = presentPromotionDecision(snapshot);
+  const selectedCandidateId = snapshot.report?.selectionDecision?.selectedCandidateId
+    ?? snapshot.report?.generalization?.selectedCandidateId;
+  const selected = snapshot.candidates.find((candidate) => candidate.id === selectedCandidateId);
+  if (/(predict|forecast|tomorrow|next price|涨|跌|预测|明天)/i.test(question)) {
+    return {
+      title: 'Qurio does not forecast the next price',
+      detail: `This workspace compares bounded historical strategy evidence for ${snapshot.dataset.symbol} · ${snapshot.scope.interval}. It does not produce a directional market call or trading recommendation.`,
+    };
+  }
+  if (/(holdout|validation|out.of.sample|样本外|验证)/i.test(question)) {
+    const generalization = snapshot.report?.generalization;
+    return generalization
+      ? {
+        title: `Sealed holdout · ${validationStatusLabel(generalization.status)}`,
+        detail: generalization.reason || decision.summary,
+      }
+      : {
+        title: 'Sealed holdout is not available yet',
+        detail: 'Qurio will not treat training comparison evidence as a final validation result.',
+      };
+  }
+  if (/(why|select|choice|chosen|选择|为什么)/i.test(question)) {
+    return selected
+      ? {
+        title: `Final training choice · ${retainedCandidateName(selected.name)}`,
+        detail: selected.evolution?.selectionReason
+          ?? snapshot.report?.selectionDecision?.reason
+          ?? 'The retained report does not include a more specific selection reason.',
+      }
+      : {
+        title: 'No authoritative final choice',
+        detail: 'The retained selection and validation identities do not yet support one final candidate.',
+      };
+  }
+  if (/(weak|risk|drawdown|problem|failed|弱点|风险|回撤|失败)/i.test(question)) {
+    return selected
+      ? {
+        title: `${retainedCandidateName(selected.name)} · retained risk`,
+        detail: `Training max drawdown ${formatPercent(selected.metrics.maxDrawdown)} with ${selected.metrics.trades} closed trades. ${snapshot.report?.generalization?.reason ?? 'No sealed-holdout weakness has been retained yet.'}`,
+      }
+      : {
+        title: decision.title,
+        detail: decision.summary,
+      };
+  }
+  if (/(next|refine|change|continue|下一步|改进|继续)/i.test(question)) {
+    return {
+      title: 'Recommended next research action',
+      detail: decision.nextStep,
+    };
+  }
+  return {
+    title: projectionAnswerTitle(snapshot),
+    detail: `${snapshot.project.goal} Current evidence: ${decision.summary} Next: ${decision.nextStep}`,
+  };
+}
+
+function projectionAnswerTitle(snapshot: QuantWorkspaceSnapshot) {
+  if (snapshot.run.state === 'completed') return 'Research conclusion';
+  if (snapshot.run.state === 'failed' || snapshot.run.state === 'cancelled') return 'Run outcome';
+  return 'Current research state';
+}
+
+export function ResearchCopilotContent({ projection, snapshot, recentEvents, evidenceFocusActions, busy, compact = false, mode = 'full', onAction, onEvidenceFocus }: {
   projection: QuantCopilotProjection;
   snapshot: QuantWorkspaceSnapshot;
   recentEvents: QuantWorkspaceSnapshot['events'];
@@ -155,10 +230,10 @@ export function ResearchCopilotContent({ projection, snapshot, recentEvents, evi
   compact?: boolean;
   mode?: 'full' | 'live-decision';
   onAction: (kind: QuantCopilotActionKind, payload?: Record<string, unknown>) => void;
-  onAsk: (question: string) => void;
   onEvidenceFocus: (request: QuantEvidenceFocusRequest) => void;
 }) {
   const [question, setQuestion] = useState('');
+  const [answer, setAnswer] = useState<ResearchEvidenceAnswer | null>(null);
   const [showPlanChange, setShowPlanChange] = useState(false);
   const [planChange, setPlanChange] = useState('');
   const liveDecision = mode === 'live-decision';
@@ -294,9 +369,21 @@ export function ResearchCopilotContent({ projection, snapshot, recentEvents, evi
       {recentEvents.length > 0 && <div className="pq-copilot-events"><strong>Recent activity</strong><ol>{recentEvents.map((event) => <li key={event.id}><time dateTime={event.timestamp}>{formatEventTime(event.timestamp)}</time><span>{event.safeSummary}</span></li>)}</ol></div>}
     </details>}
     {!liveDecision && projection.readOnly && <p className="pq-copilot-readonly">Historical evidence is read-only.</p>}
-    {!liveDecision && projection.canAsk && <form className="pq-copilot-composer" aria-busy={busy} onSubmit={(event) => { event.preventDefault(); if (!question.trim() || busy) return; onAsk(question.trim()); setQuestion(''); }}>
-      <textarea aria-label="Ask about this run" placeholder="Ask about this run…" value={question} maxLength={2000} disabled={busy} onChange={(event) => setQuestion(event.target.value)} />
-      <div><span>Ask about retained evidence</span><button type="submit" disabled={!question.trim() || busy}>{busy ? 'Working…' : 'Ask'}</button></div>
+    {!liveDecision && answer && <section className="pq-copilot-answer" aria-live="polite" aria-label="Qurio evidence answer">
+      <span>Qurio answer</span>
+      <strong>{answer.title}</strong>
+      <p>{answer.detail}</p>
+    </section>}
+    {!liveDecision && <form className="pq-copilot-composer" aria-busy={busy} onSubmit={(event) => {
+      event.preventDefault();
+      const submitted = question.trim();
+      if (!submitted || busy) return;
+      setAnswer(answerFromRetainedResearch(snapshot, submitted));
+      setQuestion('');
+    }}>
+      <label htmlFor={`${idPrefix}-question`}>Ask Qurio about this research</label>
+      <textarea id={`${idPrefix}-question`} aria-label="Ask Qurio about this research" placeholder="Why this candidate? What failed? What should change next?" value={question} maxLength={500} disabled={busy} onChange={(event) => setQuestion(event.target.value)} />
+      <div><span>Read-only · retained evidence</span><button type="submit" disabled={!question.trim() || busy}>{busy ? 'Working…' : 'Ask'}</button></div>
     </form>}
   </div>;
 }
@@ -425,11 +512,11 @@ export function QuantOverviewWorkbench({
           <span>{snapshot.scope.market}</span>
           <span>{snapshot.scope.interval}</span>
           <span>{snapshot.scope.dateRange.start} — {snapshot.scope.dateRange.end}</span>
-          {snapshot.researchMemory && <span>Prior research: {snapshot.researchMemory.sourceRunCount} runs · {snapshot.researchMemory.testedCandidateCount} strategies considered</span>}
+          {snapshot.researchMemory && <span>Memory applied: {snapshot.researchMemory.sourceRunCount} prior runs · {snapshot.researchMemory.testedCandidateCount} exact strategies constrained</span>}
         </div>
         <div className="pq-overview-content">
           {isResearchLaunch && <ResearchLaunchPanel snapshot={snapshot} busy={busy} onGeneratePlan={() => onCommand('generate_plan')} onEditObjective={onRunResearch} />}
-          {compactLayout && !isResearchLaunch && <ResearchCopilotContent compact projection={copilot} snapshot={snapshot} recentEvents={recentEvents} evidenceFocusActions={evidenceFocusActions} busy={busy} onAction={handleCopilotAction} onAsk={(value) => onCommand('ask', { question: value })} onEvidenceFocus={onEvidenceFocus ?? (() => undefined)} />}
+          {compactLayout && !isResearchLaunch && <ResearchCopilotContent compact projection={copilot} snapshot={snapshot} recentEvents={recentEvents} evidenceFocusActions={evidenceFocusActions} busy={busy} onAction={handleCopilotAction} onEvidenceFocus={onEvidenceFocus ?? (() => undefined)} />}
           <ResearchPlanForApproval snapshot={snapshot} />
           {!isResearchLaunch && <QuantDecisionGate decision={overviewDecision} className="is-overview" />}
           {transientRows && <section className="pq-transient-phase" aria-label="Current run progress" aria-live="polite">
@@ -464,7 +551,7 @@ export function QuantOverviewWorkbench({
       </main>
       {!compactLayout && !isResearchLaunch && <aside className={`pq-copilot ${canAsk ? 'is-interactive' : 'is-context'}`} aria-label="Qurio">
         <header><strong>Qurio</strong><span>{snapshot.scope.symbol} · Overview</span></header>
-        <ResearchCopilotContent projection={copilot} snapshot={snapshot} recentEvents={recentEvents} evidenceFocusActions={evidenceFocusActions} busy={busy} onAction={handleCopilotAction} onAsk={(value) => onCommand('ask', { question: value })} onEvidenceFocus={onEvidenceFocus ?? (() => undefined)} />
+        <ResearchCopilotContent projection={copilot} snapshot={snapshot} recentEvents={recentEvents} evidenceFocusActions={evidenceFocusActions} busy={busy} onAction={handleCopilotAction} onEvidenceFocus={onEvidenceFocus ?? (() => undefined)} />
       </aside>}
     </div> : <div className="pq-existing-view" role="tabpanel" id={`pq-workspace-panel-${activeTab}`} aria-labelledby={`pq-workspace-tab-${activeTab}`}>{children}</div>}
   </section>;

@@ -105,9 +105,11 @@ surface make the approved plan, latest material observation and next legal resea
 identify. It added no Agent aggregate, route, table, tool, execution surface or quantitative path.
 **L1 Standalone Local Runtime is complete for Apple-silicon macOS 11+ builds**: Qurio.app embeds a
 locked Python 3.12 sidecar containing the existing FastAPI and Quant Agent worker. First launch and
-Settings can start, stop or restart it with DeepSeek or the deterministic offline provider without
-requiring the repository, Python or `.venv`. Runtime data lives in Application Support, credentials
-remain in macOS Keychain, and existing Runs keep their recorded provider/model identity. Source
+Settings can start, stop or restart it with DeepSeek, one explicitly configured
+OpenAI-compatible HTTPS chat-completions provider, or the deterministic offline provider without
+requiring the repository, Python or `.venv`. Runtime data lives in Application Support, provider
+credentials remain in separate macOS Keychain entries, and existing Runs keep their recorded
+provider/model identity. Source
 builds retain the fixed-path development fallback; this packaging change adds no second research
 runtime.
 The next product expansion remains intentionally undecided until a demonstrated research-scope gap

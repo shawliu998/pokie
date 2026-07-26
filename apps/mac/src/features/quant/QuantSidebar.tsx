@@ -8,11 +8,16 @@ const researchDestinations = [
   { id: 'data', label: 'Data' },
 ] satisfies Array<{ id: QuantNavDestination; label: string }>;
 
-export function QuantSidebar({ snapshot, destination, onSelect, onSelectProject }: {
+export function QuantSidebar({ snapshot, destination, onSelect, onSelectProject, guidedDemo }: {
   snapshot: QuantWorkspaceSnapshot;
   destination: QuantNavDestination;
   onSelect: (destination: QuantNavDestination) => void;
   onSelectProject?: (projectId: string, runId: string) => void;
+  guidedDemo?: {
+    label: string;
+    busy: boolean;
+    onOpen: () => void;
+  };
 }) {
   const lifecycle = presentQuantWorkspace(snapshot);
   const recentProjects = snapshot.recentProjects
@@ -25,6 +30,13 @@ export function QuantSidebar({ snapshot, destination, onSelect, onSelectProject 
       <nav className="quant-main-nav" aria-label="Research">
         {researchDestinations.map(({ id, label }) => <button className={destination === id ? 'active' : ''} aria-current={destination === id ? 'page' : undefined} onClick={() => onSelect(id)} key={id}>{label}</button>)}
       </nav>
+      {guidedDemo && <section className="quant-sidebar-guided" aria-labelledby="quant-guided-demo-heading">
+        <p id="quant-guided-demo-heading" className="quant-sidebar-label">Guided demo</p>
+        <button type="button" disabled={guidedDemo.busy} onClick={guidedDemo.onOpen}>
+          <strong>{guidedDemo.busy ? 'Opening research…' : 'Open guided demo'}</strong>
+          <span>{guidedDemo.label}</span>
+        </button>
+      </section>}
       <section className="quant-sidebar-current" aria-labelledby="quant-current-research-heading">
         <p id="quant-current-research-heading" className="quant-sidebar-label">Current research</p>
         <div className="quant-sidebar-current-research" title={snapshot.project.goal}>

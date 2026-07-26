@@ -1,7 +1,8 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
 
-export type LocalRuntimeProvider = 'mock' | 'deepseek';
+export type LocalRuntimeProvider = 'mock' | 'deepseek' | 'openai_compatible';
 export const DEFAULT_LOCAL_RUNTIME_MODEL = 'deepseek-v4-flash';
+export const DEFAULT_OPENAI_COMPATIBLE_BASE_URL = 'https://api.openai.com/v1';
 
 export interface LocalRuntimeStatus {
   state: 'stopped' | 'running' | 'failed';
@@ -9,12 +10,14 @@ export interface LocalRuntimeStatus {
   workspaceId: string | null;
   provider: LocalRuntimeProvider | null;
   model: string | null;
+  baseUrl: string | null;
   message: string | null;
 }
 
 export interface StartLocalRuntimeInput {
   provider: LocalRuntimeProvider;
   model: string | null;
+  baseUrl?: string | null;
   apiKey?: string;
 }
 

@@ -1735,6 +1735,29 @@ def quant_agent_workspace_snapshot(
             flags=re.IGNORECASE,
         )
 
+    def frontstage_artifact_id(payload: dict[str, Any]) -> str | None:
+        artifact_id = payload.get("artifact_id")
+        if artifact_id is None or str(artifact_id) in internal_artifact_ids:
+            return None
+        return str(artifact_id)
+
+    def frontstage_artifact_ids(payload: dict[str, Any]) -> list[str]:
+        artifact_ids = payload.get("artifact_ids")
+        if not isinstance(artifact_ids, list):
+            return []
+        return [
+            str(item)
+            for item in artifact_ids
+            if str(item) not in internal_artifact_ids
+        ]
+
+    def hide_internal_event(event_type: str, payload: dict[str, Any]) -> bool:
+        if not _payload_refs_internal_artifacts(payload, internal_artifact_ids):
+            return False
+        # Tool outcomes are real front-stage observations. Keep the event while
+        # stripping internal learning-trace / iteration-feedback references.
+        return event_type not in {"tool.completed", "tool.failed"}
+
     snapshot["events"] = [
         {
             "id": item["event_id"],
@@ -1744,8 +1767,8 @@ def quant_agent_workspace_snapshot(
             "actor": event_actor(item["event_type"]),
             "safeSummary": frontstage_safe_summary(item["payload"]),
             **(
-                {"artifactId": item["payload"]["artifact_id"]}
-                if item["payload"].get("artifact_id")
+                {"artifactId": artifact_id}
+                if (artifact_id := frontstage_artifact_id(item["payload"])) is not None
                 else {}
             ),
             **({"action": item["payload"]["action"]} if item["payload"].get("action") else {}),
@@ -1760,14 +1783,14 @@ def quant_agent_workspace_snapshot(
                 else {}
             ),
             **(
-                {"artifactIds": item["payload"]["artifact_ids"]}
-                if item["payload"].get("artifact_ids")
+                {"artifactIds": artifact_ids}
+                if (artifact_ids := frontstage_artifact_ids(item["payload"]))
                 else {}
             ),
         }
         for item in event_rows
         if item["event_type"] != "agent.repair_memory_reused"
-        and not _payload_refs_internal_artifacts(item["payload"], internal_artifact_ids)
+        and not hide_internal_event(item["event_type"], item["payload"])
     ]
     snapshot["artifacts"] = [
         {

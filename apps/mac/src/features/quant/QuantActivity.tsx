@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@glint/ui';
 import type { QuantArtifact, QuantWorkspaceSnapshot } from '../../quant-domain';
-import { quantAuthenticityLabel } from '../../quant-domain';
+import { quantAuthenticityLabel, quantResearchModeLabel } from '../../quant-domain';
 import type { QuantActionPresentation, QuantActivityPresentation, QuantWorkspacePresentation } from './quant-presentation';
 
 function displayTime(value: string): string {
@@ -27,23 +27,27 @@ export function QuantRunMonitor({ snapshot, presentation, onAction, isPolling, b
   const providerLine = snapshot.run.model
     ? `${snapshot.run.provider} · ${snapshot.run.model}`
     : snapshot.run.provider;
+  const isOfflineFixture = snapshot.run.legalCommands.includes('run_fixture');
   const connectionLabel = isTerminal
     ? 'Immutable'
-    : isPolling
-      ? 'Live · polling'
-      : snapshot.run.state === 'waiting_for_review' || snapshot.run.state === 'waiting_plan_approval'
-        ? 'Awaiting review'
-        : snapshot.run.state === 'draft'
-          ? 'Awaiting start'
-          : 'Ready';
+    : snapshot.run.state === 'waiting_for_review' || snapshot.run.state === 'waiting_plan_approval'
+      ? 'Needs your decision'
+      : snapshot.run.state === 'draft'
+        ? 'Awaiting start'
+        : isOfflineFixture
+          ? 'Offline fixture · manual step'
+          : isPolling && snapshot.run.mode === 'auto_research'
+            ? 'Running automatically'
+            : isPolling
+              ? 'Live · polling'
+              : 'Ready';
   return <section className={`quant-run-monitor tone-${presentation.statusTone}`} aria-labelledby="quant-run-monitor-title">
     <header className="quant-run-monitor-header">
       <div>
         <span className="quant-run-monitor-label">Run monitor</span>
-        <h3 id="quant-run-monitor-title">{presentation.currentActionTitle}</h3>
-        <p>{presentation.currentActionPurpose}</p>
+        <h3 id="quant-run-monitor-title">{presentation.statusLabel}</h3>
       </div>
-      <div className="quant-run-monitor-state"><strong className={`is-${presentation.statusTone}`}>{presentation.statusLabel}</strong><span>{connectionLabel}</span><span>Attempt {snapshot.run.attemptNumber}</span></div>
+      <span className={`quant-run-monitor-connection is-${presentation.statusTone}`}>{connectionLabel}</span>
     </header>
     {!isTerminal && <div className="quant-run-monitor-progress" role="progressbar" aria-valuenow={progressPercent} aria-valuemin={0} aria-valuemax={100} aria-label="Approved plan completion">
       <div className="quant-run-progress-track" aria-hidden="true"><div className="quant-run-monitor-progress-bar" style={{ width: `${progressPercent}%` }} /></div>
@@ -51,9 +55,9 @@ export function QuantRunMonitor({ snapshot, presentation, onAction, isPolling, b
     </div>}
     <dl className="quant-run-monitor-meta">
       <div><dt>Provider</dt><dd>{providerLine}</dd></div>
-      <div><dt>Plan</dt><dd>{presentation.completedStepCount} / {snapshot.plan.length} complete</dd></div>
-      <div><dt>Experiments</dt><dd>{snapshot.run.usedExperiments} / {snapshot.limits.maxExperiments}</dd></div>
+      <div><dt>Mode</dt><dd>{quantResearchModeLabel(snapshot.run.mode)}</dd></div>
       <div><dt>Strategy revisions</dt><dd>{snapshot.run.usedRepairAttempts} / {snapshot.limits.maxRepairAttempts}</dd></div>
+      <div><dt>Attempt</dt><dd>{snapshot.run.attemptNumber}</dd></div>
     </dl>
     {presentation.actions.length > 0 && <div className="quant-run-monitor-lower"><div className="quant-run-monitor-controls" role="group" aria-label="Run controls" aria-busy={busy}>
       {presentation.actions.map((action) => <Button disabled={busy} className={action.tone === 'primary' ? 'primary' : ''} key={action.kind} onClick={() => action.kind === 'request_plan_changes' ? setShowPlanChange(true) : onAction(action)}>{action.label}</Button>)}

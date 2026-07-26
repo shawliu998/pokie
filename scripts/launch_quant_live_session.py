@@ -39,6 +39,9 @@ DEFAULT_SESSION_PATH = RUNTIME_DIR / "pokiequant-live-session.json"
 DEFAULT_READONLY_SESSION_PATH = (
     RUNTIME_DIR / "v1-kraken-deepseek-20260724-183209" / "pokiequant-live-session.json"
 )
+DEFAULT_GUIDED_DEMO_SESSION_PATH = (
+    RUNTIME_DIR / "qurio-guided-demo-portfolio" / "pokiequant-live-session.json"
+)
 PACKAGED_MAC_ORIGIN = "tauri://localhost"
 
 # Process group termination grace period before force-kill.
@@ -312,14 +315,26 @@ def build_worker_env(
     }
 
 
-def build_mac_env(session: dict[str, str], api_port: int) -> dict[str, str]:
+def build_mac_env(
+    session: dict[str, str], api_port: int, *, guided_demo: bool = False
+) -> dict[str, str]:
     """Return the environment for the Mac Vite dev server."""
-    return {
+    env = {
         **os.environ,
         "VITE_GLINT_API_URL": f"http://127.0.0.1:{api_port}",
         "VITE_GLINT_WORKSPACE_ID": session["workspace_id"],
         # Access token is inherited from os.environ only.
     }
+    if guided_demo:
+        env.update(
+            {
+                "VITE_QURIO_GUIDED_DEMO_RUN_ID": session["run_id"],
+                "VITE_QURIO_GUIDED_DEMO_LABEL": (
+                    f"Real market data · DeepSeek {session['model']}"
+                ),
+            }
+        )
+    return env
 
 
 def build_api_command(api_port: int) -> list[str]:
@@ -433,6 +448,7 @@ def run(
     worker_interval_seconds: float,
     *,
     readonly_reopen: bool = False,
+    guided_demo: bool = False,
 ) -> int:
     session = load_session(session_path, readonly_reopen=readonly_reopen)
     validate_environment(session, readonly_reopen=readonly_reopen)
@@ -447,7 +463,7 @@ def run(
     api_env = build_api_env(
         session, api_port, mac_origin, session_path=session_path, readonly_reopen=readonly_reopen
     )
-    mac_env = build_mac_env(session, api_port)
+    mac_env = build_mac_env(session, api_port, guided_demo=guided_demo)
 
     processes: list[subprocess.Popen[str]] = []
 
@@ -468,9 +484,15 @@ def run(
         processes.append(mac_proc)
 
         if readonly_reopen:
-            print("Read-only evidence reopen running:")
+            print(
+                "Guided portfolio demo running:"
+                if guided_demo
+                else "Read-only evidence reopen running:"
+            )
             print(f"  API:     http://127.0.0.1:{api_port}")
             print(f"  Mac UI:  {mac_origin}")
+            if guided_demo:
+                print("  Open:    Guided demo → Open guided demo")
             print("Press Ctrl-C to stop.")
         else:
             if worker_delay_seconds > 0:
@@ -518,7 +540,7 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help=(
             "Path to the session JSON file. Defaults to the prepared live session in normal mode "
-            "and the retained V1 Kraken/DeepSeek session in --readonly-reopen mode."
+            "and the retained evidence selected by --readonly-reopen or --guided-demo."
         ),
     )
     parser.add_argument(
@@ -527,6 +549,14 @@ def main(argv: list[str] | None = None) -> int:
         help=(
             "Reopen a completed retained session for read-only evidence review. "
             "Requires VITE_GLINT_ACCESS_TOKEN but no DeepSeek key. Only API and Mac UI are started."
+        ),
+    )
+    parser.add_argument(
+        "--guided-demo",
+        action="store_true",
+        help=(
+            "Launch the retained real-data BTCUSDT/DeepSeek golden research in read-only mode, "
+            "with a one-click Guided demo entry. No provider key is required."
         ),
     )
     parser.add_argument(
@@ -554,18 +584,35 @@ def main(argv: list[str] | None = None) -> int:
         help="Worker poll interval in seconds (normal mode only).",
     )
     args = parser.parse_args(argv)
-    session_path = args.session or (
-        DEFAULT_READONLY_SESSION_PATH if args.readonly_reopen else DEFAULT_SESSION_PATH
-    )
+    readonly_reopen = args.readonly_reopen or args.guided_demo
+    if args.guided_demo and args.session is None:
+        subprocess.run(
+            [sys.executable, str(REPO_ROOT / "scripts" / "prepare_qurio_guided_demo.py")],
+            cwd=REPO_ROOT,
+            check=True,
+        )
+    if args.session:
+        session_path = args.session
+    elif args.guided_demo:
+        session_path = DEFAULT_GUIDED_DEMO_SESSION_PATH
+    elif args.readonly_reopen:
+        session_path = DEFAULT_READONLY_SESSION_PATH
+    else:
+        session_path = DEFAULT_SESSION_PATH
 
     try:
+        if args.guided_demo:
+            guided_session = load_session(session_path, readonly_reopen=True)
+            os.environ["VITE_GLINT_ACCESS_TOKEN"] = guided_session["principal_id"]
+            os.environ.setdefault("VITE_GLINT_PRINCIPAL_ID", guided_session["principal_id"])
         return run(
             session_path=session_path,
             api_port=args.api_port,
             mac_port=args.mac_port,
             worker_delay_seconds=args.worker_delay_seconds,
             worker_interval_seconds=args.worker_interval_seconds,
-            readonly_reopen=args.readonly_reopen,
+            readonly_reopen=readonly_reopen,
+            guided_demo=args.guided_demo,
         )
     except SystemExit as exc:
         if isinstance(exc.code, int):

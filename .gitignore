@@ -47,6 +47,7 @@ data/
 *.sqlite3
 *.live-session.json
 .minio/
+!docs/portfolio/guided-demo/pokiequant-live.db
 
 # Editors and OS
 .DS_Store

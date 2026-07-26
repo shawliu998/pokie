@@ -8,9 +8,9 @@ import { QuantDataPage } from './QuantDataPage';
 import { presentQuantProblem, QuantInlineProblem, type QuantProblem } from './quant-errors';
 import { QuantGoalComposer, type QuantRefinementContext, type QuantResearchFollowUp } from './QuantGoalComposer';
 import { QuantInspector, type QuantInspectTarget } from './QuantInspector';
-import { QuantOverviewWorkbench, QuantUtilityFrame, ResearchCopilotContent, type WorkspaceTab } from './QuantOverviewWorkbench';
+import { QuantOverviewWorkbench, QuantUtilityFrame, type WorkspaceTab } from './QuantOverviewWorkbench';
 import { QuantPaperTradingPage } from './QuantPaperTradingPage';
-import { canContinueResearch, presentQuantWorkspace, presentResearchCopilot, projectTerminalDecision, resolveEvidenceFocusIntent, type QuantActionPresentation, type QuantCopilotActionKind, type QuantEvidenceFocusIntent, type QuantEvidenceFocusRequest, type QuantEvidenceFocusResult } from './quant-presentation';
+import { canContinueResearch, presentQuantWorkspace, projectTerminalDecision, resolveEvidenceFocusIntent, type QuantActionPresentation, type QuantEvidenceFocusIntent, type QuantEvidenceFocusRequest, type QuantEvidenceFocusResult } from './quant-presentation';
 import { QuantRunsPage } from './QuantRunsPage';
 import { QuantSidebar } from './QuantSidebar';
 import { QuantStrategyReport } from './QuantStrategyReport';
@@ -22,6 +22,11 @@ const quantDestinations: ReadonlySet<QuantNavDestination> = new Set(['new_resear
 const progressOverviewStates = new Set(['loading_data', 'generating_candidates', 'generating_report']);
 const experimentWorkspaceStates = new Set(['queued', 'running_experiments', 'repairing', 'validating']);
 const agentDecisionSurfaceStates = new Set(['queued', 'loading_data', 'generating_candidates', 'running_experiments', 'repairing', 'validating', 'generating_report']);
+
+export interface QuantGuidedDemo {
+  runId: string;
+  label: string;
+}
 
 function initialDestination(): QuantNavDestination {
   try {
@@ -67,7 +72,7 @@ function commandSuccessTitle(kind: QuantCommand): string {
     start_auto_research: 'Research started',
     approve_plan: 'Plan approved',
     request_plan_changes: 'Plan changes requested',
-    run_fixture: 'Research started',
+    run_fixture: 'Offline run advanced',
     approve_execution: 'Execution approved',
     cancel_run: 'Run cancelled',
     retry_run: 'New attempt created',
@@ -147,7 +152,7 @@ function OverviewPage({ api, destination, snapshot, selectedDataset, composerMod
   return <QuantRuntimeSettings snapshot={snapshot} />;
 }
 
-function QuantWorkspaceView({ api, snapshot, isHistorical, refreshError, refreshing, lastVerifiedAt, openingRunId, openRunError, onRefresh, onOpenRun }: { api: QuantApi; snapshot: QuantWorkspaceSnapshot; isHistorical: boolean; refreshError: string | null; refreshing: boolean; lastVerifiedAt: string | null; openingRunId: string | null; openRunError: string | null; onRefresh: (showLatest?: boolean) => Promise<void>; onOpenRun: (runId: string, options?: { historical?: boolean }) => Promise<void> }) {
+function QuantWorkspaceView({ api, snapshot, guidedDemo, isHistorical, refreshError, refreshing, lastVerifiedAt, openingRunId, openRunError, onRefresh, onOpenRun }: { api: QuantApi; snapshot: QuantWorkspaceSnapshot; guidedDemo?: QuantGuidedDemo; isHistorical: boolean; refreshError: string | null; refreshing: boolean; lastVerifiedAt: string | null; openingRunId: string | null; openRunError: string | null; onRefresh: (showLatest?: boolean) => Promise<void>; onOpenRun: (runId: string, options?: { historical?: boolean }) => Promise<void> }) {
   const presentation = useMemo(() => presentQuantWorkspace(snapshot), [snapshot]);
   const compact = useCompactLayout();
   const compactCopilot = useCopilotCompactLayout();
@@ -170,7 +175,6 @@ function QuantWorkspaceView({ api, snapshot, isHistorical, refreshError, refresh
   const [notice, setNotice] = useState<{ tone: 'neutral' | 'danger'; title: string; detail?: string } | null>(null);
   const [evidenceFocus, setEvidenceFocus] = useState<QuantEvidenceFocusIntent | null>(null);
   const [commandPending, setCommandPending] = useState(false);
-  const liveDecisionProjection = useMemo(() => presentResearchCopilot(snapshot, { selectedCandidateId, isHistorical }), [isHistorical, selectedCandidateId, snapshot]);
   const commandLock = useRef(false);
   const initialRouteChecked = useRef(false);
   const evidenceFocusSequence = useRef(0);
@@ -241,8 +245,9 @@ function QuantWorkspaceView({ api, snapshot, isHistorical, refreshError, refresh
 
   useEffect(() => {
     setSelectedCandidateId(preferredCandidateId);
+    setSelectedDataset(snapshot.dataset);
     setEvidenceFocus(null);
-  }, [snapshot.run.id, preferredCandidateId]);
+  }, [snapshot.dataset, snapshot.run.id, preferredCandidateId]);
 
   useEffect(() => {
     const previous = previousRun.current;
@@ -439,6 +444,16 @@ function QuantWorkspaceView({ api, snapshot, isHistorical, refreshError, refresh
     setEvidenceFocus(null);
     setProjectTab(tab);
   };
+  const openGuidedDemo = () => {
+    if (!guidedDemo || openingRunId !== null) return;
+    clearContinuation();
+    setEvidenceFocus(null);
+    setDataImporting(false);
+    setDataPreviewing(false);
+    setProjectTab('experiments');
+    setDestination('projects');
+    void onOpenRun(guidedDemo.runId, { historical: true });
+  };
   const focusEvidence = (request: QuantEvidenceFocusRequest) => {
     const id = `evidence-focus-${snapshot.run.id}-${++evidenceFocusSequence.current}`;
     const intent: QuantEvidenceFocusIntent = request.target === 'trade'
@@ -472,36 +487,25 @@ function QuantWorkspaceView({ api, snapshot, isHistorical, refreshError, refresh
     else if (action.kind === 'open_diagnostics') openInspector({ kind: 'run' });
     else void command(action.kind, payload);
   };
-  const actFromLiveDecision = (kind: QuantCopilotActionKind, payload?: Record<string, unknown>) => {
-    if (kind === 'open_analysis') openProjectTab('analysis');
-    else if (kind === 'open_report') openProjectTab('report');
-    else if (kind === 'new_research') beginNewResearch();
-    else if (kind === 'continue_research') beginContinuation(selectedCandidateId);
-    else if (kind === 'return_latest') void onRefresh(true);
-    else void command(kind, payload);
-  };
-
   const isPolling = ['planning', 'queued', 'loading_data', 'generating_candidates', 'running_experiments', 'repairing', 'validating', 'generating_report'].includes(snapshot.run.state);
   const activityCanvas = <div className="quant-activity-pane"><QuantRunMonitor snapshot={snapshot} presentation={presentation} onAction={act} isPolling={isPolling} busy={commandPending} /><details className="quant-secondary-disclosure"><summary>Activity &amp; artifacts · {snapshot.events.length} events</summary><QuantKernelCheckCard snapshot={snapshot} /><QuantActivityFeed snapshot={snapshot} presentation={presentation} onInspect={(event) => openInspector({ kind: 'event', event })} /><QuantArtifactCards artifacts={presentation.primaryArtifacts} onInspect={(artifact) => openInspector({ kind: 'artifact', artifact })} /></details></div>;
-  const showLiveDecisionSurface = agentDecisionSurfaceStates.has(snapshot.run.state);
-  const liveDecisionSurface = showLiveDecisionSurface ? <aside className="pq-live-decision-column" aria-label="Qurio research decision">
-    <header><strong>Research memo</strong><span>{snapshot.scope.symbol} · Experiments</span></header>
-    <ResearchCopilotContent mode="live-decision" projection={liveDecisionProjection} snapshot={snapshot} recentEvents={[]} evidenceFocusActions={[]} busy={commandPending} onAction={actFromLiveDecision} onAsk={() => undefined} onEvidenceFocus={() => undefined} />
+  const showLiveRunContext = agentDecisionSurfaceStates.has(snapshot.run.state);
+  const liveRunContext = showLiveRunContext ? <aside className="pq-live-decision-column" aria-label="Run context">
     <div className="quant-widget-frame">{activityCanvas}</div>
   </aside> : null;
   const report = <QuantStrategyReport api={api} snapshot={snapshot} candidates={presentation.candidates} decision={presentation.decision} selectedCandidateId={selectedCandidateId} onSelectCandidate={selectCandidate} onOpenAnalysis={() => openProjectTab('analysis')} onContinueResearch={isHistorical ? undefined : continueFromReport} onRunAutopilot={isHistorical ? undefined : runCampaignRefinement} campaignBusy={commandPending} onOpenRun={(runId) => onOpenRun(runId, { historical: true })} onOpenHistory={() => { setEvidenceFocus(null); setDestination('runs'); }} onStartNewResearch={beginNewResearch} evidenceFocus={evidenceFocus?.destination === 'report' ? evidenceFocus : null} onEvidenceFocusConsumed={consumeEvidenceFocus} />;
-  const experiments = <QuantStrategyLab snapshot={snapshot} selectedCandidateId={selectedCandidateId} onSelectCandidate={selectCandidate} onContinueResearch={continueFromSecondaryEvidence} variant="experiments" showLiveDecisionSummary={!showLiveDecisionSurface} />;
+  const experiments = <QuantStrategyLab snapshot={snapshot} selectedCandidateId={selectedCandidateId} onSelectCandidate={selectCandidate} onContinueResearch={continueFromSecondaryEvidence} variant="experiments" />;
   const analysis = <QuantStrategyLab snapshot={snapshot} selectedCandidateId={selectedCandidateId} onSelectCandidate={selectCandidate} onContinueResearch={continueFromSecondaryEvidence} variant="analysis" evidenceFocus={evidenceFocus?.destination === 'analysis' ? evidenceFocus : null} onEvidenceFocusConsumed={consumeEvidenceFocus} />;
 
   const projectDetails = compact
     ? projectTab === 'experiments'
-      ? <div className="quant-compact-stack">{liveDecisionSurface}{experiments}{!showLiveDecisionSurface && <div className="quant-widget-frame">{activityCanvas}</div>}</div>
+      ? <div className="quant-compact-stack">{experiments}{liveRunContext}{!showLiveRunContext && <div className="quant-widget-frame">{activityCanvas}</div>}</div>
       : projectTab === 'analysis'
         ? <div className="quant-compact-stack">{analysis}<div className="quant-widget-frame">{activityCanvas}</div></div>
         : projectTab === 'report'
           ? <div className="quant-widget-frame pq-report-frame">{report}</div>
           : null
-    : projectTab === 'experiments' ? <div className={`pq-strategy-workspace${showLiveDecisionSurface ? ' is-live-run' : ''}`}>{experiments}{liveDecisionSurface ?? <div className="quant-widget-frame">{activityCanvas}</div>}</div> : projectTab === 'analysis' ? <div className="pq-strategy-workspace">{analysis}<div className="quant-widget-frame">{activityCanvas}</div></div> : <div className="quant-widget-frame pq-report-frame">{report}</div>;
+    : projectTab === 'experiments' ? <div className={`pq-strategy-workspace${showLiveRunContext ? ' is-live-run' : ''}`}>{experiments}{liveRunContext ?? <div className="quant-widget-frame">{activityCanvas}</div>}</div> : projectTab === 'analysis' ? <div className="pq-strategy-workspace">{analysis}<div className="quant-widget-frame">{activityCanvas}</div></div> : <div className="quant-widget-frame pq-report-frame">{report}</div>;
 
   const projectWorkspace = <QuantOverviewWorkbench snapshot={snapshot} activeTab={projectTab} onTabChange={openProjectTab} onRunResearch={beginNewResearch} onOpenAnalysis={() => openProjectTab('analysis')} onOpenReport={() => openProjectTab('report')} onContinueResearch={continueFromSecondaryEvidence} onReturnLatest={() => void onRefresh(true)} selectedCandidateId={selectedCandidateId} onSelectCandidate={selectCandidate} busy={commandPending} isHistorical={isHistorical} compactLayout={compactCopilot} onCommand={(kind, payload) => void command(kind, payload)} onEvidenceFocus={focusEvidence}>{projectDetails}</QuantOverviewWorkbench>;
   const utilityContent = destination === 'projects' ? null : <OverviewPage api={api} destination={destination} snapshot={snapshot} selectedDataset={selectedDataset} composerMode={composerMode} commandPending={commandPending} openingRunId={openingRunId} openRunError={openRunError} refinement={refinement} refinementLoading={refinementLoading} refinementError={refinementError} evidenceFocus={evidenceFocus?.destination === 'runs' ? evidenceFocus : null} onEvidenceFocusResolved={resolveRunsEvidenceFocus} onCancelRefinement={beginNewResearch} onSelectDataset={setSelectedDataset} onUseDatasetForResearch={(dataset) => { clearContinuation(); setEvidenceFocus(null); setSelectedDataset(dataset); setComposerMode('plan'); setDataPreviewing(false); setDestination('new_research'); }} onDataImportViewChange={setDataImporting} onDataPreviewViewChange={setDataPreviewing} onOpenWorkspace={() => { setEvidenceFocus(null); setProjectTab('report'); setDestination('projects'); }} onStartNewResearch={beginNewResearch} onRefineFromComparison={beginComparisonRefinement} onAddData={() => { setEvidenceFocus(null); setDataImporting(true); setDataPreviewing(false); setDestination('data'); }} onComposer={(kind, payload) => void command(kind, payload)} onStartNewRun={(mode, goal, dataset, dateRange, source, reason, followUp) => void startNewRun(mode, goal, dataset, dateRange, source, reason, followUp)} onOpenRun={(runId) => onOpenRun(runId, { historical: true })} />;
@@ -509,7 +513,7 @@ function QuantWorkspaceView({ api, snapshot, isHistorical, refreshError, refresh
   return <main className="quant-shell">
     {refreshError && <div className="quant-refresh-warning" role="status" title={refreshError}><strong>Live updates paused</strong><span>Showing snapshot verified at {verifiedTime(lastVerifiedAt)}</span><button disabled={refreshing} onClick={() => void onRefresh()}>{refreshing ? 'Refreshing…' : 'Refresh now'}</button></div>}
     <div className="quant-shell-body">
-      <QuantSidebar snapshot={snapshot} destination={destination} onSelect={(next) => { setEvidenceFocus(null); if (next === 'new_research') { beginNewResearch(); return; } if (next !== 'data') { setDataImporting(false); setDataPreviewing(false); } setDestination(next); }} onSelectProject={(_projectId, runId) => { setEvidenceFocus(null); setDataImporting(false); setDataPreviewing(false); setDestination('runs'); void onOpenRun(runId); }} />
+      <QuantSidebar snapshot={snapshot} destination={destination} guidedDemo={guidedDemo ? { label: guidedDemo.label, busy: openingRunId === guidedDemo.runId, onOpen: openGuidedDemo } : undefined} onSelect={(next) => { setEvidenceFocus(null); if (next === 'new_research') { beginNewResearch(); return; } if (next !== 'data') { setDataImporting(false); setDataPreviewing(false); } setDestination(next); }} onSelectProject={(_projectId, runId) => { setEvidenceFocus(null); setDataImporting(false); setDataPreviewing(false); setDestination('runs'); void onOpenRun(runId); }} />
       <div className={`quant-main-surface is-projects${isHistorical ? ' is-historical' : ''}`}>
         {isHistorical && (destination !== 'projects' || projectTab !== 'overview') && <div className="quant-history-banner" role="status"><span><strong>Historical run</strong> · Read-only evidence from {snapshot.project.title.split(' · ')[0]}</span><button onClick={() => void onRefresh(true)}>Return to latest run</button></div>}
         {destination === 'runs' && openRunError && <p className="quant-runs-error" role="alert">{openRunError}</p>}
@@ -521,7 +525,7 @@ function QuantWorkspaceView({ api, snapshot, isHistorical, refreshError, refresh
   </main>;
 }
 
-export function QuantWorkspace({ api }: { api: QuantApi }) {
+export function QuantWorkspace({ api, guidedDemo }: { api: QuantApi; guidedDemo?: QuantGuidedDemo }) {
   const [snapshot, setSnapshot] = useState<QuantWorkspaceSnapshot | null>(null);
   const [latestRunId, setLatestRunId] = useState<string | null>(null);
   const [error, setError] = useState<QuantProblem | null>(null);
@@ -592,5 +596,5 @@ export function QuantWorkspace({ api }: { api: QuantApi }) {
   if (!snapshot) {
     return <QuantWorkspaceLoading slow={loadingSlow} error={error} onRetry={() => void refresh()} />;
   }
-  return <QuantWorkspaceView api={api} snapshot={snapshot} isHistorical={viewingHistorical.current || Boolean(latestRunId && snapshot.run.id !== latestRunId)} refreshError={error?.detail ?? null} refreshing={refreshing} lastVerifiedAt={lastVerifiedAt} openingRunId={openingRunId} openRunError={openRunError} onRefresh={refresh} onOpenRun={openRun} />;
+  return <QuantWorkspaceView api={api} snapshot={snapshot} guidedDemo={guidedDemo} isHistorical={viewingHistorical.current || Boolean(latestRunId && snapshot.run.id !== latestRunId)} refreshError={error?.detail ?? null} refreshing={refreshing} lastVerifiedAt={lastVerifiedAt} openingRunId={openingRunId} openRunError={openRunError} onRefresh={refresh} onOpenRun={openRun} />;
 }

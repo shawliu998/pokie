@@ -4,7 +4,7 @@ import { createApi, type GlintApi } from '../../api';
 import { clearAccessToken, isNativeRuntime, SessionExpiredError, SessionFailure, storeAccessToken } from '../../session';
 import { clearConnectionProfile, connectionDraft, storeConnectionProfile } from '../../connection';
 import { sessionRecoveryMode } from '../../lib/workbench-state';
-import { DEFAULT_LOCAL_RUNTIME_MODEL, getLocalRuntimeStatus, startLocalRuntime, type LocalRuntimeProvider, type LocalRuntimeStatus } from '../../local-runtime';
+import { DEFAULT_LOCAL_RUNTIME_MODEL, DEFAULT_OPENAI_COMPATIBLE_BASE_URL, getLocalRuntimeStatus, startLocalRuntime, type LocalRuntimeProvider, type LocalRuntimeStatus } from '../../local-runtime';
 
 interface SessionBoundaryProps {
   children: (api: GlintApi) => ReactNode;
@@ -45,8 +45,10 @@ export function SessionRecovery({ failure, native, onReconnect }: { failure: Ses
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [runtimeStatus, setRuntimeStatus] = useState<LocalRuntimeStatus | null>(null);
-  const [runtimeProvider, setRuntimeProvider] = useState<LocalRuntimeProvider>('deepseek');
+  const [runtimeProvider, setRuntimeProvider] = useState<LocalRuntimeProvider>('mock');
   const [runtimeModel, setRuntimeModel] = useState(DEFAULT_LOCAL_RUNTIME_MODEL);
+  const [compatibleBaseUrl, setCompatibleBaseUrl] = useState(DEFAULT_OPENAI_COMPATIBLE_BASE_URL);
+  const [compatibleModel, setCompatibleModel] = useState('');
   const [runtimeApiKey, setRuntimeApiKey] = useState('');
   const [startupStep, setStartupStep] = useState<'idle' | 'starting' | 'connecting'>('idle');
   const mode = sessionRecoveryMode(native);
@@ -88,7 +90,12 @@ export function SessionRecovery({ failure, native, onReconnect }: { failure: Ses
     setStartupStep('starting');
     setError(null);
     try {
-      const next = await startLocalRuntime({ provider: runtimeProvider, model: runtimeProvider === 'deepseek' ? runtimeModel.trim() : null, ...(runtimeApiKey.trim() ? { apiKey: runtimeApiKey.trim() } : {}) });
+      const next = await startLocalRuntime({
+        provider: runtimeProvider,
+        model: runtimeProvider === 'mock' ? null : runtimeProvider === 'deepseek' ? runtimeModel.trim() : compatibleModel.trim(),
+        ...(runtimeProvider === 'openai_compatible' ? { baseUrl: compatibleBaseUrl.trim() } : {}),
+        ...(runtimeProvider !== 'mock' && runtimeApiKey.trim() ? { apiKey: runtimeApiKey.trim() } : {}),
+      });
       setRuntimeStatus(next);
       setRuntimeApiKey('');
       if (!next.apiUrl || !next.workspaceId) throw new Error(next.message || 'The local runtime started without a workspace connection.');
@@ -114,25 +121,35 @@ export function SessionRecovery({ failure, native, onReconnect }: { failure: Ses
           <div className="session-fields">
             <Field><FieldLabel>Model provider
               <select value={runtimeProvider} disabled={busy} onChange={(event) => setRuntimeProvider(event.target.value as LocalRuntimeProvider)}>
+                <option value="mock">Offline deterministic — no API key</option>
                 <option value="deepseek">DeepSeek</option>
-                <option value="mock">Offline demo — no API key</option>
+                <option value="openai_compatible">OpenAI-compatible</option>
               </select>
             </FieldLabel></Field>
             {runtimeProvider === 'deepseek' && <Field><FieldLabel>Model
               <input value={runtimeModel} disabled={busy} onChange={(event) => setRuntimeModel(event.target.value)} />
             </FieldLabel></Field>}
+            {runtimeProvider === 'openai_compatible' && <Field><FieldLabel>Model
+              <input placeholder="Provider model ID" value={compatibleModel} disabled={busy} onChange={(event) => setCompatibleModel(event.target.value)} />
+            </FieldLabel></Field>}
           </div>
-          {runtimeProvider === 'deepseek' && <Field>
-            <FieldLabel>DeepSeek API key
+          {runtimeProvider === 'openai_compatible' && <Field>
+            <FieldLabel>Base URL
+              <input type="url" autoComplete="url" placeholder="https://provider.example/v1" value={compatibleBaseUrl} disabled={busy} onChange={(event) => setCompatibleBaseUrl(event.target.value)} />
+            </FieldLabel>
+            <FieldDescription>HTTPS only. Qurio sends chat-completion requests below this path.</FieldDescription>
+          </Field>}
+          {runtimeProvider !== 'mock' && <Field>
+            <FieldLabel>{runtimeProvider === 'deepseek' ? 'DeepSeek API key' : 'Provider API key'}
               <input type="password" autoComplete="off" value={runtimeApiKey} disabled={busy} onChange={(event) => setRuntimeApiKey(event.target.value)} />
             </FieldLabel>
-            <FieldDescription>Stored in macOS Keychain. Leave blank to reuse a saved key.</FieldDescription>
+            <FieldDescription>Stored separately for this provider in macOS Keychain. Leave blank to reuse a saved key.</FieldDescription>
           </Field>}
           {startupStep !== 'idle'
             ? <p className="session-progress" role="status">{startupStep === 'starting' ? 'Starting the local runtime…' : 'Opening your research workspace…'}</p>
             : runtimeStatus?.message && <p className="hint">{runtimeStatus.message}</p>}
           {error && <FieldError className="session-error">{error}</FieldError>}
-          <Button className="primary session-start" disabled={busy || (runtimeProvider === 'deepseek' && !runtimeModel.trim())} onClick={() => void startLocal()}>
+          <Button className="primary session-start" disabled={busy || (runtimeProvider === 'deepseek' && !runtimeModel.trim()) || (runtimeProvider === 'openai_compatible' && (!compatibleModel.trim() || !compatibleBaseUrl.trim()))} onClick={() => void startLocal()}>
             {busy ? 'Preparing Qurio…' : 'Start Qurio'}
           </Button>
           <p className="session-contained">The runtime is included. No Python, terminal, or repository setup is required.</p>

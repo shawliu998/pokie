@@ -649,6 +649,64 @@ export interface QuantActivityPresentation {
   advanced: { eventType: string; sequence: number; safeSummary: string };
 }
 
+export interface QuantAgentMoveProjection {
+  decision: string;
+  action: string;
+  actionLabel: string;
+  expectedEvidence: string;
+  observation: string | null;
+  status: 'running' | 'completed' | 'failed';
+}
+
+const registeredAgentActionLabels: Readonly<Record<string, string>> = {
+  inspect_research_context: 'Inspect research context',
+  list_strategy_templates: 'List registered strategies',
+  create_candidate: 'Create candidate',
+  run_backtest: 'Run training backtest',
+  revise_candidate: 'Revise candidate',
+  compare_candidates: 'Compare candidates',
+  finish_research: 'Finish research',
+};
+
+export function projectLatestAgentMove(events: QuantRunEvent[]): QuantAgentMoveProjection | null {
+  const ordered = [...events].sort((left, right) => left.sequence - right.sequence);
+  const decisions = ordered
+    .map((event, index) => ({ event, index }))
+    .filter(({ event }) => event.type === 'agent.action_selected');
+  const entry = decisions.at(-1);
+  if (!entry) return null;
+  const decision = entry.event;
+  const action = decision.action;
+  const actionLabel = action ? registeredAgentActionLabels[action] : undefined;
+  if (!action || !actionLabel || !decision.expectedResult) return null;
+
+  const boundedEvents = ordered.slice(entry.index + 1);
+  const toolEvents = boundedEvents.filter((event) => event.type.startsWith('tool.'));
+  if (toolEvents.some((event) => event.action !== action)) return null;
+
+  const started = toolEvents.find((event) => event.type === 'tool.started');
+  if (!started) return null;
+  const latestToolEvent = toolEvents.at(-1);
+  const terminal = latestToolEvent
+    && latestToolEvent.sequence > started.sequence
+    && (latestToolEvent.type === 'tool.completed' || latestToolEvent.type === 'tool.failed')
+    ? latestToolEvent
+    : undefined;
+
+  return {
+    decision: decision.safeSummary,
+    action,
+    actionLabel,
+    expectedEvidence: decision.expectedResult,
+    observation: terminal?.safeSummary ?? null,
+    status: terminal?.type === 'tool.failed'
+      ? 'failed'
+      : terminal?.type === 'tool.completed'
+        ? 'completed'
+        : 'running',
+  };
+}
+
 export interface QuantActionPresentation {
   kind: QuantCommand | QuantViewAction;
   label: string;
@@ -902,7 +960,7 @@ const verdictCopy: Record<CandidateVerdict, [string, QuantTone]> = {
 
 const commandLabels: Partial<Record<QuantCommand, string>> = {
   approve_plan: 'Approve & Run',
-  run_fixture: 'Run Synthetic Agent',
+  run_fixture: 'Advance Offline Run',
   request_plan_changes: 'Request Changes',
   approve_execution: 'Approve Once',
   cancel_run: 'Cancel Run',
@@ -1201,7 +1259,7 @@ export function presentResearchCopilot(
   } else if (snapshot.run.state === 'draft') {
     legalAction('generate_plan', 'Generate plan', 'primary');
     legalAction('start_auto_research', 'Generate plan first', actions.length ? 'default' : 'primary');
-    legalAction('run_fixture', 'Run research', actions.length ? 'default' : 'primary');
+    legalAction('run_fixture', 'Advance offline run', actions.length ? 'default' : 'primary');
     legalAction('cancel_run', 'Cancel run');
     if (!actions.length) add('new_research', 'New research', 'primary');
   } else if (snapshot.run.state === 'unknown') {
@@ -1209,7 +1267,7 @@ export function presentResearchCopilot(
     add('new_research', 'New research', 'primary');
   } else {
     legalAction('approve_execution', 'Approve execution', 'primary');
-    legalAction('run_fixture', 'Run research', actions.length ? 'default' : 'primary');
+    legalAction('run_fixture', 'Advance offline run', actions.length ? 'default' : 'primary');
     legalAction('cancel_run', 'Cancel run', actions.length ? 'default' : 'primary');
     if (snapshot.run.state === 'validating' || snapshot.run.state === 'generating_report') add('open_analysis', 'Open analysis', actions.length ? 'default' : 'primary');
   }

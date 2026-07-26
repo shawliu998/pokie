@@ -9,7 +9,8 @@ use std::{
 
 use crate::session;
 
-const RUNTIME_KEYCHAIN_SERVICE: &str = "com.qurio.runtime.deepseek";
+const DEEPSEEK_KEYCHAIN_SERVICE: &str = "com.qurio.runtime.deepseek";
+const OPENAI_COMPATIBLE_KEYCHAIN_SERVICE: &str = "com.qurio.runtime.openai-compatible";
 const RUNTIME_KEYCHAIN_ACCOUNT: &str = "api-key";
 const READY_PREFIX: &str = "QURIO_RUNTIME_READY ";
 const MAX_SECRET_BYTES: usize = 16 * 1024;
@@ -19,6 +20,8 @@ const MAX_SECRET_BYTES: usize = 16 * 1024;
 pub(crate) enum Provider {
     Mock,
     Deepseek,
+    #[serde(rename = "openai_compatible")]
+    OpenaiCompatible,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -26,6 +29,7 @@ pub(crate) enum Provider {
 pub(crate) struct StartLocalRuntimeRequest {
     pub provider: Provider,
     pub model: Option<String>,
+    pub base_url: Option<String>,
     pub api_key: Option<String>,
 }
 
@@ -37,6 +41,7 @@ pub(crate) struct LocalRuntimeStatus {
     pub workspace_id: Option<String>,
     pub provider: Option<Provider>,
     pub model: Option<String>,
+    pub base_url: Option<String>,
     pub message: Option<String>,
 }
 
@@ -48,6 +53,7 @@ impl LocalRuntimeStatus {
             workspace_id: None,
             provider: None,
             model: None,
+            base_url: None,
             message: None,
         }
     }
@@ -59,6 +65,7 @@ impl LocalRuntimeStatus {
             workspace_id: None,
             provider: None,
             model: None,
+            base_url: None,
             message: Some(message.into()),
         }
     }
@@ -71,6 +78,7 @@ struct ReadyPayload {
     principal_id: String,
     provider: Provider,
     model: Option<String>,
+    base_url: Option<String>,
 }
 
 pub(crate) struct LocalRuntimeManager {
@@ -105,13 +113,25 @@ fn source_checkout_error() -> String {
 }
 
 fn validate_request(request: &StartLocalRuntimeRequest) -> Result<(), String> {
-    if request.provider == Provider::Deepseek {
-        let model = request.model.as_deref().unwrap_or_default();
-        if model.trim().is_empty() || model.len() > 200 || model.chars().any(char::is_control) {
-            return Err("Enter a valid local-runtime model name.".to_string());
+    match request.provider {
+        Provider::Mock => {
+            if request.model.is_some() || request.base_url.is_some() || request.api_key.is_some() {
+                return Err(
+                    "Offline deterministic runtime does not accept provider configuration."
+                        .to_string(),
+                );
+            }
         }
-    } else if request.model.is_some() {
-        return Err("Mock local runtime does not accept a model.".to_string());
+        Provider::Deepseek => {
+            validate_model(request.model.as_deref())?;
+            if request.base_url.is_some() {
+                return Err("DeepSeek uses Qurio's fixed provider endpoint.".to_string());
+            }
+        }
+        Provider::OpenaiCompatible => {
+            validate_model(request.model.as_deref())?;
+            validate_base_url(request.base_url.as_deref())?;
+        }
     }
     if let Some(key) = &request.api_key {
         if key.trim().is_empty()
@@ -124,6 +144,33 @@ fn validate_request(request: &StartLocalRuntimeRequest) -> Result<(), String> {
     Ok(())
 }
 
+fn validate_model(model: Option<&str>) -> Result<(), String> {
+    let model = model.unwrap_or_default();
+    if model.trim().is_empty() || model.len() > 128 || model.chars().any(char::is_control) {
+        return Err("Enter a valid provider model name.".to_string());
+    }
+    Ok(())
+}
+
+fn validate_base_url(base_url: Option<&str>) -> Result<(), String> {
+    let value = base_url.unwrap_or_default();
+    if value.trim() != value || value.len() > 2_048 || value.chars().any(char::is_control) {
+        return Err("Enter a valid HTTPS provider URL.".to_string());
+    }
+    let parsed =
+        url::Url::parse(value).map_err(|_| "Enter a valid HTTPS provider URL.".to_string())?;
+    if parsed.scheme() != "https"
+        || parsed.host_str().is_none()
+        || !parsed.username().is_empty()
+        || parsed.password().is_some()
+        || parsed.query().is_some()
+        || parsed.fragment().is_some()
+    {
+        return Err("Enter a valid HTTPS provider URL.".to_string());
+    }
+    Ok(())
+}
+
 fn parse_ready_line(line: &str) -> Result<Option<ReadyPayload>, String> {
     let Some(payload) = line.strip_prefix(READY_PREFIX) else {
         return Ok(None);
@@ -132,15 +179,20 @@ fn parse_ready_line(line: &str) -> Result<Option<ReadyPayload>, String> {
         .map_err(|_| "Qurio local runtime returned an invalid ready message.".to_string())?;
     let valid_model = match ready.provider {
         Provider::Mock => ready.model.is_none(),
-        Provider::Deepseek => ready
+        Provider::Deepseek | Provider::OpenaiCompatible => ready
             .model
             .as_deref()
             .is_some_and(|model| !model.trim().is_empty()),
+    };
+    let valid_base_url = match ready.provider {
+        Provider::Mock | Provider::Deepseek => ready.base_url.is_none(),
+        Provider::OpenaiCompatible => validate_base_url(ready.base_url.as_deref()).is_ok(),
     };
     if ready.api_url.trim().is_empty()
         || ready.workspace_id.trim().is_empty()
         || ready.principal_id.trim().is_empty()
         || !valid_model
+        || !valid_base_url
     {
         return Err("Qurio local runtime returned an incomplete ready message.".to_string());
     }
@@ -148,10 +200,19 @@ fn parse_ready_line(line: &str) -> Result<Option<ReadyPayload>, String> {
 }
 
 #[cfg(target_os = "macos")]
-fn saved_deepseek_key() -> Result<Option<String>, String> {
+fn keychain_service(provider: Provider) -> Result<&'static str, String> {
+    match provider {
+        Provider::Deepseek => Ok(DEEPSEEK_KEYCHAIN_SERVICE),
+        Provider::OpenaiCompatible => Ok(OPENAI_COMPATIBLE_KEYCHAIN_SERVICE),
+        Provider::Mock => Err("Offline deterministic runtime does not use an API key.".to_string()),
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn saved_provider_key(provider: Provider) -> Result<Option<String>, String> {
     use security_framework::passwords::get_generic_password;
     const NOT_FOUND: i32 = -25300;
-    match get_generic_password(RUNTIME_KEYCHAIN_SERVICE, RUNTIME_KEYCHAIN_ACCOUNT) {
+    match get_generic_password(keychain_service(provider)?, RUNTIME_KEYCHAIN_ACCOUNT) {
         Ok(bytes) => String::from_utf8(bytes)
             .map(Some)
             .map_err(|_| "macOS Keychain returned an invalid Qurio runtime key.".to_string()),
@@ -161,9 +222,9 @@ fn saved_deepseek_key() -> Result<Option<String>, String> {
 }
 
 #[cfg(target_os = "macos")]
-fn save_deepseek_key(key: &str) -> Result<(), String> {
+fn save_provider_key(provider: Provider, key: &str) -> Result<(), String> {
     security_framework::passwords::set_generic_password(
-        RUNTIME_KEYCHAIN_SERVICE,
+        keychain_service(provider)?,
         RUNTIME_KEYCHAIN_ACCOUNT,
         key.trim().as_bytes(),
     )
@@ -171,11 +232,11 @@ fn save_deepseek_key(key: &str) -> Result<(), String> {
 }
 
 #[cfg(not(target_os = "macos"))]
-fn saved_deepseek_key() -> Result<Option<String>, String> {
+fn saved_provider_key(_provider: Provider) -> Result<Option<String>, String> {
     Err("Qurio local runtime requires macOS Keychain.".to_string())
 }
 #[cfg(not(target_os = "macos"))]
-fn save_deepseek_key(_key: &str) -> Result<(), String> {
+fn save_provider_key(_provider: Provider, _key: &str) -> Result<(), String> {
     Err("Qurio local runtime requires macOS Keychain.".to_string())
 }
 
@@ -296,26 +357,35 @@ impl LocalRuntimeManager {
             .arg(match request.provider {
                 Provider::Mock => "mock",
                 Provider::Deepseek => "deepseek",
+                Provider::OpenaiCompatible => "openai_compatible",
             })
             .stdout(Stdio::piped())
             .stderr(Stdio::null());
         if let Some(runtime_dir) = &self.runtime_dir {
             command.arg("--runtime-dir").arg(runtime_dir);
         }
-        if request.provider == Provider::Deepseek {
+        if request.provider != Provider::Mock {
             command
                 .arg("--model")
                 .arg(request.model.as_deref().expect("validated model").trim());
+            if request.provider == Provider::OpenaiCompatible {
+                command.arg("--base-url").arg(
+                    request
+                        .base_url
+                        .as_deref()
+                        .expect("validated base URL")
+                        .trim(),
+                );
+            }
             let key = match request.api_key.as_deref() {
                 Some(key) => {
-                    save_deepseek_key(key)?;
+                    save_provider_key(request.provider, key)?;
                     key.trim().to_string()
                 }
-                None => saved_deepseek_key()?.ok_or_else(|| {
-                    "Enter a DeepSeek key once to start this local runtime.".to_string()
-                })?,
+                None => saved_provider_key(request.provider)?
+                    .ok_or_else(|| "Enter an API key once to start this provider.".to_string())?,
             };
-            command.env("DEEPSEEK_API_KEY", key);
+            command.env("POKIEQUANT_AGENT_API_KEY", key);
         }
         let mut child = command.spawn().map_err(|_| source_checkout_error())?;
         let ready = match wait_for_ready(&mut child) {
@@ -329,6 +399,7 @@ impl LocalRuntimeManager {
         };
         if ready.provider != request.provider
             || ready.model.as_deref() != request.model.as_deref().map(str::trim)
+            || ready.base_url.as_deref() != request.base_url.as_deref().map(str::trim)
         {
             terminate(&mut child);
             let message =
@@ -350,6 +421,7 @@ impl LocalRuntimeManager {
             workspace_id: Some(ready.workspace_id),
             provider: Some(ready.provider),
             model: ready.model,
+            base_url: ready.base_url,
             message: None,
         };
         *self.child.lock().expect("runtime child lock") = Some(child);
@@ -411,27 +483,49 @@ mod tests {
         assert!(validate_request(&StartLocalRuntimeRequest {
             provider: Provider::Mock,
             model: Some("mock-v1".into()),
+            base_url: None,
             api_key: None
         })
         .is_err());
         assert!(validate_request(&StartLocalRuntimeRequest {
             provider: Provider::Deepseek,
             model: Some("model".into()),
+            base_url: None,
             api_key: Some("bad\nkey".into())
         })
         .is_err());
         assert!(validate_request(&StartLocalRuntimeRequest {
             provider: Provider::Deepseek,
             model: None,
+            base_url: None,
             api_key: None
         })
         .is_err());
+        assert!(validate_request(&StartLocalRuntimeRequest {
+            provider: Provider::OpenaiCompatible,
+            model: Some("provider-model".into()),
+            base_url: Some("http://provider.example/v1".into()),
+            api_key: Some("key".into())
+        })
+        .is_err());
+        assert!(validate_request(&StartLocalRuntimeRequest {
+            provider: Provider::OpenaiCompatible,
+            model: Some("provider-model".into()),
+            base_url: Some("https://provider.example/v1".into()),
+            api_key: Some("key".into())
+        })
+        .is_ok());
     }
     #[test]
     fn parses_only_complete_ready_messages() {
-        let line = "QURIO_RUNTIME_READY {\"api_url\":\"http://127.0.0.1:8123\",\"workspace_id\":\"workspace-1\",\"principal_id\":\"principal-1\",\"provider\":\"mock\",\"model\":null}";
+        let line = "QURIO_RUNTIME_READY {\"api_url\":\"http://127.0.0.1:8123\",\"workspace_id\":\"workspace-1\",\"principal_id\":\"principal-1\",\"provider\":\"mock\",\"model\":null,\"base_url\":null}";
         let ready = parse_ready_line(line).unwrap().unwrap();
         assert_eq!(ready.workspace_id, "workspace-1");
+        let compatible = "QURIO_RUNTIME_READY {\"api_url\":\"http://127.0.0.1:8123\",\"workspace_id\":\"workspace-1\",\"principal_id\":\"principal-1\",\"provider\":\"openai_compatible\",\"model\":\"provider-model\",\"base_url\":\"https://provider.example/v1\"}";
+        assert_eq!(
+            parse_ready_line(compatible).unwrap().unwrap().provider,
+            Provider::OpenaiCompatible
+        );
         assert!(parse_ready_line("unrelated log").unwrap().is_none());
         assert!(parse_ready_line("QURIO_RUNTIME_READY {}").is_err());
     }

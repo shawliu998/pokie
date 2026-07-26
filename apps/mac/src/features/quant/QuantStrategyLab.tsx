@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import type { QuantCandidate, QuantLiveCandidate, QuantWorkspaceSnapshot, StrategyPerformancePoint, TradeRecord } from '../../quant-domain';
 import { chartDomain, keyboardPointIndex, matchPointByDate, nearestPointIndex, seriesPath, xForDate, yForValue, type ChartBounds } from './strategy-performance-chart-math';
-import { canContinueResearch, formatTradeHolding, projectDecisionLedger, type QuantEvidenceFocusIntent } from './quant-presentation';
+import { canContinueResearch, formatTradeHolding, presentResearchCopilot, projectDecisionLedger, projectLatestAgentMove, type QuantEvidenceFocusIntent } from './quant-presentation';
 import { QuantMarketChart, type QuantMarketTradeMarker } from './QuantMarketWorkspace';
 
 type SortKey = 'annualizedReturn' | 'sharpe' | 'maxDrawdown' | 'trades';
@@ -20,6 +20,16 @@ function percent(value: number | undefined, digits = 1) {
   if (value === undefined || !Number.isFinite(value)) return '—';
   return `${value > 0 ? '+' : ''}${value.toFixed(digits)}%`;
 }
+
+const decisionStopReason = {
+  no_novel_candidate: 'No novel Candidate C satisfied the approved plan.',
+  insufficient_action_budget: 'The remaining action budget could not support another novel Candidate C.',
+} as const;
+
+const decisionSelectionBasis = {
+  approved_objective_rank: 'Approved comparison objective',
+  robustness_override: 'Server-validated robustness override',
+} as const;
 
 function yearlyReturns(points: StrategyPerformancePoint[]) {
   const years = new Map<string, { first: number; last: number }>();
@@ -139,27 +149,59 @@ export function CandidateComparison({ snapshot, selectedCandidateId, onSelectCan
   };
   const heading = (label: string, key: SortKey) => <button className="pq-sort-button" aria-label={`Sort by ${label}`} onClick={() => sort(key)}>{label}{sortKey === key ? <span aria-hidden="true"> {descending ? '↓' : '↑'}</span> : null}</button>;
   const headingId = variant === 'snapshot' ? 'pq-candidate-snapshot-heading' : 'pq-candidate-comparison-heading';
-  const ledger = variant === 'full' ? projectDecisionLedger(snapshot) : null;
-  const stopReason = {
-    no_novel_candidate: 'No novel Candidate C satisfied the approved plan.',
-    insufficient_action_budget: 'The remaining action budget could not support another novel Candidate C.',
-  } as const;
-  const selectionBasis = {
-    approved_objective_rank: 'Approved comparison objective',
-    robustness_override: 'Server-validated robustness override',
-  } as const;
   return <section className={`pq-candidate-comparison is-${variant}`} aria-labelledby={headingId}>
     <header><div><h2 id={headingId}>{variant === 'snapshot' ? 'Candidate snapshot' : 'Candidate comparison'}</h2><p>{variant === 'snapshot' ? 'Select a strategy to update every result view.' : 'Training results relative to the pinned buy-and-hold benchmark.'}</p></div><span>{snapshot.candidates.length} strategies</span></header>
     <div className="pq-table-scroll"><table className="quant-research-table"><caption className="quant-visually-hidden">Candidate strategy comparison</caption><thead><tr><th>Strategy</th><th className="is-numeric">{heading('Annual return', 'annualizedReturn')}</th><th className="is-numeric">{heading('Sharpe', 'sharpe')}</th><th className="is-numeric">{heading('Drawdown', 'maxDrawdown')}</th><th className="is-numeric">{heading('Trades', 'trades')}</th><th className="is-numeric">Vs benchmark</th><th className="is-action">Result</th></tr></thead><tbody>
       {candidates.map((candidate) => <tr key={candidate.id} className={candidate.id === selectedCandidateId ? 'is-selected' : undefined}><th scope="row"><button className="quant-table-link" aria-pressed={candidate.id === selectedCandidateId} onClick={() => onSelectCandidate(candidate.id)}>{candidateLabel(candidate.name)}</button></th><td className="is-numeric">{percent(candidate.metrics.annualizedReturn)}</td><td className="is-numeric">{candidate.metrics.sharpe.toFixed(2)}</td><td className="is-numeric">{percent(candidate.metrics.maxDrawdown)}</td><td className="is-numeric">{candidate.metrics.trades}</td><td className="is-numeric">{percent(snapshot.benchmark ? candidate.metrics.annualizedReturn - snapshot.benchmark.annualizedReturn : undefined)}</td><td className="is-action">{candidate.verdict === 'promising' ? 'Leading' : candidate.verdict === 'rejected' ? 'Rejected' : 'Inconclusive'}</td></tr>)}
       {snapshot.benchmark && <tr className="is-benchmark"><th scope="row">Buy and hold</th><td className="is-numeric">{percent(snapshot.benchmark.annualizedReturn)}</td><td className="is-numeric">{snapshot.benchmark.sharpe.toFixed(2)}</td><td className="is-numeric">{percent(snapshot.benchmark.maxDrawdown)}</td><td className="is-numeric">{snapshot.benchmark.trades}</td><td className="is-numeric">—</td><td className="is-action">Benchmark</td></tr>}
     </tbody></table></div>
-    {ledger && <section className="pq-candidate-evolution" aria-labelledby="pq-candidate-evolution-heading"><header><div><span>Decision ledger</span><h3 id="pq-candidate-evolution-heading">Training decision</h3></div><span>{ledger.path === 'adapted_candidate' ? 'A/B → Observation → Candidate C → Final choice' : 'A/B → Observation → Stop → Final choice'}</span></header><dl>
-      <div><dt>Initial candidates A/B</dt><dd>{ledger.initialCandidates.map((candidate) => `${candidateLabel(candidate.name)} — ${candidate.hypothesis}`).join(' · ')}</dd></div>
-      <div><dt>{ledger.outcome.kind === 'candidate' ? 'Training observation → Candidate C' : 'Training observation → Stop'}</dt><dd>{candidateLabel(ledger.observation.referenceCandidateName)} was the train-only improvement reference. {ledger.outcome.kind === 'candidate' ? `${candidateLabel(ledger.outcome.candidateName)} — ${ledger.outcome.hypothesis} ${ledger.outcome.rationale}` : `Stopped before Candidate C. ${stopReason[ledger.outcome.reason]}`}</dd></div>
-      {ledger.outcome.kind === 'candidate' && ledger.outcome.replanRepair && <div className="pq-replan-repair"><dt>Agent request correction</dt><dd>The first Candidate C request used “Refine parameters” and was rejected. The Agent kept the candidate inputs, changed only the action to “Switch approved family”, and created Candidate C.</dd></div>}
-      <div><dt>Final choice</dt><dd>{candidateLabel(ledger.finalChoice.candidateName)} · {selectionBasis[ledger.finalChoice.basis]}. {ledger.finalChoice.selectionReason}</dd></div>
-    </dl></section>}
+  </section>;
+}
+
+function CompletedAgentDecisionPath({ snapshot }: { snapshot: QuantWorkspaceSnapshot }) {
+  const ledger = projectDecisionLedger(snapshot);
+  if (!ledger) return null;
+  const copilot = presentResearchCopilot(snapshot);
+  const holdoutStatus = snapshot.report?.generalization?.status;
+  const nextTitle = holdoutStatus === 'pass'
+    ? 'Stop — sealed holdout passed'
+    : holdoutStatus === 'fail'
+      ? 'Refine — sealed holdout failed'
+      : holdoutStatus === 'inconclusive'
+        ? 'Collect more evidence'
+        : 'Review the retained decision';
+  const nextDetail = holdoutStatus === 'pass'
+    ? 'Review the retained validation and limitations; do not tune this version on holdout evidence.'
+    : holdoutStatus === 'fail'
+      ? 'Start a new research version with a revised bounded hypothesis.'
+      : holdoutStatus === 'inconclusive'
+        ? 'Start a new version only after sufficient new market evidence is retained.'
+        : copilot.next.detail;
+  const whyTitle = ledger.outcome.kind === 'candidate'
+    ? `${candidateLabel(ledger.outcome.candidateName)} tested the bounded change`
+    : 'Qurio stopped before Candidate C';
+  const whyDetail = ledger.outcome.kind === 'candidate'
+    ? ledger.outcome.rationale
+    : decisionStopReason[ledger.outcome.reason];
+  return <section className="pq-agent-decision-chain is-completed" aria-labelledby="pq-agent-decision-chain-heading">
+    <header>
+      <div><h3 id="pq-agent-decision-chain-heading">Agent decision</h3><p>The retained evidence that changed the research path.</p></div>
+      <span>Observation → Why Qurio changed → Next action</span>
+    </header>
+    <div>
+      <section><span>Observation</span><strong>{candidateLabel(ledger.observation.referenceCandidateName)} became the improvement reference</strong><p>The approved train-only comparison selected the evidence used to decide the next experiment.</p></section>
+      <section><span>Why Qurio changed</span><strong>{whyTitle}</strong><p>{whyDetail}</p></section>
+      <section><span>Next action</span><strong>{nextTitle}</strong><p>{nextDetail}</p></section>
+    </div>
+    <footer>
+      <span>Final training choice</span>
+      <strong>{candidateLabel(ledger.finalChoice.candidateName)}</strong>
+      <p>{decisionSelectionBasis[ledger.finalChoice.basis]} · {ledger.finalChoice.selectionReason}</p>
+    </footer>
+    {ledger.outcome.kind === 'candidate' && ledger.outcome.replanRepair && <details className="pq-agent-correction">
+      <summary>One validated tool correction</summary>
+      <p>The first Candidate C request used “Refine parameters” and was rejected. Qurio kept the candidate inputs, changed only the action to “Switch approved family”, and created Candidate C.</p>
+    </details>}
   </section>;
 }
 
@@ -187,13 +229,15 @@ function LiveMetrics({ candidate }: { candidate: QuantLiveCandidate | null }) {
   return <dl className="pq-live-metrics"><div><dt>Return</dt><dd>{percent(candidate.metrics.annualizedReturn)}</dd></div><div><dt>Sharpe</dt><dd>{candidate.metrics.sharpe.toFixed(2)}</dd></div><div><dt>Drawdown</dt><dd>{percent(candidate.metrics.maxDrawdown)}</dd></div><div><dt>Trades</dt><dd>{candidate.metrics.trades}</dd></div></dl>;
 }
 
-function LiveResearchWorkbench({ snapshot, showDecisionSummary }: { snapshot: QuantWorkspaceSnapshot; showDecisionSummary: boolean }) {
+function LiveResearchWorkbench({ snapshot }: { snapshot: QuantWorkspaceSnapshot }) {
   const live = snapshot.liveResearch;
+  const decision = presentResearchCopilot(snapshot);
   const current = live?.currentExperiment ?? null;
   const candidates = live?.candidates ?? [];
   const completedCandidates = candidates.filter((candidate) => candidate.state === 'completed');
   const pendingSlots = Math.max(0, snapshot.limits.maxExperiments - candidates.length);
   const latest = live?.latestResult ?? null;
+  const latestMove = projectLatestAgentMove(snapshot.events);
   const latestHasPerformance = Boolean(
     latest
     && snapshot.performanceSeries.some((series) => series.id === latest.id && series.points.length > 1),
@@ -207,36 +251,56 @@ function LiveResearchWorkbench({ snapshot, showDecisionSummary }: { snapshot: Qu
     : undefined;
   const currentRole = current ? liveCandidateRole(snapshot, current) : null;
   const headline = adaptation && adaptation.state !== 'completed'
-    ? 'Testing an evidence-led adaptation'
+    ? 'Qurio is testing an evidence-led adaptation'
     : completedCandidates.length >= 2 && pendingSlots > 0 && !current
-      ? 'Choosing the next experiment'
+      ? 'Qurio is choosing the next experiment'
       : current
-        ? `Testing ${currentRole?.[0]?.toLowerCase() ?? ''}${currentRole?.slice(1) ?? ''}`
+        ? `Qurio is testing ${currentRole?.[0]?.toLowerCase() ?? ''}${currentRole?.slice(1) ?? ''}`
         : live?.phase === 'validating'
-          ? 'Evaluating the final candidate'
+          ? 'Qurio is validating the final candidate'
           : live?.phase === 'generating_report'
-            ? 'Assembling the evidence decision'
-            : live?.phaseLabel ?? 'Research queued';
-  const observation = latest?.metrics
-    ? `${candidateLabel(latest.name)} retained ${percent(latest.metrics.annualizedReturn)} annual return, ${latest.metrics.sharpe.toFixed(2)} Sharpe, ${percent(latest.metrics.maxDrawdown)} drawdown and ${latest.metrics.trades} trades.`
-    : 'No completed training result has been retained yet.';
+            ? 'Qurio is assembling the evidence decision'
+            : 'Qurio research is queued';
   const adaptationDetail = adaptation && adaptationEvolution?.origin === 'training_feedback'
     ? `${adaptationEvolution.feedbackReferenceCandidateName ? `${candidateLabel(adaptationEvolution.feedbackReferenceCandidateName)} supplied the train-only observation. ` : ''}${adaptationEvolution.changeRationale ?? adaptation.hypothesis}`
     : current
       ? current.hypothesis
       : live?.nextStep ?? 'Wait for the next retained research decision.';
+  const latestMoveStatus = latestMove ? {
+    running: 'Running',
+    completed: 'Completed',
+    failed: 'Failed safely',
+  }[latestMove.status] : null;
+  const whyTitle = adaptation
+    ? 'Training evidence changed the experiment'
+    : latestMove
+      ? latestMove.decision
+      : 'The approved plan set the first hypothesis';
+  const nextTitle = current
+    ? `${currentRole} · ${candidateLabel(current.name)}`
+    : latestMove?.actionLabel ?? decision.current.title;
+  const nextDetail = latestMove
+    ? `Expected evidence · ${latestMove.expectedEvidence}`
+    : live?.nextStep ?? decision.current.detail;
   return <section className="pq-live-research" aria-labelledby="pq-live-research-heading">
     <header className="pq-live-header">
       <div>
-        <span>Autonomous research · {adaptation ? 'adapting from evidence' : 'bounded execution'}</span>
+        <span>Qurio Research Agent · {adaptation ? 'adapting from evidence' : 'bounded execution'}</span>
         <h2 id="pq-live-research-heading">{headline}</h2>
         <p>{snapshot.scope.symbol} · {snapshot.scope.interval} · {completedCandidates.length} complete · {snapshot.project.goal}</p>
       </div>
-      {live && <strong>{live.phaseLabel} · iteration {live.iteration} of {snapshot.run.maxAgentIterations}</strong>}
     </header>
-    {showDecisionSummary && live && <section className="pq-live-inline-summary" aria-label="Current experiment and latest result">
-      <div><span>Current experiment</span><strong>{current ? `${currentRole} · ${candidateLabel(current.name)}` : 'No candidate is running'}</strong><small>{current?.hypothesis ?? live.nextStep}</small></div>
-      <div><span>Latest result</span><strong>{latest ? candidateLabel(latest.name) : 'No completed result'}</strong><small>{observation}</small></div>
+    {live && <section className="pq-agent-decision-chain" aria-labelledby="pq-agent-decision-chain-heading">
+      <header><div><h3 id="pq-agent-decision-chain-heading">Agent decision</h3><p>The evidence and reason behind Qurio’s next registered action.</p></div><span>Observation → Why Qurio changed → Next action</span></header>
+      <div>
+        <section><span>Observation</span><strong>{decision.observation.title}</strong><p>{decision.observation.detail}</p>{latest && <small>Training result · Experiment {latest.ordinal}</small>}</section>
+        <section><span>Why Qurio changed</span><strong>{whyTitle}</strong><p>{adaptationDetail}</p></section>
+        <section><span>Next action</span><strong>{nextTitle}</strong><p>{nextDetail}</p></section>
+      </div>
+      {latestMove && <dl className="pq-agent-move" aria-label="Latest Agent move">
+        <div><dt>Registered tool</dt><dd><strong>{latestMove.actionLabel}</strong><span>{latestMove.decision}</span></dd></div>
+        <div><dt>Tool observation · {latestMoveStatus}</dt><dd className={`is-${latestMove.status}`}>{latestMove.observation ?? 'The tool is running. Qurio has not retained an observation yet.'}</dd></div>
+      </dl>}
     </section>}
     <section className={`pq-live-evidence${latestHasPerformance ? '' : ' is-metric-only'}`} aria-labelledby="pq-live-evidence-heading">
       <header>
@@ -249,16 +313,12 @@ function LiveResearchWorkbench({ snapshot, showDecisionSummary }: { snapshot: Qu
     </section>
     <section className="pq-live-candidates" aria-labelledby="pq-live-candidates-heading">
       <header><div><h3 id="pq-live-candidates-heading">Candidate experiments</h3><p>{completedCandidates.length} completed · {pendingSlots} candidate slots remain</p></div></header>
-      <div className="pq-table-scroll"><table className="quant-research-table"><caption className="quant-visually-hidden">Live candidate experiment progress</caption><thead><tr><th>Candidate</th><th>Role</th><th>Parameters</th><th className="is-numeric">Return</th><th className="is-numeric">Sharpe</th><th className="is-numeric">Drawdown</th><th className="is-numeric">Trades</th><th className="is-action">Evidence</th></tr></thead><tbody>
+      <div className="pq-table-scroll"><table className="quant-research-table pq-live-candidate-table"><caption className="quant-visually-hidden">Live candidate experiment progress</caption><thead><tr><th>Candidate</th><th>Role</th><th>Parameters</th><th className="is-numeric">Return</th><th className="is-numeric">Sharpe</th><th className="is-numeric">Drawdown</th><th className="is-numeric">Trades</th><th className="is-action">Evidence</th></tr></thead><tbody>
         {candidates.map((candidate) => <tr key={candidate.id} className={candidate.id === current?.id ? 'is-current' : undefined}><th scope="row">{candidateLabel(candidate.name)}</th><td>{liveCandidateRole(snapshot, candidate)}</td><td>{candidate.parameters || '—'}</td><td className="is-numeric">{candidate.metrics ? percent(candidate.metrics.annualizedReturn) : '—'}</td><td className="is-numeric">{candidate.metrics ? candidate.metrics.sharpe.toFixed(2) : '—'}</td><td className="is-numeric">{candidate.metrics ? percent(candidate.metrics.maxDrawdown) : '—'}</td><td className="is-numeric">{candidate.metrics?.trades ?? '—'}</td><td className="is-action">{liveStatus(candidate)}</td></tr>)}
         {candidates.length === 0 && <tr className="is-pending"><th scope="row">No candidate yet</th><td>Waiting</td><td>—</td><td className="is-numeric">—</td><td className="is-numeric">—</td><td className="is-numeric">—</td><td className="is-numeric">—</td><td className="is-action">Pending</td></tr>}
         {Array.from({ length: pendingSlots }, (_, index) => <tr key={`pending-${index}`} className="is-pending"><th scope="row">Candidate slot {candidates.length + index + 1}</th><td>Not assigned</td><td>—</td><td className="is-numeric">—</td><td className="is-numeric">—</td><td className="is-numeric">—</td><td className="is-numeric">—</td><td className="is-action">Pending</td></tr>)}
       </tbody></table></div>
     </section>
-    {live && <footer className="pq-live-adaptation">
-      <div><strong>Observation</strong><span>{observation}</span></div>
-      <div><strong>{adaptation ? 'Adaptation' : 'Next'}</strong><span>{adaptationDetail}</span></div>
-    </footer>}
   </section>;
 }
 
@@ -359,16 +419,16 @@ function AnalysisPanel({ snapshot, selected, evidenceFocus, onEvidenceFocusConsu
   </section>;
 }
 
-export function QuantStrategyLab({ snapshot, selectedCandidateId, onSelectCandidate, onContinueResearch, evidenceFocus, onEvidenceFocusConsumed, variant, showLiveDecisionSummary = true }: { snapshot: QuantWorkspaceSnapshot; selectedCandidateId: string; onSelectCandidate: (id: string) => void; onContinueResearch?: () => void; evidenceFocus?: QuantEvidenceFocusIntent | null; onEvidenceFocusConsumed?: (id: string) => void; variant: 'experiments' | 'analysis'; showLiveDecisionSummary?: boolean }) {
+export function QuantStrategyLab({ snapshot, selectedCandidateId, onSelectCandidate, onContinueResearch, evidenceFocus, onEvidenceFocusConsumed, variant }: { snapshot: QuantWorkspaceSnapshot; selectedCandidateId: string; onSelectCandidate: (id: string) => void; onContinueResearch?: () => void; evidenceFocus?: QuantEvidenceFocusIntent | null; onEvidenceFocusConsumed?: (id: string) => void; variant: 'experiments' | 'analysis' }) {
   const liveExperimentState = ['queued', 'loading_data', 'generating_candidates', 'running_experiments', 'repairing', 'validating', 'generating_report'].includes(snapshot.run.state);
-  if (variant === 'experiments' && liveExperimentState) return <LiveResearchWorkbench snapshot={snapshot} showDecisionSummary={showLiveDecisionSummary} />;
+  if (variant === 'experiments' && liveExperimentState) return <LiveResearchWorkbench snapshot={snapshot} />;
   const selected = snapshot.candidates.find((candidate) => candidate.id === selectedCandidateId) ?? snapshot.candidates[0];
   if (!selected) {
     const terminal = ['completed', 'failed', 'cancelled'].includes(snapshot.run.state);
     return <section className="pq-strategy-lab"><div className="pq-strategy-empty"><strong>{terminal ? 'No candidate evidence retained' : 'Candidate results pending'}</strong><p>{terminal ? 'This run ended without retaining a completed candidate result.' : 'Strategies will appear here as the Agent completes experiments.'}</p></div></section>;
   }
   return <div className={`pq-strategy-lab is-${variant}`}>
-    {variant === 'experiments' && <><CandidateComparison snapshot={snapshot} selectedCandidateId={selected.id} onSelectCandidate={onSelectCandidate} /><div className="pq-experiment-selection"><span>Inspecting strategy · {candidateLabel(selected.name)}</span>{onContinueResearch && canContinueResearch(snapshot, selected) && <button onClick={onContinueResearch}>Continue research</button>}</div></>}
+    {variant === 'experiments' && <><CompletedAgentDecisionPath snapshot={snapshot} /><CandidateComparison snapshot={snapshot} selectedCandidateId={selected.id} onSelectCandidate={onSelectCandidate} /><div className="pq-experiment-selection"><span>Inspecting strategy · {candidateLabel(selected.name)}</span>{onContinueResearch && canContinueResearch(snapshot, selected) && <button onClick={onContinueResearch}>Continue research</button>}</div></>}
     <AnalysisPanel snapshot={snapshot} selected={selected} evidenceFocus={variant === 'analysis' && selectedCandidateId === selected.id ? evidenceFocus : null} onEvidenceFocusConsumed={onEvidenceFocusConsumed} onContinueResearch={variant === 'analysis' ? onContinueResearch : undefined} />
   </div>;
 }

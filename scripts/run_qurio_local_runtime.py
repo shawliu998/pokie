@@ -19,6 +19,7 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Literal
+from urllib.parse import urlsplit
 from uuid import uuid4
 
 FROZEN_RUNTIME = bool(getattr(sys, "frozen", False))
@@ -40,8 +41,11 @@ if str(REPO_ROOT) not in sys.path:
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--provider", choices=("mock", "deepseek"), default="mock")
-    parser.add_argument("--model", default=DEFAULT_MODEL, metavar="STRING")
+    parser.add_argument(
+        "--provider", choices=("mock", "deepseek", "openai_compatible"), default="mock"
+    )
+    parser.add_argument("--model", default=None, metavar="STRING")
+    parser.add_argument("--base-url", default=None, metavar="HTTPS_URL")
     parser.add_argument("--runtime-dir", type=Path, default=DEFAULT_RUNTIME_DIR, metavar="PATH")
     parser.add_argument(
         "--child-role",
@@ -57,21 +61,44 @@ def resolve_runtime_dir(value: Path) -> Path:
     return value.expanduser().resolve()
 
 
-def selected_model(provider: str, model: str) -> str | None:
-    cleaned = model.strip()
+def selected_model(provider: str, model: str | None) -> str | None:
     if provider == "mock":
         return None
+    cleaned = (model or (DEFAULT_MODEL if provider == "deepseek" else "")).strip()
     if not cleaned or len(cleaned) > 128:
-        raise ValueError("--model must contain between 1 and 128 characters for DeepSeek.")
+        raise ValueError("--model must contain between 1 and 128 characters.")
     return cleaned
 
 
-def require_deepseek_key(provider: str, environ: dict[str, str] | None = None) -> None:
-    if provider != "deepseek":
+def selected_base_url(provider: str, base_url: str | None) -> str | None:
+    if provider != "openai_compatible":
+        if base_url is not None:
+            raise ValueError("--base-url is supported only for openai_compatible.")
+        return None
+    cleaned = (base_url or "").strip().rstrip("/")
+    parsed = urlsplit(cleaned)
+    if (
+        len(cleaned) > 2_048
+        or parsed.scheme != "https"
+        or not parsed.netloc
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+        or any(character.isspace() or ord(character) < 32 for character in cleaned)
+    ):
+        raise ValueError("--base-url must be a valid HTTPS provider URL.")
+    return cleaned
+
+
+def require_provider_key(provider: str, environ: dict[str, str] | None = None) -> None:
+    if provider == "mock":
         return
     source = os.environ if environ is None else environ
     if not (source.get("POKIEQUANT_AGENT_API_KEY") or source.get("DEEPSEEK_API_KEY")):
-        raise ValueError("DeepSeek requires POKIEQUANT_AGENT_API_KEY or DEEPSEEK_API_KEY.")
+        raise ValueError(
+            "The selected provider requires POKIEQUANT_AGENT_API_KEY or DEEPSEEK_API_KEY."
+        )
 
 
 def runtime_paths(runtime_dir: Path) -> tuple[Path, Path, Path]:
@@ -114,7 +141,12 @@ def write_metadata(session_path: Path, metadata: dict[str, str]) -> None:
 
 
 def configure_bootstrap_environment(
-    *, database_path: Path, object_root: Path, provider: str, model: str | None
+    *,
+    database_path: Path,
+    object_root: Path,
+    provider: str,
+    model: str | None,
+    base_url: str | None = None,
 ) -> None:
     os.environ.update(
         {
@@ -133,10 +165,14 @@ def configure_bootstrap_environment(
         os.environ.pop("POKIEQUANT_AGENT_MODEL", None)
     else:
         os.environ["POKIEQUANT_AGENT_MODEL"] = model
+    if base_url is None:
+        os.environ.pop("POKIEQUANT_AGENT_BASE_URL", None)
+    else:
+        os.environ["POKIEQUANT_AGENT_BASE_URL"] = base_url
 
 
 def bootstrap_metadata(
-    *, runtime_dir: Path, provider: str, model: str | None
+    *, runtime_dir: Path, provider: str, model: str | None, base_url: str | None = None
 ) -> dict[str, str]:
     database_path, object_root, session_path = runtime_paths(runtime_dir)
     runtime_dir.mkdir(parents=True, exist_ok=True)
@@ -145,7 +181,11 @@ def bootstrap_metadata(
     if existing is not None:
         return existing
     configure_bootstrap_environment(
-        database_path=database_path, object_root=object_root, provider=provider, model=model
+        database_path=database_path,
+        object_root=object_root,
+        provider=provider,
+        model=model,
+        base_url=base_url,
     )
     from services.api.app.core.config import get_settings
     from services.api.app.db.session import reset_database_caches
@@ -179,7 +219,7 @@ def bootstrap_metadata(
 
 def build_process_env(
     *, role: Literal["api", "worker"], metadata: dict[str, str], database_path: Path,
-    object_root: Path, provider: str, model: str | None,
+    object_root: Path, provider: str, model: str | None, base_url: str | None = None,
 ) -> dict[str, str]:
     env = {
         **os.environ,
@@ -211,6 +251,10 @@ def build_process_env(
         env.pop("POKIEQUANT_AGENT_MODEL", None)
     else:
         env["POKIEQUANT_AGENT_MODEL"] = model
+    if base_url is None:
+        env.pop("POKIEQUANT_AGENT_BASE_URL", None)
+    else:
+        env["POKIEQUANT_AGENT_BASE_URL"] = base_url
     return env
 
 
@@ -312,9 +356,20 @@ def run_child(role: Literal["api", "worker"], api_port: int | None) -> int:
     )
 
 
-def run(*, provider: str, model: str | None, runtime_dir: Path) -> int:
-    require_deepseek_key(provider)
-    metadata = bootstrap_metadata(runtime_dir=runtime_dir, provider=provider, model=model)
+def run(
+    *,
+    provider: str,
+    model: str | None,
+    runtime_dir: Path,
+    base_url: str | None = None,
+) -> int:
+    require_provider_key(provider)
+    metadata = bootstrap_metadata(
+        runtime_dir=runtime_dir,
+        provider=provider,
+        model=model,
+        base_url=base_url,
+    )
     database_path, object_root, _ = runtime_paths(runtime_dir)
     port = free_loopback_port()
     api_url = f"http://127.0.0.1:{port}"
@@ -335,6 +390,7 @@ def run(*, provider: str, model: str | None, runtime_dir: Path) -> int:
             object_root=object_root,
             provider=provider,
             model=model,
+            base_url=base_url,
         )
         processes.append(start_child(api_command(port), api_env))
         if not wait_for_health(api_url, should_stop=lambda: stopping):
@@ -346,6 +402,7 @@ def run(*, provider: str, model: str | None, runtime_dir: Path) -> int:
             object_root=object_root,
             provider=provider,
             model=model,
+            base_url=base_url,
         )
         processes.append(start_child(worker_command(), worker_env))
         if stopping:
@@ -356,6 +413,7 @@ def run(*, provider: str, model: str | None, runtime_dir: Path) -> int:
             "principal_id": metadata["principal_id"],
             "provider": provider,
             "model": model,
+            "base_url": base_url,
         }
         print(READY_PREFIX + json.dumps(ready, separators=(",", ":")), flush=True)
         while not stopping:
@@ -375,11 +433,13 @@ def main(argv: list[str] | None = None) -> int:
         if args.child_role is not None:
             return run_child(args.child_role, args.api_port)
         provider = str(args.provider)
-        model = selected_model(provider, str(args.model))
+        model = selected_model(provider, args.model)
+        base_url = selected_base_url(provider, args.base_url)
         return run(
             provider=provider,
             model=model,
             runtime_dir=resolve_runtime_dir(args.runtime_dir),
+            base_url=base_url,
         )
     except (OSError, RuntimeError, ValueError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
