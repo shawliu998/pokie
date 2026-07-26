@@ -51,9 +51,7 @@ def _create_auto_run(
     return workspace_id, run_response.json()
 
 
-def test_comparison_includes_difference_fields(
-    client: TestClient, principal_id: str
-) -> None:
+def test_comparison_includes_difference_fields(client: TestClient, principal_id: str) -> None:
     workspace_id, run = _create_auto_run(
         client, principal_id, "Reduce maximum drawdown compared with buy and hold."
     )
@@ -67,9 +65,7 @@ def test_comparison_includes_difference_fields(
 
     store = QuantStore()
     artifacts = store.artifacts_for_run(workspace_id=workspace_id, run_id=run["id"])
-    comparison_artifacts = [
-        item for item in artifacts if item.kind.value == "validation_report"
-    ]
+    comparison_artifacts = [item for item in artifacts if item.kind.value == "validation_report"]
     assert comparison_artifacts, "Expected a comparison artifact"
     comparison = comparison_artifacts[-1].content
     assert comparison["evaluation_partition"] == "train"
@@ -102,9 +98,7 @@ def test_comparison_includes_difference_fields(
             for fold in walk_forward["folds"]
         )
         by_regime = walk_forward["aggregate"]["by_market_regime"]
-        assert [item["label"] for item in by_regime] == sorted(
-            item["label"] for item in by_regime
-        )
+        assert [item["label"] for item in by_regime] == sorted(item["label"] for item in by_regime)
         assert sum(item["fold_count"] for item in by_regime) == 3
         assert walk_forward["aggregate"]["distinct_market_regimes"] == len(by_regime)
 

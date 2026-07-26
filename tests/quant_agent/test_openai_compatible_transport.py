@@ -36,25 +36,17 @@ def test_shared_config_rejects_invalid_model() -> None:
 
 
 def test_shared_config_strips_base_url() -> None:
-    config = OpenAICompatibleConfig(
-        SecretStr("key"), "https://api.example.com/", "model"
-    )
+    config = OpenAICompatibleConfig(SecretStr("key"), "https://api.example.com/", "model")
     assert config.base_url == "https://api.example.com"
 
 
 def test_shared_transport_returns_valid_envelope() -> None:
-    config = OpenAICompatibleConfig(
-        SecretStr("key"), "https://api.example.com", "model"
-    )
+    config = OpenAICompatibleConfig(SecretStr("key"), "https://api.example.com", "model")
     transport = HttpxOpenAICompatibleTransport(config)
     mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response.content = json.dumps(
-        {"choices": [{"message": {"content": "hello"}}]}
-    ).encode()
-    mock_response.json.return_value = {
-        "choices": [{"message": {"content": "hello"}}]
-    }
+    mock_response.content = json.dumps({"choices": [{"message": {"content": "hello"}}]}).encode()
+    mock_response.json.return_value = {"choices": [{"message": {"content": "hello"}}]}
     mock_client = MagicMock()
     mock_client.__enter__ = MagicMock(return_value=mock_client)
     mock_client.__exit__ = MagicMock(return_value=False)
@@ -68,9 +60,7 @@ def test_shared_transport_returns_valid_envelope() -> None:
 
 
 def test_shared_transport_enforces_byte_limit() -> None:
-    config = OpenAICompatibleConfig(
-        SecretStr("key"), "https://api.example.com", "model"
-    )
+    config = OpenAICompatibleConfig(SecretStr("key"), "https://api.example.com", "model")
     transport = HttpxOpenAICompatibleTransport(config)
     mock_response = MagicMock()
     mock_response.status_code = 200
@@ -82,8 +72,9 @@ def test_shared_transport_enforces_byte_limit() -> None:
     mock_client.post.return_value = mock_response
 
     target = "services.worker.app.providers.openai_compatible.httpx.Client"
-    with patch(target, return_value=mock_client), pytest.raises(
-        OpenAICompatibleError, match="byte limit"
+    with (
+        patch(target, return_value=mock_client),
+        pytest.raises(OpenAICompatibleError, match="byte limit"),
     ):
         transport.complete({})
 
@@ -119,10 +110,10 @@ def test_legacy_deepseek_transport_maps_shared_errors() -> None:
     config = DeepSeekConfig(api_key=SecretStr("test-key"))
     transport = HttpxDeepSeekTransport(config)
     target = (
-        "services.worker.app.providers.openai_compatible."
-        "HttpxOpenAICompatibleTransport.complete"
+        "services.worker.app.providers.openai_compatible.HttpxOpenAICompatibleTransport.complete"
     )
-    with patch(target, side_effect=OpenAICompatibleError("provider unavailable")), pytest.raises(
-        ModelProviderError, match="provider unavailable"
+    with (
+        patch(target, side_effect=OpenAICompatibleError("provider unavailable")),
+        pytest.raises(ModelProviderError, match="provider unavailable"),
     ):
         transport.complete({})

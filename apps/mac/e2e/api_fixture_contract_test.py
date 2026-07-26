@@ -164,7 +164,12 @@ class ApiFixtureContractTest(unittest.TestCase):
         _, second_response = self.request_json(
             "POST",
             "/quant/datasets/v2/import-csv",
-            {**payload, "name": "BTCUSDT CSV 1 day B", "csv_text": second_csv, "source_reference": "upload:btc-1d-b"},
+            {
+                **payload,
+                "name": "BTCUSDT CSV 1 day B",
+                "csv_text": second_csv,
+                "source_reference": "upload:btc-1d-b",
+            },
         )
         first_dataset = QuantMarketDatasetV2Response.model_validate(first_response)
         same_dataset = QuantMarketDatasetV2Response.model_validate(same_response)

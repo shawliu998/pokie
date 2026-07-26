@@ -171,8 +171,7 @@ class BinanceMarketDataV2Client:
                 break
 
             parsed_rows = [
-                self._parse_row(row, interval=interval, interval_ms=interval_ms)
-                for row in payload
+                self._parse_row(row, interval=interval, interval_ms=interval_ms) for row in payload
             ]
             oldest_open = min(open_ms for open_ms, _, _ in parsed_rows)
             if previous_oldest is not None and oldest_open >= previous_oldest:
@@ -373,11 +372,7 @@ def _epoch_milliseconds(timestamp: datetime) -> int:
     """Convert a canonical UTC timestamp without float rounding at close boundaries."""
 
     delta = timestamp - _UNIX_EPOCH_UTC
-    return (
-        delta.days * 86_400_000
-        + delta.seconds * 1_000
-        + delta.microseconds // 1_000
-    )
+    return delta.days * 86_400_000 + delta.seconds * 1_000 + delta.microseconds // 1_000
 
 
 def _timestamp_matches_interval(timestamp: datetime, interval: QuantBarInterval) -> bool:

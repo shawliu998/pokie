@@ -153,9 +153,8 @@ class PaperTradingStore:
             raise invalid_state("Paper orders require a retained final Research Report.")
         selection_decision = report.get("selectionDecision") or {}
         generalization = report.get("generalization") or {}
-        report_selected_candidate_id = (
-            report.get("selectedCandidateId")
-            or selection_decision.get("selectedCandidateId")
+        report_selected_candidate_id = report.get("selectedCandidateId") or selection_decision.get(
+            "selectedCandidateId"
         )
         if report_selected_candidate_id != candidate_id:
             raise invalid_state(
@@ -166,7 +165,8 @@ class PaperTradingStore:
             or generalization.get("selectedCandidateId") != candidate_id
         ):
             raise invalid_state(
-                "Paper orders require a passing sealed holdout generalization for the requested candidate."
+                "Paper orders require a passing sealed holdout generalization "
+                "for the requested candidate."
             )
         bars = snapshot.get("bars") or []
         if not bars or not isinstance(bars[-1].get("close"), int | float):
@@ -180,9 +180,12 @@ class PaperTradingStore:
             "reference_date": bars[-1]["date"],
             "reference_price": str(reference_price),
         }
-        digest = "sha256:" + hashlib.sha256(
-            json.dumps(evidence, sort_keys=True, separators=(",", ":")).encode()
-        ).hexdigest()
+        digest = (
+            "sha256:"
+            + hashlib.sha256(
+                json.dumps(evidence, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest()
+        )
         return symbol, reference_price, digest
 
     def create_draft(

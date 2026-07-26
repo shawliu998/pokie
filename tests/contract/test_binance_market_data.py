@@ -43,9 +43,7 @@ def _row(open_time: int, *, volume: str = "12.5") -> list[object]:
 def test_fetches_public_daily_rows_as_existing_ohlcv_csv() -> None:
     raw = json.dumps([_row(1_704_067_200_000), _row(1_704_153_600_000, volume="12.6")]).encode()
     transport = _Transport(httpx.Response(200, content=raw))
-    result = BinanceMarketDataClient(transport).fetch_daily_klines(
-        symbol="btcusdt", limit=252
-    )
+    result = BinanceMarketDataClient(transport).fetch_daily_klines(symbol="btcusdt", limit=252)
 
     assert result.bar_count == 2
     assert result.requested_limit == 252

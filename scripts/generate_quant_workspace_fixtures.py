@@ -14,16 +14,12 @@ from services.api.app.modules.quant.snapshot import (  # noqa: E402
     quant_workspace_fixture,
 )
 
-
 OUTPUT = ROOT / "apps/mac/e2e/fixtures/quant-workspace-fixtures.json"
 MAC_OUTPUT = ROOT / "apps/mac/src/features/quant/quant-fixture.generated.json"
 
 
 def main() -> None:
-    bundle = {
-        state: quant_workspace_fixture(state)
-        for state in sorted(FIXTURE_STATES)
-    }
+    bundle = {state: quant_workspace_fixture(state) for state in sorted(FIXTURE_STATES)}
     OUTPUT.write_text(
         json.dumps(bundle, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",

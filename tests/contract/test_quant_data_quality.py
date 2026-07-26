@@ -15,10 +15,7 @@ def _dataset(rows: str):
 
 
 def test_quality_report_is_deterministic_and_excludes_its_own_digest() -> None:
-    dataset = _dataset(
-        "2024-01-02,100,102,99,101,100\n"
-        "2024-01-03,101,103,100,102,100\n"
-    )
+    dataset = _dataset("2024-01-02,100,102,99,101,100\n2024-01-03,101,103,100,102,100\n")
     first = assess_daily_bar_quality(
         dataset,
         market_calendar="XNYS",

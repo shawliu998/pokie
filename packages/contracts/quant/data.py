@@ -50,7 +50,7 @@ class QuantDailyBar(ContractModel):
     volume: int = Field(ge=0)
 
     @model_validator(mode="after")
-    def validate_ohlc_bounds(self) -> "QuantDailyBar":
+    def validate_ohlc_bounds(self) -> QuantDailyBar:
         if self.high < max(self.open, self.close):
             raise ValueError("high must be at least open and close")
         if self.low > min(self.open, self.close):
@@ -114,21 +114,16 @@ class QuantDailyBarDataset(ContractModel):
         }
 
     @model_validator(mode="after")
-    def validate_dataset(self) -> "QuantDailyBarDataset":
+    def validate_dataset(self) -> QuantDailyBarDataset:
         if self.schema_version != QUANT_DAILY_BAR_SCHEMA_VERSION:
-            raise ValueError(
-                f"unsupported daily-bar schema version: {self.schema_version}"
-            )
+            raise ValueError(f"unsupported daily-bar schema version: {self.schema_version}")
         if self.covered_start > self.covered_end:
             raise ValueError("covered_start must not be after covered_end")
 
         dates = tuple(bar.trading_date for bar in self.bars)
         if dates[0] != self.covered_start or dates[-1] != self.covered_end:
             raise ValueError("covered range must exactly match the first and last bar")
-        if any(
-            current >= following
-            for current, following in zip(dates, dates[1:], strict=False)
-        ):
+        if any(current >= following for current, following in zip(dates, dates[1:], strict=False)):
             raise ValueError("bars must be strictly ordered by trading_date without duplicates")
 
         expected_digest = self.digest_for(self.digest_payload())

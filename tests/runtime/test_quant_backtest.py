@@ -95,9 +95,7 @@ def test_warmup_bars_are_history_only_and_first_fill_is_at_next_open() -> None:
     )
     result = run_backtest(data, StrategySpec.sma(2, 3), measurement_start_index=3)
 
-    assert tuple(point.date for point in result.equity_curve) == tuple(
-        bar.date for bar in data[3:]
-    )
+    assert tuple(point.date for point in result.equity_curve) == tuple(bar.date for bar in data[3:])
     assert result.equity_curve[0].quantity == 0
     assert result.equity_curve[1].quantity > 0
     assert result.trades[0].entry_date == data[4].date
@@ -135,9 +133,7 @@ def test_measurement_start_index_validation(measurement_start_index: object) -> 
 
 def test_measurement_start_at_end_returns_empty_evaluation() -> None:
     data = bars([10, 11, 12])
-    result = run_backtest(
-        data, StrategySpec.breakout(1), measurement_start_index=len(data)
-    )
+    result = run_backtest(data, StrategySpec.breakout(1), measurement_start_index=len(data))
 
     assert result.equity_curve == ()
     assert result.trades == ()

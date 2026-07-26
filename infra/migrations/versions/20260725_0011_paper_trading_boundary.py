@@ -35,7 +35,7 @@ def upgrade() -> None:
                 server_default=text("'qurio-paper-v1'"),
             ),
             Column("state_json", JSON(), nullable=False),
-            Column("row_version", Integer(), nullable=False, server_default=text("1")),
+            Column("row_version", Integer(), nullable=False),
             Column("created_at", DateTime(timezone=True), nullable=False),
             Column("updated_at", DateTime(timezone=True), nullable=False),
         )
@@ -62,6 +62,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    raise RuntimeError(
-        "Revision 20260725_0011 retains Paper Trading history and is irreversible."
-    )
+    raise RuntimeError("Revision 20260725_0011 retains Paper Trading history and is irreversible.")

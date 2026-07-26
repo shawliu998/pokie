@@ -6,6 +6,8 @@ import time
 import urllib.request
 from pathlib import Path
 
+import pytest
+
 
 def _stop_process(process: subprocess.Popen[str]) -> None:
     process.terminate()
@@ -16,6 +18,15 @@ def _stop_process(process: subprocess.Popen[str]) -> None:
         process.wait(timeout=5)
 
 
+def _available_loopback_port() -> int:
+    with socket.socket() as listener:
+        try:
+            listener.bind(("127.0.0.1", 0))
+        except PermissionError:
+            pytest.skip("the execution sandbox forbids loopback listeners")
+        return int(listener.getsockname()[1])
+
+
 def test_native_gate_uses_node_ports_and_actual_cargo_target_dir() -> None:
     script = Path("scripts/verify_tauri_runtime.sh").read_text(encoding="utf-8")
     assert "$ROOT_DIR/.venv/bin/python" not in script
@@ -24,10 +35,7 @@ def test_native_gate_uses_node_ports_and_actual_cargo_target_dir() -> None:
     assert 'for artifact in apps/mac/dist "$CARGO_TARGET_DIR"' in script
     assert "tauri build --debug --bundles app -- --locked" in script
     assert 'native_app="$CARGO_TARGET_DIR/debug/bundle/macos/Qurio.app"' in script
-    assert (
-        'native_runtime="$native_app/Contents/Resources/qurio-runtime/qurio-runtime"'
-        in script
-    )
+    assert 'native_runtime="$native_app/Contents/Resources/qurio-runtime/qurio-runtime"' in script
     assert '"$native_runtime" --help >/dev/null' in script
     assert 'codesign --verify --deep --strict "$native_app"' in script
     assert "bundle_identifier=$(plutil -extract CFBundleIdentifier raw" in script
@@ -59,7 +67,10 @@ def test_native_gate_uses_node_ports_and_actual_cargo_target_dir() -> None:
     assert script.index("trap cleanup EXIT") < script.index(
         'mktemp -d "${TMPDIR:-/tmp}/glint-native-keychain'
     )
-    assert script.index("trap cleanup EXIT") < script.index('rm -f "$cache_path" "$ready_marker"')
+    assert script.index("trap cleanup EXIT") < script.index('rm -f "$ready_marker"')
+    assert '"quant_read_request_count":[1-9][0-9]*' in script
+    assert "Native Qurio workbench did not request its primary Quant workspace" in script
+    assert "Native online bootstrap did not persist the protected offline cache" not in script
     assert "kill $listeners" not in script
     assert "lsof -tiTCP:1420" not in script
     assert "expected_native_cdhash=$(binary_cdhash)" in script
@@ -74,10 +85,8 @@ def test_native_shell_has_real_bundle_window_state_and_native_menu() -> None:
     assert config["identifier"] == "com.glint.workbench"
     assert not config["identifier"].endswith(".app")
     assert config["bundle"]["active"] is True
-    assert config["bundle"]["targets"] == ["app"]
-    assert config["bundle"]["resources"] == {
-        "resources/qurio-runtime/": "qurio-runtime/"
-    }
+    assert config["bundle"]["targets"] == ["app", "dmg"]
+    assert config["bundle"]["resources"] == {"resources/qurio-runtime/": "qurio-runtime/"}
     assert config["bundle"]["macOS"]["signingIdentity"] == "-"
     assert config["bundle"]["macOS"]["minimumSystemVersion"] == "11.0"
     assert "icons/icon.icns" in config["bundle"]["icon"]
@@ -114,9 +123,7 @@ def test_tauri_dev_command_forwards_the_configured_dev_url_host_and_port() -> No
 
 def test_native_fixture_preflight_uses_the_exact_configured_origin() -> None:
     origin = "http://127.0.0.1:1420"
-    with socket.socket() as listener:
-        listener.bind(("127.0.0.1", 0))
-        port = listener.getsockname()[1]
+    port = _available_loopback_port()
     environment = {
         **os.environ,
         "GLINT_FIXTURE_PORT": str(port),
@@ -161,9 +168,7 @@ def test_native_fixture_preflight_uses_the_exact_configured_origin() -> None:
 
 
 def test_native_fixture_accepts_its_secret_only_over_stdin() -> None:
-    with socket.socket() as listener:
-        listener.bind(("127.0.0.1", 0))
-        port = listener.getsockname()[1]
+    port = _available_loopback_port()
     token = "stdin-only-native-fixture-token"
     environment = {
         **os.environ,

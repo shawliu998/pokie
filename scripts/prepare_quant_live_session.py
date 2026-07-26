@@ -21,9 +21,11 @@ from typing import Any
 from uuid import uuid4
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-RUNTIME_DIR = Path(
-    os.environ.get("POKIEQUANT_LIVE_SESSION_DIR", str(REPO_ROOT / ".run"))
-).expanduser().resolve()
+RUNTIME_DIR = (
+    Path(os.environ.get("POKIEQUANT_LIVE_SESSION_DIR", str(REPO_ROOT / ".run")))
+    .expanduser()
+    .resolve()
+)
 DB_PATH = RUNTIME_DIR / "pokiequant-live.db"
 OBJECT_ROOT = RUNTIME_DIR / "pokiequant-live-objects"
 SESSION_PATH = RUNTIME_DIR / "pokiequant-live-session.json"

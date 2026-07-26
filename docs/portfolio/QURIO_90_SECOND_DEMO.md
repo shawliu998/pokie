@@ -3,6 +3,10 @@
 The recorded cut is 90 seconds, but the walkthrough is modular rather than time-locked. Pause on
 Experiments, Analysis, Trades or Decision when an interviewer wants a deeper product discussion.
 
+This video uses the complementary Binance holdout-pass case because it gives a compact visual
+tour of the complete product loop. For the primary reasoning, repair, and honest-failure case,
+read [the retained Kraken/DeepSeek case study](QURIO_KRAKEN_DEEPSEEK_CASE_STUDY.md).
+
 ## Start
 
 ```bash

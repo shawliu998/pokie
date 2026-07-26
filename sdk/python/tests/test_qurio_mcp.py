@@ -30,9 +30,7 @@ class FakeClient:
 def test_read_tools_delegate_only_to_read_client_methods(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(
-        mcp_server.QurioClient, "from_env", lambda: FakeClient()
-    )
+    monkeypatch.setattr(mcp_server.QurioClient, "from_env", lambda: FakeClient())
     tools = mcp_server.QurioReadTools()
     assert tools.list_datasets() == [{"dataset_id": "dataset-v2"}]
     assert tools.list_runs(8) == [{"id": "run-1", "limit": 8}]

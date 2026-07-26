@@ -15,9 +15,7 @@ depends_on = None
 
 def upgrade() -> None:
     bind = op.get_bind()
-    columns = {
-        item["name"] for item in inspect(bind).get_columns("quant_repository_states")
-    }
+    columns = {item["name"] for item in inspect(bind).get_columns("quant_repository_states")}
     additions = (
         ("worker_lease_run_id", Column("worker_lease_run_id", String(36), nullable=True)),
         (
@@ -35,7 +33,7 @@ def upgrade() -> None:
 
     if bind.dialect.name == "postgresql":
         op.execute(
-            'GRANT UPDATE (worker_lease_run_id, worker_lease_worker_id, '
+            "GRANT UPDATE (worker_lease_run_id, worker_lease_worker_id, "
             'worker_lease_attempt_number) ON TABLE "quant_repository_states" TO glint_worker'
         )
 

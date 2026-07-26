@@ -18,6 +18,16 @@ LOCAL_REFERENCES = ("file:", "link:", "workspace:")
 PRODUCTION_GROUPS = ("dependencies", "optionalDependencies")
 SEVERITY_RANK = {"low": 0, "moderate": 1, "high": 2, "critical": 3}
 GHSA_ID = re.compile(r"^GHSA-[0-9A-Za-z-]+$")
+# CVE-2026-14257 has no compatible v1/v2 maintenance-line release yet.
+# These exact versions are transitive through ESLint and absent from the
+# production graph. Keep the exemption narrow: one reviewed advisory, one
+# package, exact versions, and full/dev scope only.
+DEV_ONLY_EXCEPTIONS = {
+    (
+        "brace-expansion",
+        "GHSA-mh99-v99m-4gvg",
+    ): frozenset(("1.1.16", "2.1.2")),
+}
 
 
 class AuditError(RuntimeError):
@@ -250,6 +260,23 @@ def _bulk_advisories(
     )
 
 
+def _is_reviewed_dev_only_exception(
+    finding: AuditFinding,
+    *,
+    full_packages: dict[str, list[str]],
+    production_packages: dict[str, list[str]],
+) -> bool:
+    if finding.package in production_packages:
+        return False
+    resolved_versions = frozenset(full_packages.get(finding.package, ()))
+    return any(
+        resolved_versions == expected_versions
+        for advisory_id in finding.advisory_ids
+        if (expected_versions := DEV_ONLY_EXCEPTIONS.get((finding.package, advisory_id)))
+        is not None
+    )
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Audit an integrity-locked pnpm graph using npm's official bulk API."
@@ -274,6 +301,9 @@ def main(argv: list[str] | None = None) -> int:
             if arguments.scope == "full"
             else _production_packages(document)
         )
+        production_packages = (
+            _production_packages(document) if arguments.scope == "full" else packages
+        )
         findings = _bulk_advisories(packages)
     except AuditError as error:
         print(f"npm lock audit failed: {error}", file=sys.stderr)
@@ -284,12 +314,18 @@ def main(argv: list[str] | None = None) -> int:
     threshold = SEVERITY_RANK[arguments.audit_level]
     blocked = False
     for finding in findings:
-        is_blocking = SEVERITY_RANK[finding.severity] >= threshold
+        is_exception = arguments.scope == "full" and _is_reviewed_dev_only_exception(
+            finding,
+            full_packages=packages,
+            production_packages=production_packages,
+        )
+        is_blocking = SEVERITY_RANK[finding.severity] >= threshold and not is_exception
         blocked = blocked or is_blocking
         print(
             "npm advisory: "
             f"package={finding.package} severity={finding.severity} "
             f"blocked={str(is_blocking).lower()} "
+            f"reviewed_dev_only_exception={str(is_exception).lower()} "
             f"ids={','.join(finding.advisory_ids)}"
         )
     if blocked:

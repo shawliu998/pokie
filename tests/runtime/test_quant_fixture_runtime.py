@@ -14,7 +14,6 @@ from packages.contracts.quant.enums import (
 )
 from packages.contracts.quant.runtime import build_quant_script
 
-
 RUN_ID = str(UUID("55555555-5555-4555-8555-555555555555"))
 
 
@@ -29,7 +28,9 @@ def test_normal_fixture_repairs_candidate_without_failing_run() -> None:
     assert QuantEventType.REPAIR_STARTED in event_types
     assert QuantEventType.REPAIR_COMPLETED in event_types
     assert QuantEventType.RUN_FAILED not in event_types
-    backtest_failure = next(step for step in steps if step.event_type == QuantEventType.BACKTEST_FAILED)
+    backtest_failure = next(
+        step for step in steps if step.event_type == QuantEventType.BACKTEST_FAILED
+    )
     assert backtest_failure.payload.candidate_key == "B"
     assert backtest_failure.run_state == QuantRunState.REPAIRING
     assert steps[-1].event_type == QuantEventType.REVIEW_REQUIRED

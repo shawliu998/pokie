@@ -24,15 +24,11 @@ class _Transport:
 
 
 def _historical(rows: list[dict[str, object]]) -> bytes:
-    return json.dumps(
-        {"data": {"tradesTable": {"rows": rows}}, "status": {"rCode": 200}}
-    ).encode()
+    return json.dumps({"data": {"tradesTable": {"rows": rows}}, "status": {"rCode": 200}}).encode()
 
 
 def _dividends(rows: list[dict[str, object]]) -> bytes:
-    return json.dumps(
-        {"data": {"dividends": {"rows": rows}}, "status": {"rCode": 200}}
-    ).encode()
+    return json.dumps({"data": {"dividends": {"rows": rows}}, "status": {"rCode": 200}}).encode()
 
 
 def _info() -> bytes:
@@ -68,20 +64,22 @@ def _row(day: str = "01/03/2024") -> dict[str, object]:
 
 
 def test_fetches_parses_and_sends_transparent_user_agent() -> None:
-    transport = _Transport([
-        httpx.Response(200, content=_info()),
-        httpx.Response(200, content=_historical([_row("01/03/2024"), _row("01/02/2024")])),
-        httpx.Response(200, content=_dividends([{"exOrEffDate": "01/01/2024"}])),
-        httpx.Response(
-            200,
-            content=_splits(
-                [
-                    {"symbol": "MSFT", "ratio": "1.5 : 1", "executionDate": "07/20/2026"},
-                    {"symbol": "OTHER", "ratio": "0.5:1", "executionDate": "07/19/2026"},
-                ]
+    transport = _Transport(
+        [
+            httpx.Response(200, content=_info()),
+            httpx.Response(200, content=_historical([_row("01/03/2024"), _row("01/02/2024")])),
+            httpx.Response(200, content=_dividends([{"exOrEffDate": "01/01/2024"}])),
+            httpx.Response(
+                200,
+                content=_splits(
+                    [
+                        {"symbol": "MSFT", "ratio": "1.5 : 1", "executionDate": "07/20/2026"},
+                        {"symbol": "OTHER", "ratio": "0.5:1", "executionDate": "07/19/2026"},
+                    ]
+                ),
             ),
-        ),
-    ])
+        ]
+    )
     result = NasdaqMarketDataClient(transport, today=date(2024, 12, 31)).fetch_daily_bars(
         symbol="msft", limit=5000
     )
@@ -103,7 +101,10 @@ def test_fetches_parses_and_sends_transparent_user_agent() -> None:
         "Accept": "application/json",
     }
     assert transport.calls[1][1]["params"] == {
-        "assetclass": "stocks", "fromdate": "2022-12-31", "todate": "2024-12-30", "limit": 5000
+        "assetclass": "stocks",
+        "fromdate": "2022-12-31",
+        "todate": "2024-12-30",
+        "limit": 5000,
     }
     assert transport.calls[3][0].endswith("/api/calendar/splits")
     assert transport.calls[3][1]["params"] == {}
@@ -118,15 +119,17 @@ def test_fetches_parses_and_sends_transparent_user_agent() -> None:
     ],
 )
 def test_rejects_invalid_rows_and_duplicate_dates(historical: object) -> None:
-    transport = _Transport([
-        httpx.Response(200, content=_info()),
-        httpx.Response(
-            200,
-            content=json.dumps({**historical, "status": {"rCode": 200}}).encode(),
-        ),
-        httpx.Response(200, content=_dividends([])),
-        httpx.Response(200, content=_splits()),
-    ])
+    transport = _Transport(
+        [
+            httpx.Response(200, content=_info()),
+            httpx.Response(
+                200,
+                content=json.dumps({**historical, "status": {"rCode": 200}}).encode(),
+            ),
+            httpx.Response(200, content=_dividends([])),
+            httpx.Response(200, content=_splits()),
+        ]
+    )
     with pytest.raises(NasdaqMarketDataError):
         NasdaqMarketDataClient(transport, today=date(2024, 1, 3)).fetch_daily_bars(
             symbol="MSFT", from_date=date(2024, 1, 1), to_date=date(2024, 1, 3)
@@ -159,12 +162,14 @@ def test_rejects_error_or_oversized_provider_response() -> None:
     ],
 )
 def test_rejects_invalid_or_duplicate_split_rows(rows: list[dict[str, object]]) -> None:
-    transport = _Transport([
-        httpx.Response(200, content=_info()),
-        httpx.Response(200, content=_historical([_row()])),
-        httpx.Response(200, content=_dividends([])),
-        httpx.Response(200, content=_splits(rows)),
-    ])
+    transport = _Transport(
+        [
+            httpx.Response(200, content=_info()),
+            httpx.Response(200, content=_historical([_row()])),
+            httpx.Response(200, content=_dividends([])),
+            httpx.Response(200, content=_splits(rows)),
+        ]
+    )
     with pytest.raises(NasdaqMarketDataError):
         NasdaqMarketDataClient(transport, today=date(2024, 1, 3)).fetch_daily_bars(
             symbol="MSFT", from_date=date(2024, 1, 1), to_date=date(2024, 1, 3)
@@ -172,12 +177,14 @@ def test_rejects_invalid_or_duplicate_split_rows(rows: list[dict[str, object]]) 
 
 
 def test_allows_an_empty_split_snapshot() -> None:
-    transport = _Transport([
-        httpx.Response(200, content=_info()),
-        httpx.Response(200, content=_historical([_row()])),
-        httpx.Response(200, content=_dividends([])),
-        httpx.Response(200, content=_splits()),
-    ])
+    transport = _Transport(
+        [
+            httpx.Response(200, content=_info()),
+            httpx.Response(200, content=_historical([_row()])),
+            httpx.Response(200, content=_dividends([])),
+            httpx.Response(200, content=_splits()),
+        ]
+    )
     result = NasdaqMarketDataClient(transport, today=date(2024, 1, 3)).fetch_daily_bars(
         symbol="MSFT", from_date=date(2024, 1, 1), to_date=date(2024, 1, 3)
     )

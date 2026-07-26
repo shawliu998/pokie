@@ -193,12 +193,8 @@ def main() -> int:
             "dirty_run_http_status": dirty_run_response.status_code,
             "walk_forward_rule": walk_forward.get("ruleVersion"),
             "walk_forward_folds": walk_forward.get("foldCount"),
-            "market_regime_count": walk_forward_aggregate.get(
-                "distinctMarketRegimes"
-            ),
-            "regime_diversity_status": walk_forward_aggregate.get(
-                "regimeDiversityStatus"
-            ),
+            "market_regime_count": walk_forward_aggregate.get("distinctMarketRegimes"),
+            "regime_diversity_status": walk_forward_aggregate.get("regimeDiversityStatus"),
             "generalization_status": generalization.get("status"),
             "provider_fallback": "agent.provider_fallback" in event_types,
             "provider_failure_count": provider_failure_count,
@@ -217,8 +213,7 @@ def main() -> int:
             or summary["dirty_quality_status"] != "blocked"
             or summary["dirty_run_http_status"] != 409
             or summary["walk_forward_folds"] != 3
-            or summary["walk_forward_rule"]
-            != "expanding-3fold-20pct-regime-v1"
+            or summary["walk_forward_rule"] != "expanding-3fold-20pct-regime-v1"
             or not summary["generalization_status"]
         ):
             return 1

@@ -49,8 +49,7 @@ def test_no_viable_projection_changes_verdicts_not_computed_metrics() -> None:
 
 def test_research_adapter_has_no_network_process_model_or_arbitrary_execution() -> None:
     source = (
-        Path(__file__).parents[2]
-        / "services/api/app/modules/quant/kernel_check.py"
+        Path(__file__).parents[2] / "services/api/app/modules/quant/kernel_check.py"
     ).read_text(encoding="utf-8")
     tree = ast.parse(source)
     roots = {
@@ -64,9 +63,7 @@ def test_research_adapter_has_no_network_process_model_or_arbitrary_execution() 
         for node in ast.walk(tree)
         if isinstance(node, ast.ImportFrom)
     )
-    assert roots.isdisjoint(
-        {"httpx", "requests", "socket", "subprocess", "urllib", "openai"}
-    )
+    assert roots.isdisjoint({"httpx", "requests", "socket", "subprocess", "urllib", "openai"})
     called = {
         node.func.id
         for node in ast.walk(tree)

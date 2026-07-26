@@ -22,6 +22,7 @@ the license text distributed by each package. Resolved versions are pinned by
 | python | `pytest` | `9.1.1` | `MIT` | [source](https://pypi.org/project/pytest/9.1.1/) |
 | python | `pytest-cov` | `6.3.0` | `MIT` | [source](https://pypi.org/project/pytest-cov/6.3.0/) |
 | python | `ruff` | `0.15.21` | `MIT` | [source](https://pypi.org/project/ruff/0.15.21/) |
+| python | `pyinstaller` | `6.21.0` | `GPL-2.0-or-later WITH Bootloader-exception` | [source](https://pypi.org/project/pyinstaller/6.21.0/) |
 | javascript | `@eslint/js` | `9.35.0` | `MIT` | [source](https://www.npmjs.com/package/@eslint/js/v/9.35.0) |
 | javascript | `@playwright/test` | `1.55.1` | `Apache-2.0` | [source](https://www.npmjs.com/package/@playwright/test/v/1.55.1) |
 | javascript | `@tauri-apps/api` | `2.11.1` | `Apache-2.0 OR MIT` | [source](https://www.npmjs.com/package/@tauri-apps/api/v/2.11.1) |
@@ -47,6 +48,7 @@ the license text distributed by each package. Resolved versions are pinned by
 | rust | `tauri` | `2.11.1` | `MIT OR Apache-2.0` | [source](https://crates.io/crates/tauri/2.11.1) |
 | rust | `tauri-build` | `2.6.3` | `MIT OR Apache-2.0` | [source](https://crates.io/crates/tauri-build/2.6.3) |
 | rust | `tauri-plugin-window-state` | `2.4.1` | `Apache-2.0 OR MIT` | [source](https://crates.io/crates/tauri-plugin-window-state/2.4.1) |
+| rust | `url` | `2.5.8` | `MIT OR Apache-2.0` | [source](https://crates.io/crates/url/2.5.8) |
 
 ## Review notes
 
@@ -57,8 +59,13 @@ the license text distributed by each package. Resolved versions are pinned by
 - Tauri, `tauri-plugin-window-state`, and `security-framework` use dual
   MIT/Apache-2.0 terms. Release packaging must retain the upstream notices and
   license files supplied with those artifacts.
+- PyInstaller is a build-only dependency under GPL-2.0-or-later with the SPDX
+  Bootloader exception. The exception permits distributing the generated Qurio
+  bundle under Qurio's own terms; modifications to PyInstaller itself remain
+  governed by the upstream license.
 - No shadcn/ui component or other third-party source is vendored in this baseline.
   If generated or vendored source is added, its exact generator/upstream provenance
   and required notices must be appended before the license gate can pass.
-- GPL, AGPL, SSPL, Commons Clause, non-commercial, research-only, and unknown or
-  custom license expressions remain blocked by the repository policy.
+- GPL remains blocked except for the exact, build-only PyInstaller Bootloader
+  exception above. AGPL, SSPL, Commons Clause, non-commercial, research-only,
+  and unknown or custom license expressions remain blocked.

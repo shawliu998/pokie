@@ -24,9 +24,7 @@ from uuid import uuid4
 
 FROZEN_RUNTIME = bool(getattr(sys, "frozen", False))
 REPO_ROOT = (
-    Path(sys.executable).resolve().parent
-    if FROZEN_RUNTIME
-    else Path(__file__).resolve().parents[1]
+    Path(sys.executable).resolve().parent if FROZEN_RUNTIME else Path(__file__).resolve().parents[1]
 )
 DEFAULT_RUNTIME_DIR = REPO_ROOT / ".run" / "qurio-local-runtime"
 SESSION_FILE_NAME = "qurio-local-runtime.json"
@@ -111,7 +109,9 @@ def runtime_paths(runtime_dir: Path) -> tuple[Path, Path, Path]:
 
 def _metadata_is_valid(value: Any, database_path: Path) -> bool:
     if not isinstance(value, dict) or set(value) != {
-        "principal_id", "workspace_id", "database_path"
+        "principal_id",
+        "workspace_id",
+        "database_path",
     }:
         return False
     return all(isinstance(value[key], str) and value[key] for key in value) and value[
@@ -218,8 +218,14 @@ def bootstrap_metadata(
 
 
 def build_process_env(
-    *, role: Literal["api", "worker"], metadata: dict[str, str], database_path: Path,
-    object_root: Path, provider: str, model: str | None, base_url: str | None = None,
+    *,
+    role: Literal["api", "worker"],
+    metadata: dict[str, str],
+    database_path: Path,
+    object_root: Path,
+    provider: str,
+    model: str | None,
+    base_url: str | None = None,
 ) -> dict[str, str]:
     env = {
         **os.environ,
@@ -298,7 +304,11 @@ def worker_command() -> list[str]:
 
 def start_child(command: list[str], env: dict[str, str]) -> subprocess.Popen[bytes]:
     return subprocess.Popen(
-        command, cwd=REPO_ROOT, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        command,
+        cwd=REPO_ROOT,
+        env=env,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
         start_new_session=True,
     )
 
@@ -351,9 +361,7 @@ def run_child(role: Literal["api", "worker"], api_port: int | None) -> int:
         return 0
     from services.worker.app.main import main as worker_main
 
-    return worker_main(
-        ["poll", "--kind", "quant-agent", "--interval-seconds", "1.0"]
-    )
+    return worker_main(["poll", "--kind", "quant-agent", "--interval-seconds", "1.0"])
 
 
 def run(

@@ -154,7 +154,14 @@ def test_license_policy_is_allowlist_only_and_blocks_unapproved_projects() -> No
     policy = _policy()
     assert policy["schema_version"] == 1
     allowed = set(cast(list[str], policy["allowed_spdx_licenses"]))
-    assert allowed == {"Apache-2.0", "BSD-3-Clause", "LGPL-3.0-only", "MIT"}
+    assert allowed == {
+        "Apache-2.0",
+        "BSD-3-Clause",
+        "Bootloader-exception",
+        "GPL-2.0-or-later",
+        "LGPL-3.0-only",
+        "MIT",
+    }
     blocked = {_canonical_name(name) for name in policy["blocked_dependency_names"]}
 
     records = cast(list[dict[str, Any]], policy["dependencies"])
@@ -169,9 +176,17 @@ def test_license_policy_is_allowlist_only_and_blocks_unapproved_projects() -> No
         license_ids = _spdx_ids(str(record["license"]))
         assert license_ids, f"missing SPDX license for {identity}"
         assert license_ids <= allowed, f"unapproved/custom license for {identity}: {license_ids}"
-        assert not any(
+        has_strong_copyleft = any(
             identifier.startswith(("GPL-", "AGPL-", "SSPL-")) for identifier in license_ids
-        ), f"strong copyleft license is blocked for {identity}"
+        )
+        is_pyinstaller_build_exception = (
+            identity == ("python", "pyinstaller")
+            and record["manifest_scope"] == "build"
+            and record["license"] == "GPL-2.0-or-later WITH Bootloader-exception"
+        )
+        assert not has_strong_copyleft or is_pyinstaller_build_exception, (
+            f"strong copyleft license is blocked for {identity}"
+        )
         assert str(record["version"]) and str(record["version"]) != "latest"
         assert str(record["source"]).startswith(
             ("https://pypi.org/", "https://www.npmjs.com/", "https://crates.io/")

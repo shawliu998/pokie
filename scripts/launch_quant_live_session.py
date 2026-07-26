@@ -62,7 +62,8 @@ def load_session(session_path: Path, *, readonly_reopen: bool = False) -> dict[s
         if readonly_reopen:
             raise FileNotFoundError(
                 f"Retained read-only session file not found: {session_path.resolve()}. "
-                "Pass --session PATH for another completed retained session; no fixture will be created."
+                "Pass --session PATH for another completed retained session; "
+                "no fixture will be created."
             )
         raise FileNotFoundError(
             f"Session file not found: {session_path.resolve()}. "
@@ -329,9 +330,7 @@ def build_mac_env(
         env.update(
             {
                 "VITE_QURIO_GUIDED_DEMO_RUN_ID": session["run_id"],
-                "VITE_QURIO_GUIDED_DEMO_LABEL": (
-                    f"Real market data · DeepSeek {session['model']}"
-                ),
+                "VITE_QURIO_GUIDED_DEMO_LABEL": (f"Real market data · DeepSeek {session['model']}"),
             }
         )
     return env

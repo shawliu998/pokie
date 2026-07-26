@@ -176,10 +176,6 @@ fixture_log=""
 tauri_log=""
 ready_marker=""
 cors_headers=""
-cache_path="$HOME/Library/Application Support/com.glint.workbench/offline-cache/workspace-${fixture_workspace}.json"
-cache_backup=""
-cache_had_value=0
-cache_state_modified=0
 fixture_pid=""
 tauri_pid=""
 expected_native_cdhash=""
@@ -239,15 +235,7 @@ cleanup() {
   elif ((temporary_keychain_created)); then
     preserve_temporary_keychain=1
   fi
-  if ((cache_state_modified)); then
-    if ((cache_had_value)); then
-      mkdir -p "$(dirname "$cache_path")"
-      cp "$cache_backup" "$cache_path"
-    else
-      rm -f "$cache_path"
-    fi
-  fi
-  for cleanup_path in "$fixture_log" "$tauri_log" "$ready_marker" "$cors_headers" "$cache_backup"; do
+  for cleanup_path in "$fixture_log" "$tauri_log" "$ready_marker" "$cors_headers"; do
     [[ -n "$cleanup_path" ]] && rm -f "$cleanup_path"
   done
   if ((preserve_temporary_keychain == 0)) && [[ -n "$temporary_keychain_directory" ]]; then
@@ -257,7 +245,7 @@ cleanup() {
     if ((preserve_temporary_keychain)); then
       printf 'Native cleanup failed; the temporary Keychain was preserved at %s because the original user Keychain state could not be proven restored.\n' "$temporary_keychain" >&2
     else
-      printf 'Native cleanup failed: Tauri descendants, port 1420, cache, or Keychain cleanup remains incomplete.\n' >&2
+      printf 'Native cleanup failed: Tauri descendants, port 1420, or Keychain cleanup remains incomplete.\n' >&2
     fi
     exit "$cleanup_status"
   fi
@@ -272,13 +260,7 @@ fixture_log=$(mktemp "${TMPDIR:-/tmp}/glint-tauri-fixture.XXXXXX")
 tauri_log=$(mktemp "${TMPDIR:-/tmp}/glint-tauri-native.XXXXXX")
 ready_marker=$(mktemp "${TMPDIR:-/tmp}/glint-tauri-ready.XXXXXX")
 cors_headers=$(mktemp "${TMPDIR:-/tmp}/glint-tauri-cors.XXXXXX")
-cache_backup=$(mktemp "${TMPDIR:-/tmp}/glint-tauri-cache.XXXXXX")
-if [[ -f "$cache_path" ]]; then
-  cp "$cache_path" "$cache_backup"
-  cache_had_value=1
-fi
-cache_state_modified=1
-rm -f "$cache_path" "$ready_marker"
+rm -f "$ready_marker"
 native_binary="$CARGO_TARGET_DIR/debug/glint"
 [[ -x "$native_binary" ]] || {
   printf 'Native gate did not build the Qurio debug binary.\n' >&2
@@ -460,35 +442,29 @@ store_fixture_session
 start_tauri "$api_url"
 native_scan_token=$fixture_token
 scan_native_artifacts
-for _ in $(seq 1 45); do
-  [[ -s "$cache_path" ]] && break
-  sleep 1
-done
-[[ -s "$cache_path" ]] || {
-  printf 'Native online bootstrap did not persist the protected offline cache.\n' >&2
-  if [[ -n "$fixture_pid" ]]; then
+if [[ -n "$fixture_pid" ]]; then
+  quant_read_observed=0
+  for _ in $(seq 1 45); do
+    fixture_state=$(fixture_curl -fsS "$fixture_url/v1/fixture-state" \
+      -H "X-Workspace-ID: $fixture_workspace")
+    if printf '%s' "$fixture_state" \
+      | grep -Eq '"quant_read_request_count":[1-9][0-9]*'; then
+      quant_read_observed=1
+      break
+    fi
+    sleep 1
+  done
+  if ((quant_read_observed == 0)); then
+    printf 'Native Qurio workbench did not request its primary Quant workspace.\n' >&2
     printf 'Sanitized native fixture request trace:\n' >&2
     tail -80 "$fixture_log" >&2 || true
-  else
-    printf 'Native external API mode has no local fixture request trace.\n' >&2
+    printf 'Native process log tail:\n' >&2
+    tail -80 "$tauri_log" >&2 || true
+    exit 1
   fi
-  printf 'Native process log tail:\n' >&2
-  tail -80 "$tauri_log" >&2 || true
-  exit 1
-}
-cache_mode=$(stat -f '%Lp' "$cache_path")
-[[ "$cache_mode" == "600" ]] || {
-  printf 'Native offline cache permissions are not 0600.\n' >&2
-  exit 1
-}
-cache_contents=$(<"$cache_path")
-[[ "$cache_contents" != *'"access_token"'* && "$cache_contents" != *'"credential_ref"'* \
-  && "$cache_contents" != *'"secret"'* && "$cache_contents" != *"$fixture_token"* ]] || {
-  printf 'Native offline cache contains a forbidden secret-bearing field.\n' >&2
-  exit 1
-}
-printf '%s' "$cache_contents" | grep -Eq '"cached_at":"[^"]+"'
-printf '%s' "$cache_contents" | grep -q 'cachedAt'
+else
+  sleep 5
+fi
 stored_keychain_value=$(security find-generic-password -s "$keychain_service" \
   -a "$keychain_account" -w "$temporary_keychain" 2>/dev/null)
 [[ "$stored_keychain_value" == "$fixture_token" ]]
@@ -507,18 +483,13 @@ start_tauri "$offline_api_url"
 scan_native_artifacts
 sleep 5
 kill -0 "$tauri_pid" 2>/dev/null
-offline_cache_contents=$(<"$cache_path")
-[[ "$offline_cache_contents" == "$cache_contents" ]] || {
-  printf 'Native offline restart changed the protected cache unexpectedly.\n' >&2
-  exit 1
-}
 if [[ -n "$fixture_pid" ]]; then
   fixture_state=$(fixture_curl -fsS "$fixture_url/v1/fixture-state" \
     -H "X-Workspace-ID: $fixture_workspace")
   [[ "$fixture_state" == *'"offline_mutation_request_count":0'* \
     && "$fixture_state" == *'"offline_sse_request_count":0'* \
     && "$fixture_state" == *'"offline_export_request_count":0'* ]] || {
-    printf 'Native offline cache attempted a write, SSE, or export request.\n' >&2
+    printf 'Native API-outage state attempted a write, SSE, or export request.\n' >&2
     exit 1
   }
 fi
@@ -532,14 +503,12 @@ tell application "System Events"
 end tell
 APPLESCRIPT
   )
-  [[ "$ui_text" == *"Offline cached read-only"* \
-    && "$ui_text" == *"cached_at"* \
-    && "$ui_text" == *"SSE, exports"* ]] || {
-    printf 'Native offline window did not expose cached_at/read-only disabled state.\n' >&2
+  [[ "$ui_text" == *"Data"* && "$ui_text" == *"Research"* ]] || {
+    printf 'Native window did not expose the Qurio Data and Research workspace.\n' >&2
     exit 1
   }
 else
-  printf 'Native Accessibility scrape disabled; app-native cache/counter and @glint/mac unit gates are required.\n'
+  printf 'Native Accessibility scrape disabled; fixture request counters and @glint/mac unit gates are required.\n'
 fi
 stop_tauri
-printf 'PASS: Tauri native build, JWT Keychain boundary, native cache store/load, offline restart, WebView, and clean exit\n'
+printf 'PASS: Tauri native build, JWT Keychain boundary, Quant workspace request, API-outage survival, WebView, and clean exit\n'

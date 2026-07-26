@@ -102,11 +102,11 @@ def _materialize_reader_compatibility(
             "GLINT_CREATE_SCHEMA_ON_STARTUP": "false",
         }
     )
+    from packages.contracts.quant.enums import QuantArtifactKind
+    from packages.domain.canonical import canonical_digest
     from services.api.app.core.config import get_settings
     from services.api.app.db.session import reset_database_caches
     from services.api.app.modules.quant.store import get_quant_store
-    from packages.contracts.quant.enums import QuantArtifactKind
-    from packages.domain.canonical import canonical_digest
 
     get_settings.cache_clear()
     reset_database_caches()

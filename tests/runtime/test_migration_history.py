@@ -38,6 +38,7 @@ REVISION_CHAIN = (
     ("20260723_0008", "20260722_0007"),
     ("20260723_0009", "20260723_0008"),
     ("20260723_0010", "20260723_0009"),
+    ("20260725_0011", "20260723_0010"),
 )
 
 
@@ -223,7 +224,7 @@ def test_revision_files_are_static_and_chain_is_linear() -> None:
                 assert node.value.id != "Base", path.name
 
     script = ScriptDirectory.from_config(_config())
-    assert script.get_heads() == ["20260723_0010"]
+    assert script.get_heads() == ["20260725_0011"]
     observed = tuple(
         (revision.revision, revision.down_revision)
         for revision in reversed(list(script.walk_revisions()))
@@ -267,7 +268,7 @@ def test_baseline_lists_are_literal_and_cover_every_frozen_table() -> None:
         ("20260715_0002", "20260715_0002"),
         ("20260715_0003", "20260715_0003"),
         ("20260715_0004", "20260715_0004"),
-        ("head", "20260723_0010"),
+        ("head", "20260725_0011"),
     ),
 )
 def test_empty_sqlite_database_upgrades_to_every_revision(
@@ -279,7 +280,7 @@ def test_empty_sqlite_database_upgrades_to_every_revision(
         actual_tables = set(inspect(engine).get_table_names()) - {"alembic_version"}
         expected_tables = set(_baseline_constants()["SCHEMA_TABLES"])
         if target == "head":
-            expected_tables.add("quant_repository_states")
+            expected_tables.update(("quant_repository_states", "paper_trading_states"))
         assert actual_tables == expected_tables
         _assert_critical_head_shape(engine)
     finally:
@@ -415,7 +416,7 @@ def test_research_memory_migration_marks_existing_rows_legacy_and_new_rows_curre
     command.upgrade(_config(url), "head")
     engine = create_engine(url)
     try:
-        assert _current_revision(engine) == "20260723_0010"
+        assert _current_revision(engine) == "20260725_0011"
         columns = {
             row["name"]: row for row in inspect(engine).get_columns("quant_repository_states")
         }
@@ -438,7 +439,7 @@ def test_research_memory_migration_marks_existing_rows_legacy_and_new_rows_curre
         engine.dispose()
 
 
-def test_research_memory_contract_boundary_refuses_revision_downgrade(tmp_path: Path) -> None:
+def test_latest_irreversible_boundary_refuses_revision_downgrade(tmp_path: Path) -> None:
     path = tmp_path / "research-memory-irreversible.sqlite3"
     url = _database_url(path)
     engine = _upgrade(path, "head")
@@ -446,13 +447,13 @@ def test_research_memory_contract_boundary_refuses_revision_downgrade(tmp_path: 
 
     with pytest.raises(
         RuntimeError,
-        match="irreversible P19 research-decision boundary",
+        match="Paper Trading history and is irreversible",
     ):
         command.downgrade(_config(url), "20260722_0007")
 
     engine = create_engine(url)
     try:
-        assert _current_revision(engine) == "20260723_0010"
+        assert _current_revision(engine) == "20260725_0011"
         columns = {
             row["name"]: row for row in inspect(engine).get_columns("quant_repository_states")
         }
@@ -528,7 +529,7 @@ def test_synthetic_legacy_0001_runs_additive_migrations_and_backfills(tmp_path: 
 
     engine = create_engine(url)
     try:
-        assert _current_revision(engine) == "20260723_0010"
+        assert _current_revision(engine) == "20260725_0011"
         _assert_critical_head_shape(engine)
         synthetic_columns = {
             table: {row["name"]: row for row in inspect(engine).get_columns(table)}

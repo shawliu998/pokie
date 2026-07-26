@@ -209,9 +209,9 @@ def test_v2_response_marks_interval_aware_market_research_eligibility(
     count: int,
     eligible: bool,
 ) -> None:
-    workspace_id = _workspace(
-        client, principal_id, f"V2 eligibility {interval.value} {count}"
-    )["workspace_id"]
+    workspace_id = _workspace(client, principal_id, f"V2 eligibility {interval.value} {count}")[
+        "workspace_id"
+    ]
     imported = _import_csv(
         client,
         principal_id,

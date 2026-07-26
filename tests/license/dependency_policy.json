@@ -3,6 +3,8 @@
   "allowed_spdx_licenses": [
     "Apache-2.0",
     "BSD-3-Clause",
+    "Bootloader-exception",
+    "GPL-2.0-or-later",
     "LGPL-3.0-only",
     "MIT"
   ],
@@ -134,6 +136,14 @@
       "license": "MIT",
       "source": "https://pypi.org/project/ruff/0.15.21/",
       "manifest_scope": "test"
+    },
+    {
+      "ecosystem": "python",
+      "name": "pyinstaller",
+      "version": "6.21.0",
+      "license": "GPL-2.0-or-later WITH Bootloader-exception",
+      "source": "https://pypi.org/project/pyinstaller/6.21.0/",
+      "manifest_scope": "build"
     },
     {
       "ecosystem": "javascript",
@@ -333,6 +343,14 @@
       "version": "2.4.1",
       "license": "Apache-2.0 OR MIT",
       "source": "https://crates.io/crates/tauri-plugin-window-state/2.4.1",
+      "manifest_scope": "runtime"
+    },
+    {
+      "ecosystem": "rust",
+      "name": "url",
+      "version": "2.5.8",
+      "license": "MIT OR Apache-2.0",
+      "source": "https://crates.io/crates/url/2.5.8",
       "manifest_scope": "runtime"
     }
   ]

@@ -26,15 +26,11 @@ def test_sidecar_build_is_relocatable_and_excludes_test_tooling() -> None:
 
 
 def test_tauri_bundle_embeds_the_frozen_runtime() -> None:
-    config = json.loads(
-        Path("apps/mac/src-tauri/tauri.conf.json").read_text(encoding="utf-8")
-    )
+    config = json.loads(Path("apps/mac/src-tauri/tauri.conf.json").read_text(encoding="utf-8"))
     assert config["build"]["beforeBuildCommand"].endswith(
         "../../scripts/build_qurio_runtime_sidecar.py"
     )
-    assert config["bundle"]["resources"] == {
-        "resources/qurio-runtime/": "qurio-runtime/"
-    }
+    assert config["bundle"]["resources"] == {"resources/qurio-runtime/": "qurio-runtime/"}
     assert config["bundle"]["macOS"]["signingIdentity"] == "-"
     assert config["bundle"]["macOS"]["minimumSystemVersion"] == "11.0"
 

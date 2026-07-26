@@ -188,9 +188,7 @@ def _finish_prepared(store: QuantStore, workspace_id: str, run_id: str) -> None:
 
 
 def _reseal_p19(state: dict[str, Any]) -> None:
-    reports = [
-        artifact for artifact in state["artifacts"] if artifact["kind"] == "research_report"
-    ]
+    reports = [artifact for artifact in state["artifacts"] if artifact["kind"] == "research_report"]
     report_identities = [
         {
             "artifact_id": artifact["id"],
@@ -218,12 +216,8 @@ def _reseal_p19(state: dict[str, Any]) -> None:
             "content_digest": canonical_digest(comparison["content"]),
         }
     report_identities.sort(key=lambda item: item["artifact_id"])
-    comparisons = sorted(
-        comparison_identities.values(), key=lambda item: item["artifact_id"]
-    )
-    state["research_decision_report_manifest_digest"] = canonical_digest(
-        report_identities
-    )
+    comparisons = sorted(comparison_identities.values(), key=lambda item: item["artifact_id"])
+    state["research_decision_report_manifest_digest"] = canonical_digest(report_identities)
     marker_digest = canonical_digest(
         {"reports": report_identities, "comparisons": comparisons}
     ).removeprefix("sha256:")
@@ -279,11 +273,7 @@ def test_parameter_neighborhood_has_bounded_oat_shape(
     assert len(neighbors) == expected_count
     assert len({item["canonical_key"] for item in neighbors}) == expected_count
     assert all(
-        sum(
-            item["parameters"][key] != parameters[key]
-            for key in parameters
-        )
-        == 1
+        sum(item["parameters"][key] != parameters[key] for key in parameters) == 1
         for item in neighbors
     )
 
@@ -297,23 +287,18 @@ def test_completed_run_retains_one_linked_artifact_and_exact_snapshot_projection
     _finish_prepared(store, workspace_id, run["id"])
 
     artifacts = store.artifacts_for_run(workspace_id=workspace_id, run_id=run["id"])
-    robustness = [
-        item for item in artifacts if item.kind.value == "robustness_sensitivity"
-    ]
+    robustness = [item for item in artifacts if item.kind.value == "robustness_sensitivity"]
     assert len(robustness) == 1
     retained = robustness[0]
     report = next(item for item in artifacts if item.kind.value == "research_report")
     comparison = next(
         item
         for item in artifacts
-        if item.id
-        == report.content["research_decision"]["source_comparison_artifact_id"]
+        if item.id == report.content["research_decision"]["source_comparison_artifact_id"]
     )
     selected = next(
         item
-        for item in store.experiments_for_run(
-            workspace_id=workspace_id, run_id=run["id"]
-        )
+        for item in store.experiments_for_run(workspace_id=workspace_id, run_id=run["id"])
         if item.id == report.content["selected_candidate_id"]
     )
     parsed = QuantRobustnessSensitivity.model_validate(retained.content)
@@ -323,27 +308,22 @@ def test_completed_run_retains_one_linked_artifact_and_exact_snapshot_projection
         "artifact_digest": retained.digest,
     }
     assert parsed.report_artifact_id == report.id
-    assert parsed.cost_scenarios[0].candidate_metrics.model_dump(mode="json") == (
-        selected.metrics
-    )
-    assert parsed.cost_scenarios[0].benchmark_metrics.model_dump(mode="json") == (
-        comparison.content["benchmark"]
+    assert parsed.cost_scenarios[0].candidate_metrics.model_dump(mode="json") == (selected.metrics)
+    assert (
+        parsed.cost_scenarios[0].benchmark_metrics.model_dump(mode="json")
+        == (comparison.content["benchmark"])
     )
     assert parsed.kernel_call_count == 6 + len(parsed.parameter_neighbors)
     assert all("trades" not in item and "equity_curve" not in item for item in retained.content)
 
     published_ids = {
         event["payload"]["artifact_id"]
-        for event in store.events_for_run(
-            workspace_id=workspace_id, run_id=run["id"]
-        )
+        for event in store.events_for_run(workspace_id=workspace_id, run_id=run["id"])
         if event["event_type"] == "artifact.published"
     }
     assert retained.id in published_ids
 
-    snapshot = quant_agent_workspace_snapshot(
-        workspace_id=workspace_id, run_id=run["id"]
-    )
+    snapshot = quant_agent_workspace_snapshot(workspace_id=workspace_id, run_id=run["id"])
     assert snapshot is not None
     projection = snapshot["report"]["robustnessSensitivity"]
     assert projection["schemaVersion"] == "robustness_sensitivity_v1"
@@ -357,9 +337,7 @@ def test_completed_run_retains_one_linked_artifact_and_exact_snapshot_projection
         for item in projection["parameterNeighbors"]
     )
     assert projection["kernelCallCount"] == parsed.kernel_call_count
-    artifact_projection = next(
-        item for item in snapshot["artifacts"] if item["id"] == retained.id
-    )
+    artifact_projection = next(item for item in snapshot["artifacts"] if item["id"] == retained.id)
     assert artifact_projection["type"] == "validation_report"
 
 
@@ -377,9 +355,7 @@ def test_pre_w3_completed_state_without_artifact_or_link_still_restores(
         item for item in legacy["artifacts"] if item["kind"] == "robustness_sensitivity"
     )
     legacy["artifacts"].remove(robustness)
-    report = next(
-        item for item in legacy["artifacts"] if item["kind"] == "research_report"
-    )
+    report = next(item for item in legacy["artifacts"] if item["kind"] == "research_report")
     report["content"].pop("robustness_sensitivity")
     report["digest"] = canonical_digest(report["content"])
     _reseal_p19(legacy)
@@ -389,10 +365,7 @@ def test_pre_w3_completed_state_without_artifact_or_link_still_restores(
     restored._loaded_workspaces.add(  # pyright: ignore[reportPrivateUsage]
         workspace_id
     )
-    assert (
-        restored.get_run(workspace_id=workspace_id, run_id=run["id"]).state.value
-        == "completed"
-    )
+    assert restored.get_run(workspace_id=workspace_id, run_id=run["id"]).state.value == "completed"
     assert not any(
         item.kind.value == "robustness_sensitivity"
         for item in restored._artifacts.values()  # pyright: ignore[reportPrivateUsage]
@@ -430,9 +403,7 @@ def test_w3_tamper_is_rejected_atomically(
     robustness = next(
         item for item in state["artifacts"] if item["kind"] == "robustness_sensitivity"
     )
-    report = next(
-        item for item in state["artifacts"] if item["kind"] == "research_report"
-    )
+    report = next(item for item in state["artifacts"] if item["kind"] == "research_report")
 
     def reseal_graph() -> None:
         robustness["digest"] = canonical_digest(robustness["content"])
@@ -466,9 +437,7 @@ def test_w3_tamper_is_rejected_atomically(
     elif tamper == "ordinal":
         robustness["ordinal"] = report["ordinal"] + 1
     elif tamper == "baseline":
-        robustness["content"]["cost_scenarios"][0]["candidate_metrics"][
-            "total_return_pct"
-        ] += 1
+        robustness["content"]["cost_scenarios"][0]["candidate_metrics"]["total_return_pct"] += 1
         reseal_graph()
     elif tamper == "neighbor_order":
         robustness["content"]["parameter_neighbors"].reverse()
@@ -494,9 +463,7 @@ def test_no_selected_candidate_produces_no_sensitivity_artifact(
     client: TestClient,
     principal_id: str,
 ) -> None:
-    workspace_id, run_response = _create_run(
-        client, principal_id, name="W3 no selected candidate"
-    )
+    workspace_id, run_response = _create_run(client, principal_id, name="W3 no selected candidate")
     store = QuantStore()
     run = store.get_run(workspace_id=workspace_id, run_id=run_response["id"])
     run.agent_iteration = run.max_agent_iterations - 1
@@ -514,9 +481,7 @@ def test_no_selected_candidate_produces_no_sensitivity_artifact(
     assert "robustness_sensitivity" not in report
     assert not any(
         item.kind.value == "robustness_sensitivity"
-        for item in store.artifacts_for_run(
-            workspace_id=workspace_id, run_id=run_response["id"]
-        )
+        for item in store.artifacts_for_run(workspace_id=workspace_id, run_id=run_response["id"])
     )
 
 
@@ -527,9 +492,7 @@ def test_sensitivity_failure_leaves_no_partial_artifact(
     monkeypatch: pytest.MonkeyPatch,
     failure: str,
 ) -> None:
-    workspace_id, run = _create_run(
-        client, principal_id, name=f"W3 atomic {failure}"
-    )
+    workspace_id, run = _create_run(client, principal_id, name=f"W3 atomic {failure}")
     store = _prepare_final_comparison(workspace_id)
     context = store.agent_context_data(workspace_id=workspace_id, run_id=run["id"])
     comparison = context["latest_comparison"]
@@ -543,11 +506,7 @@ def test_sensitivity_failure_leaves_no_partial_artifact(
     def fail(*_args: object, **_kwargs: object) -> object:
         raise RuntimeError(f"injected {failure} failure")
 
-    target = (
-        "_robustness_sensitivity_content"
-        if failure == "generation"
-        else "_persist_workspace"
-    )
+    target = "_robustness_sensitivity_content" if failure == "generation" else "_persist_workspace"
     monkeypatch.setattr(store, target, fail)
     with pytest.raises(RuntimeError, match=failure):
         store.finish_agent_research(
@@ -594,15 +553,11 @@ def test_rsi_sensitivity_uses_twelve_training_only_kernel_calls(
         template="rsi_mean_reversion",
         parameters=selected_parameters,
         state="completed",
-        candidate_key=store.canonical_candidate_key(
-            "rsi_mean_reversion", selected_parameters
-        ),
+        candidate_key=store.canonical_candidate_key("rsi_mean_reversion", selected_parameters),
     )
     comparison = next(
         item
-        for item in reversed(
-            store.artifacts_for_run(workspace_id=workspace_id, run_id=run.id)
-        )
+        for item in reversed(store.artifacts_for_run(workspace_id=workspace_id, run_id=run.id))
         if item.kind.value == "validation_report"
         and item.content.get("evaluation_partition") == "train"
     )
@@ -643,9 +598,7 @@ def test_finish_runs_all_sensitivity_calls_before_any_holdout_kernel_call(
 
     workspace_id, run = _create_run(client, principal_id, name="W3 holdout order")
     store = _prepare_final_comparison(workspace_id)
-    runtime = store.runtime_projection(
-        store.get_run(workspace_id=workspace_id, run_id=run["id"])
-    )
+    runtime = store.runtime_projection(store.get_run(workspace_id=workspace_id, run_id=run["id"]))
     training_count = len(runtime.split.training_bars)
     all_count = len(runtime.split.all_bars)
     calls: list[tuple[str, int, float, float]] = []
@@ -681,21 +634,15 @@ def test_finish_runs_all_sensitivity_calls_before_any_holdout_kernel_call(
     _finish_prepared(store, workspace_id, run["id"])
     artifact = next(
         item
-        for item in store.artifacts_for_run(
-            workspace_id=workspace_id, run_id=run["id"]
-        )
+        for item in store.artifacts_for_run(workspace_id=workspace_id, run_id=run["id"])
         if item.kind.value == "robustness_sensitivity"
     )
     sensitivity_call_count = artifact.content["kernel_call_count"]
     leading_context_call_count = 1
     sensitivity_calls = calls[
-        leading_context_call_count : leading_context_call_count
-        + sensitivity_call_count
+        leading_context_call_count : leading_context_call_count + sensitivity_call_count
     ]
-    assert all(
-        bar_count == training_count
-        for _, bar_count, _, _ in sensitivity_calls
-    )
+    assert all(bar_count == training_count for _, bar_count, _, _ in sensitivity_calls)
     assert sensitivity_calls[:6] == [
         ("candidate", training_count, 0.001, 0.0005),
         ("benchmark", training_count, 0.001, 0.0005),
@@ -715,9 +662,7 @@ def test_extreme_sensitivity_does_not_change_selection_series_or_next_step(
     principal_id: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    normal_workspace, normal_run = _create_run(
-        client, principal_id, name="W3 normal sensitivity"
-    )
+    normal_workspace, normal_run = _create_run(client, principal_id, name="W3 normal sensitivity")
     extreme_workspace, extreme_run = _create_run(
         client, principal_id, name="W3 extreme sensitivity"
     )
@@ -754,15 +699,11 @@ def test_extreme_sensitivity_does_not_change_selection_series_or_next_step(
     def outcome(
         store: QuantStore, workspace_id: str, run_id: str
     ) -> tuple[str, dict[str, Any], str, object, object]:
-        artifacts = store.artifacts_for_run(
-            workspace_id=workspace_id, run_id=run_id
-        )
+        artifacts = store.artifacts_for_run(workspace_id=workspace_id, run_id=run_id)
         report = next(item for item in artifacts if item.kind.value == "research_report")
         selected = next(
             item
-            for item in store.experiments_for_run(
-                workspace_id=workspace_id, run_id=run_id
-            )
+            for item in store.experiments_for_run(workspace_id=workspace_id, run_id=run_id)
             if item.id == report.content["selected_candidate_id"]
         )
         retained_run = store.get_run(workspace_id=workspace_id, run_id=run_id)

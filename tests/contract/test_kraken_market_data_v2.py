@@ -51,10 +51,7 @@ def _row(timestamp: datetime) -> list[object]:
 
 
 def _payload(*, pair: str, current_start: datetime, step: timedelta, completed: int) -> bytes:
-    rows = [
-        _row(current_start - step * index)
-        for index in range(completed, -1, -1)
-    ]
+    rows = [_row(current_start - step * index) for index in range(completed, -1, -1)]
     return json.dumps(
         {
             "error": [],
@@ -164,9 +161,7 @@ def test_connector_contract_is_server_driven_and_interval_limit_bounded() -> Non
     QuantKrakenSpotFetchRequest.model_validate(
         {"symbol": "BTCUSDT", "interval": "4h", "limit": 548}
     )
-    QuantKrakenSpotFetchRequest.model_validate(
-        {"symbol": "ETHUSD", "interval": "1D", "limit": 252}
-    )
+    QuantKrakenSpotFetchRequest.model_validate({"symbol": "ETHUSD", "interval": "1D", "limit": 252})
     for invalid in (
         {"symbol": "SOLUSD", "interval": "4h", "limit": 548},
         {"symbol": "BTCUSDT", "interval": "1h", "limit": 2190},

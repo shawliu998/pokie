@@ -68,9 +68,7 @@ def test_provider_source_requires_complete_provider_retrieval_attestation() -> N
     assert metadata.provider_id == "binance_spot"
 
     with pytest.raises(ValidationError, match="provider attestation fields"):
-        QuantDatasetSourceMetadata.model_validate(
-            {**payload, "provider_response_digest": None}
-        )
+        QuantDatasetSourceMetadata.model_validate({**payload, "provider_response_digest": None})
     with pytest.raises(ValidationError, match="declared attestation status"):
         QuantDatasetSourceMetadata.model_validate(
             {"kind": "csv_upload", "attestation_status": "provider_retrieved"}

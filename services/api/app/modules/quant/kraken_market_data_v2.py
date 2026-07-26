@@ -13,7 +13,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
-from typing import Protocol
+from typing import Literal, Protocol
 
 import httpx
 from pydantic import ValidationError
@@ -75,7 +75,7 @@ class KrakenMarketBatchEvidence:
     retained_bar_count: int
     closed_dropped_count: int
     deduplicated_count: int
-    termination_reason: str
+    termination_reason: Literal["requested_limit", "history_exhausted"]
     target_satisfied: bool
     page_raw_sha256: tuple[str, ...]
     batch_digest: str
@@ -153,8 +153,7 @@ class KrakenMarketDataV2Client:
         raw = self._request(params)
         rows = self._decode_response(raw, provider_pair=provider_pair)
         parsed = tuple(
-            self._parse_row(row, interval=interval, interval_delta=interval_delta)
-            for row in rows
+            self._parse_row(row, interval=interval, interval_delta=interval_delta) for row in rows
         )
         if any(
             current.timestamp >= following.timestamp
@@ -166,17 +165,14 @@ class KrakenMarketDataV2Client:
 
         current = parsed[-1]
         if not (
-            current.timestamp <= retrieved_at
-            and current.timestamp + interval_delta > retrieved_at
+            current.timestamp <= retrieved_at and current.timestamp + interval_delta > retrieved_at
         ):
             raise KrakenMarketDataV2Error(
                 "Kraken Spot response did not end with the current uncommitted interval."
             )
         completed = parsed[:-1]
         if not completed or len(completed) > MAX_KRAKEN_SPOT_COMMITTED_BARS:
-            raise KrakenMarketDataV2Error(
-                "Kraken Spot committed OHLC row count is invalid."
-            )
+            raise KrakenMarketDataV2Error("Kraken Spot committed OHLC row count is invalid.")
         retained = completed[-limit:]
         dataset = self._dataset_for(
             symbol=normalized_symbol,
@@ -251,14 +247,10 @@ class KrakenMarketDataV2Client:
                 "Kraken Spot market-data request failed safely."
             ) from None
         if response.status_code != 200:
-            raise KrakenMarketDataV2Error(
-                "Kraken Spot market-data request failed safely."
-            )
+            raise KrakenMarketDataV2Error("Kraken Spot market-data request failed safely.")
         raw = response.content
         if len(raw) > MAX_KRAKEN_SPOT_RESPONSE_BYTES:
-            raise KrakenMarketDataV2Error(
-                "Kraken Spot response exceeded the byte limit."
-            )
+            raise KrakenMarketDataV2Error("Kraken Spot response exceeded the byte limit.")
         return raw
 
     @staticmethod
@@ -266,17 +258,13 @@ class KrakenMarketDataV2Client:
         try:
             payload = json.loads(raw)
         except (TypeError, UnicodeDecodeError, json.JSONDecodeError):
-            raise KrakenMarketDataV2Error(
-                "Kraken Spot response was not valid JSON."
-            ) from None
+            raise KrakenMarketDataV2Error("Kraken Spot response was not valid JSON.") from None
         if not isinstance(payload, dict) or set(payload) != {"error", "result"}:
             raise KrakenMarketDataV2Error("Kraken Spot response shape is invalid.")
         errors = payload["error"]
         result = payload["result"]
         if not isinstance(errors, list) or errors:
-            raise KrakenMarketDataV2Error(
-                "Kraken Spot market-data request failed safely."
-            )
+            raise KrakenMarketDataV2Error("Kraken Spot market-data request failed safely.")
         if (
             not isinstance(result, dict)
             or set(result) != {provider_pair, "last"}
@@ -285,11 +273,7 @@ class KrakenMarketDataV2Client:
         ):
             raise KrakenMarketDataV2Error("Kraken Spot result shape is invalid.")
         rows = result[provider_pair]
-        if (
-            not isinstance(rows, list)
-            or not rows
-            or len(rows) > MAX_KRAKEN_SPOT_RAW_ROWS
-        ):
+        if not isinstance(rows, list) or not rows or len(rows) > MAX_KRAKEN_SPOT_RAW_ROWS:
             raise KrakenMarketDataV2Error("Kraken Spot OHLC row count is invalid.")
         return rows
 
@@ -301,23 +285,13 @@ class KrakenMarketDataV2Client:
         interval_delta: timedelta,
     ) -> QuantMarketBar:
         if not isinstance(row, list) or len(row) != 8:
-            raise KrakenMarketDataV2Error(
-                "Kraken Spot OHLC rows must contain exactly 8 values."
-            )
+            raise KrakenMarketDataV2Error("Kraken Spot OHLC rows must contain exactly 8 values.")
         timestamp = row[0]
-        if (
-            not isinstance(timestamp, int)
-            or isinstance(timestamp, bool)
-            or timestamp < 0
-        ):
+        if not isinstance(timestamp, int) or isinstance(timestamp, bool) or timestamp < 0:
             raise KrakenMarketDataV2Error("Kraken Spot OHLC timestamp is invalid.")
         if any(not isinstance(row[index], str) or not row[index] for index in range(1, 7)):
             raise KrakenMarketDataV2Error("Kraken Spot OHLC values are invalid.")
-        if (
-            not isinstance(row[7], int)
-            or isinstance(row[7], bool)
-            or row[7] < 0
-        ):
+        if not isinstance(row[7], int) or isinstance(row[7], bool) or row[7] < 0:
             raise KrakenMarketDataV2Error("Kraken Spot OHLC trade count is invalid.")
         try:
             vwap = Decimal(row[5])
@@ -332,9 +306,7 @@ class KrakenMarketDataV2Client:
                 volume=Decimal(row[6]),
             )
         except (InvalidOperation, ValidationError, OverflowError, OSError, ValueError):
-            raise KrakenMarketDataV2Error(
-                "Kraken Spot OHLC values are invalid."
-            ) from None
+            raise KrakenMarketDataV2Error("Kraken Spot OHLC values are invalid.") from None
         if interval is QuantBarInterval.FOUR_HOURS:
             aligned = (
                 bar.timestamp.hour % 4 == 0
@@ -343,14 +315,10 @@ class KrakenMarketDataV2Client:
             )
         else:
             aligned = (
-                bar.timestamp.hour == 0
-                and bar.timestamp.minute == 0
-                and bar.timestamp.second == 0
+                bar.timestamp.hour == 0 and bar.timestamp.minute == 0 and bar.timestamp.second == 0
             )
         if not aligned or bar.timestamp.microsecond != 0:
-            raise KrakenMarketDataV2Error(
-                "Kraken Spot OHLC timestamp is not interval aligned."
-            )
+            raise KrakenMarketDataV2Error("Kraken Spot OHLC timestamp is not interval aligned.")
         if interval_delta.total_seconds() not in {14_400, 86_400}:
             raise KrakenMarketDataV2Error("Kraken Spot interval is unsupported.")
         return bar

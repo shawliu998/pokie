@@ -23,12 +23,8 @@ from ..base import ContractModel, Digest, NonEmptyString, VersionString
 from .data import QuantDailyBarDataset
 
 QUANT_MARKET_BAR_SCHEMA_VERSION = "quant-market-bars-v2"
-NonNegativeMarketVolume = Annotated[
-    Decimal, Field(ge=0, max_digits=30, decimal_places=18)
-]
-PositiveMarketPrice = Annotated[
-    Decimal, Field(gt=0, max_digits=30, decimal_places=18)
-]
+NonNegativeMarketVolume = Annotated[Decimal, Field(ge=0, max_digits=30, decimal_places=18)]
+PositiveMarketPrice = Annotated[Decimal, Field(gt=0, max_digits=30, decimal_places=18)]
 
 
 class QuantBarInterval(StrEnum):
@@ -80,9 +76,7 @@ class QuantMarketDatasetEvidence(ContractModel):
     source_kind: QuantMarketDataProvenance
     source_name: NonEmptyString = Field(max_length=200)
     source_reference: NonEmptyString | None = Field(default=None, max_length=2_000)
-    file_name: NonEmptyString | None = Field(
-        default=None, max_length=255, pattern=r"^[^/\\\x00]+$"
-    )
+    file_name: NonEmptyString | None = Field(default=None, max_length=255, pattern=r"^[^/\\\x00]+$")
     submitted_csv_digest: Digest | None = None
     retrieved_at_utc: datetime | None = None
     requested_bar_count: int | None = Field(default=None, ge=1, le=5_000)
@@ -391,9 +385,7 @@ def _validate_market_metadata(
     if session is not expected_session:
         raise ValueError(f"{calendar.value} calendar requires {expected_session.value} session")
     if periods_per_year != expected_periods:
-        raise ValueError(
-            f"{calendar.value} calendar requires periods_per_year={expected_periods}"
-        )
+        raise ValueError(f"{calendar.value} calendar requires periods_per_year={expected_periods}")
     required_time_zone = _CALENDAR_TIME_ZONES.get(calendar)
     if required_time_zone is not None and time_zone != required_time_zone:
         raise ValueError(f"{calendar.value} calendar requires time_zone={required_time_zone}")

@@ -60,9 +60,7 @@ class BinanceMarketDataClient:
         if not _SYMBOL_PATTERN.fullmatch(normalized_symbol):
             raise BinanceMarketDataError("Binance symbol is invalid.")
         if not MIN_KLINES_LIMIT <= limit <= MAX_KLINES_LIMIT:
-            raise BinanceMarketDataError(
-                "Binance daily kline limit must be from 252 to 1000."
-            )
+            raise BinanceMarketDataError("Binance daily kline limit must be from 252 to 1000.")
         response = self._get(
             BINANCE_DATA_API_BASE_URL + BINANCE_KLINES_PATH,
             params={
@@ -75,9 +73,7 @@ class BinanceMarketDataClient:
             raise BinanceMarketDataError("Binance market-data request failed safely.")
         raw = response.content
         if len(raw) > MAX_RESPONSE_BYTES:
-            raise BinanceMarketDataError(
-                "Binance market-data response exceeded the byte limit."
-            )
+            raise BinanceMarketDataError("Binance market-data response exceeded the byte limit.")
         try:
             payload = json.loads(raw)
         except (TypeError, UnicodeDecodeError, json.JSONDecodeError):
@@ -85,9 +81,7 @@ class BinanceMarketDataClient:
                 "Binance market-data response was not valid JSON."
             ) from None
         if not isinstance(payload, list):
-            raise BinanceMarketDataError(
-                "Binance market-data response must be a list."
-            )
+            raise BinanceMarketDataError("Binance market-data response must be a list.")
         retrieved_at = datetime.now(tz=UTC)
         fetched_at_ms = int(retrieved_at.timestamp() * 1000)
         complete_rows = [row for row in payload if not self._is_incomplete(row, fetched_at_ms)]
@@ -168,5 +162,5 @@ class BinanceMarketDataClient:
         if volume < 0:
             raise BinanceMarketDataError("Binance kline volume is invalid.")
         # Price validation intentionally remains with parse_ohlcv_csv/QuantDailyBar.
-        values = tuple(str(row[index]) for index in (1, 2, 3, 4))
-        return (day, *values, volume)
+        open_, high, low, close = (str(row[index]) for index in (1, 2, 3, 4))
+        return day, open_, high, low, close, volume

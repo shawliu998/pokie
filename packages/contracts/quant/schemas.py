@@ -435,12 +435,10 @@ class QuantConnectorDirectoryResponse(ContractModel):
     provider: Literal["kraken_spot"]
     display_name: Literal["Kraken Spot public OHLC"]
     source_kind: Literal["market_bars"]
-    supported_symbols: tuple[
-        Literal["BTCUSD", "BTCUSDT", "ETHUSD", "ETHUSDT"], ...
-    ] = Field(min_length=4, max_length=4)
-    supported_intervals: tuple[Literal["4h", "1D"], ...] = Field(
-        min_length=2, max_length=2
+    supported_symbols: tuple[Literal["BTCUSD", "BTCUSDT", "ETHUSD", "ETHUSDT"], ...] = Field(
+        min_length=4, max_length=4
     )
+    supported_intervals: tuple[Literal["4h", "1D"], ...] = Field(min_length=2, max_length=2)
     minimum_recent_bars: dict[Literal["4h", "1D"], StrictInt]
     maximum_recent_bars: Literal[719]
     fetch_endpoint: Literal["/v1/quant/connectors/kraken-spot-ohlc-v1/fetch"]

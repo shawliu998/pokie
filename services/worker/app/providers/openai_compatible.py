@@ -64,15 +64,11 @@ class OpenAICompatibleConfig:
         if not raw_key:
             raise OpenAICompatibleError(f"{key_var} is not configured.")
         base_url = (
-            os.environ.get(base_url_var, default_base_url)
-            if base_url_var
-            else default_base_url
+            os.environ.get(base_url_var, default_base_url) if base_url_var else default_base_url
         )
         if not base_url:
             base_url = default_base_url
-        model = (
-            os.environ.get(model_var, default_model) if model_var else default_model
-        )
+        model = os.environ.get(model_var, default_model) if model_var else default_model
         if not model:
             model = default_model
         return cls(

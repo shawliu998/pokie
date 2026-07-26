@@ -249,7 +249,9 @@ _FIXTURE_PROGRAMS: dict[QuantFixtureRunState, QuantFixtureProgram] = {
                 name="fixture-mean-reversion",
                 hypothesis="Fixture mean reversion beats the pinned synthetic baseline window.",
                 verdict=QuantExperimentVerdict.NOT_VIABLE,
-                summary="Not viable on the pinned synthetic fixture; retained as a negative result.",
+                summary=(
+                    "Not viable on the pinned synthetic fixture; retained as a negative result."
+                ),
             ),
         ),
         artifact_kinds=(
@@ -313,7 +315,9 @@ _FIXTURE_PROGRAMS: dict[QuantFixtureRunState, QuantFixtureProgram] = {
         ),
         artifact_kinds=(QuantArtifactKind.DATASET_SNAPSHOT,),
         terminal_state=QuantRunState.FAILED,
-        failure_reason="Deterministic fixture failure requested by POKIEQUANT_E2E_RUN_STATE=failed.",
+        failure_reason=(
+            "Deterministic fixture failure requested by POKIEQUANT_E2E_RUN_STATE=failed."
+        ),
     ),
 }
 

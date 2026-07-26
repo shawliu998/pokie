@@ -114,9 +114,7 @@ def _western_easter(year: int) -> date:
     epact = (19 * golden_number + century - leap_century - adjustment + 15) % 30
     leap_year = year_of_century // 4
     year_remainder = year_of_century % 4
-    weekday_adjustment = (
-        32 + 2 * century_remainder + 2 * leap_year - epact - year_remainder
-    ) % 7
+    weekday_adjustment = (32 + 2 * century_remainder + 2 * leap_year - epact - year_remainder) % 7
     month_adjustment = (golden_number + 11 * epact + 22 * weekday_adjustment) // 451
     month = (epact + weekday_adjustment - 7 * month_adjustment + 114) // 31
     day = (epact + weekday_adjustment - 7 * month_adjustment + 114) % 31 + 1
@@ -202,9 +200,7 @@ def assess_daily_bar_quality(
     )
     zero_volume = sum(bar.volume == 0 for bar in dataset.bars)
     unexpected_sessions = (
-        0
-        if calendar == "24X7"
-        else sum(bar.trading_date.weekday() >= 5 for bar in dataset.bars)
+        0 if calendar == "24X7" else sum(bar.trading_date.weekday() >= 5 for bar in dataset.bars)
     )
     jumps = sum(
         abs(float(current.close / previous.close) - 1) >= 0.5

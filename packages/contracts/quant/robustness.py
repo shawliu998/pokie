@@ -44,9 +44,7 @@ class QuantRobustnessCandidateIdentity(_FrozenRobustnessModel):
         cls, value: dict[str, StrictInt | FiniteFloat]
     ) -> dict[str, StrictInt | FiniteFloat]:
         if any(
-            not key
-            or isinstance(item, bool)
-            or not isfinite(float(item))
+            not key or isinstance(item, bool) or not isfinite(float(item))
             for key, item in value.items()
         ):
             raise ValueError("strategy parameters must be finite named numeric values")

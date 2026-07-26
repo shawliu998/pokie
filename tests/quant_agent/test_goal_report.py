@@ -62,9 +62,7 @@ def _finish(workspace_id: str, run_id: str, maximum_polls: int = 25) -> QuantSto
     return QuantStore()
 
 
-def test_different_goals_produce_different_reports(
-    client: TestClient, principal_id: str
-) -> None:
+def test_different_goals_produce_different_reports(client: TestClient, principal_id: str) -> None:
     drawdown_workspace, drawdown_run = _create_auto_run(
         client, principal_id, "Reduce maximum drawdown."
     )
@@ -76,16 +74,12 @@ def test_different_goals_produce_different_reports(
 
     def report(store: QuantStore, workspace_id: str, run_id: str) -> dict[str, Any]:
         artifacts = store.artifacts_for_run(workspace_id=workspace_id, run_id=run_id)
-        report_artifacts = [
-            item for item in artifacts if item.kind.value == "research_report"
-        ]
+        report_artifacts = [item for item in artifacts if item.kind.value == "research_report"]
         assert report_artifacts
         return report_artifacts[-1].content
 
     drawdown_report = report(drawdown_store, drawdown_workspace, drawdown_run["id"])
-    opportunity_report = report(
-        opportunity_store, opportunity_workspace, opportunity_run["id"]
-    )
+    opportunity_report = report(opportunity_store, opportunity_workspace, opportunity_run["id"])
     assert drawdown_report["research_goal"] != opportunity_report["research_goal"]
     drawdown_names = {item["name"] for item in drawdown_report["candidates_tested"]}
     opportunity_names = {item["name"] for item in opportunity_report["candidates_tested"]}

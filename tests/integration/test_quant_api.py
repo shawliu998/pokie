@@ -1082,8 +1082,7 @@ def test_iteration_feedback_snapshot_filters_old_feedback_events_but_keeps_other
         comparison_outcome = next(
             item
             for item in payload["events"]
-            if item["type"] == "tool.completed"
-            and item.get("action") == "compare_candidates"
+            if item["type"] == "tool.completed" and item.get("action") == "compare_candidates"
         )
         assert comparison_outcome["artifactIds"] == [normal_artifact.id]
         assert feedback.id not in comparison_outcome["safeSummary"]

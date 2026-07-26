@@ -18,9 +18,7 @@ class FakeClient:
     def list_datasets(self) -> list[dict[str, Any]]:
         return [{"dataset_id": "dataset-v2", "symbol": "BTCUSD"}]
 
-    def list_runs(
-        self, *, project_id: str | None = None, limit: int = 50
-    ) -> list[dict[str, Any]]:
+    def list_runs(self, *, project_id: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
         return [{"id": "run-1", "project_id": project_id, "limit": limit}]
 
     def get_run(self, run_id: str) -> dict[str, Any]:

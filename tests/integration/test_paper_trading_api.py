@@ -27,9 +27,7 @@ def command_headers(principal_id: str, workspace_id: str) -> dict[str, str]:
     )
 
 
-def completed_research(
-    client: TestClient, principal_id: str
-) -> tuple[str, dict[str, Any], str]:
+def completed_research(client: TestClient, principal_id: str) -> tuple[str, dict[str, Any], str]:
     workspace_response = client.post(
         "/v1/workspaces",
         headers={
@@ -121,9 +119,7 @@ def completed_research(
         or (report.get("generalization") or {}).get("selectedCandidateId")
     )
     assert isinstance(selected_candidate_id, str)
-    assert any(
-        item["id"] == selected_candidate_id for item in payload["candidates"]
-    )
+    assert any(item["id"] == selected_candidate_id for item in payload["candidates"])
     return workspace_id, run, selected_candidate_id
 
 
@@ -210,9 +206,7 @@ def test_paper_draft_rejects_candidate_not_retained_by_final_report(
     )
     assert research.status_code == 200, research.text
     non_selected_candidate_id = next(
-        item["id"]
-        for item in research.json()["candidates"]
-        if item["id"] != _candidate_id
+        item["id"] for item in research.json()["candidates"] if item["id"] != _candidate_id
     )
     response = client.post(
         "/v1/paper/orders/drafts",

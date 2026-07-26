@@ -5,7 +5,7 @@ Revises: 20260715_0005
 """
 
 from alembic import op
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON, String, inspect, text
+from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, String, inspect, text
 
 revision = "20260717_0006"
 down_revision = "20260715_0005"
@@ -35,12 +35,10 @@ def upgrade() -> None:
 
     if bind.dialect.name != "postgresql":
         return
+    op.execute('GRANT SELECT, INSERT, UPDATE ON TABLE "quant_repository_states" TO glint_api')
     op.execute(
-        'GRANT SELECT, INSERT, UPDATE ON TABLE "quant_repository_states" TO glint_api'
-    )
-    op.execute(
-        'GRANT SELECT, UPDATE (state_json, updated_at, row_version, worker_lease_token, '
-        'worker_lease_expires_at, worker_heartbeat_at, worker_fencing_version) '
+        "GRANT SELECT, UPDATE (state_json, updated_at, row_version, worker_lease_token, "
+        "worker_lease_expires_at, worker_heartbeat_at, worker_fencing_version) "
         'ON TABLE "quant_repository_states" TO glint_worker'
     )
     op.execute('ALTER TABLE "quant_repository_states" ENABLE ROW LEVEL SECURITY')

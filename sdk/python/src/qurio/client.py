@@ -72,31 +72,21 @@ class QurioClient:
         self._client.close()
 
     def list_datasets(self) -> list[QurioDataset]:
-        return _DATASET_LIST.validate_python(
-            self._request("GET", "/v1/quant/datasets/v2")
-        )
+        return _DATASET_LIST.validate_python(self._request("GET", "/v1/quant/datasets/v2"))
 
-    def list_runs(
-        self, *, project_id: UUID | str | None = None, limit: int = 50
-    ) -> list[QurioRun]:
+    def list_runs(self, *, project_id: UUID | str | None = None, limit: int = 50) -> list[QurioRun]:
         if not 1 <= limit <= 100:
             raise ValueError("limit must be between 1 and 100.")
         params: dict[str, str | int] = {"limit": limit}
         if project_id is not None:
             params["project_id"] = str(project_id)
-        return _RUN_LIST.validate_python(
-            self._request("GET", "/v1/quant/runs", params=params)
-        )
+        return _RUN_LIST.validate_python(self._request("GET", "/v1/quant/runs", params=params))
 
     def get_run(self, run_id: UUID | str) -> QurioRun:
-        return QurioRun.model_validate(
-            self._request("GET", f"/v1/quant/runs/{run_id}")
-        )
+        return QurioRun.model_validate(self._request("GET", f"/v1/quant/runs/{run_id}"))
 
     def get_workspace_snapshot(self) -> JsonObject:
-        return _JSON_OBJECT.validate_python(
-            self._request("GET", "/v1/quant/workspace-snapshot")
-        )
+        return _JSON_OBJECT.validate_python(self._request("GET", "/v1/quant/workspace-snapshot"))
 
     def get_run_snapshot(self, run_id: UUID | str) -> JsonObject:
         return _JSON_OBJECT.validate_python(

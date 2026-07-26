@@ -124,9 +124,7 @@ def test_connector_directory_and_fetch_enter_canonical_market_v2_path(
     ]
 
     fetched = _kraken_result()
-    refetched = _kraken_result(
-        retrieved_at=datetime(2025, 1, 1, 12, 45, tzinfo=UTC)
-    )
+    refetched = _kraken_result(retrieved_at=datetime(2025, 1, 1, 12, 45, tzinfo=UTC))
     drifted_request = replace(
         refetched,
         evidence=replace(

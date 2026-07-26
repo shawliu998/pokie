@@ -21,9 +21,10 @@ def test_parse_arguments_and_provider_model_selection(tmp_path: Path) -> None:
     assert runtime.selected_model("mock", "ignored") is None
     with pytest.raises(ValueError, match="--model"):
         runtime.selected_model("deepseek", " ")
-    assert runtime.selected_base_url(
-        "openai_compatible", "https://provider.example/v1/"
-    ) == "https://provider.example/v1"
+    assert (
+        runtime.selected_base_url("openai_compatible", "https://provider.example/v1/")
+        == "https://provider.example/v1"
+    )
     with pytest.raises(ValueError, match="HTTPS"):
         runtime.selected_base_url("openai_compatible", "http://provider.example/v1")
     with pytest.raises(ValueError, match="only"):
@@ -96,12 +97,20 @@ def test_api_and_worker_environment_share_provider_model_and_cors(tmp_path: Path
         "database_path": str(database_path),
     }
     api = runtime.build_process_env(
-        role="api", metadata=metadata, database_path=database_path, object_root=object_root,
-        provider="deepseek", model="deepseek-v4",
+        role="api",
+        metadata=metadata,
+        database_path=database_path,
+        object_root=object_root,
+        provider="deepseek",
+        model="deepseek-v4",
     )
     worker = runtime.build_process_env(
-        role="worker", metadata=metadata, database_path=database_path, object_root=object_root,
-        provider="deepseek", model="deepseek-v4",
+        role="worker",
+        metadata=metadata,
+        database_path=database_path,
+        object_root=object_root,
+        provider="deepseek",
+        model="deepseek-v4",
     )
     for env in (api, worker):
         assert env["POKIEQUANT_AGENT_PROVIDER"] == "deepseek"
@@ -211,11 +220,14 @@ def test_terminate_children_escalates_to_sigkill_after_timeout(
 
 
 def test_health_wait_stops_immediately_when_supervisor_is_terminating() -> None:
-    assert runtime.wait_for_health(
-        "http://127.0.0.1:1",
-        timeout_seconds=20,
-        should_stop=lambda: True,
-    ) is False
+    assert (
+        runtime.wait_for_health(
+            "http://127.0.0.1:1",
+            timeout_seconds=20,
+            should_stop=lambda: True,
+        )
+        is False
+    )
 
 
 def test_sigterm_during_health_wait_cleans_api_without_starting_worker(
@@ -249,6 +261,7 @@ def test_sigterm_during_health_wait_cleans_api_without_starting_worker(
     monkeypatch.setattr(runtime, "bootstrap_metadata", lambda **_kwargs: metadata)
     monkeypatch.setattr(runtime, "free_loopback_port", lambda: 8123)
     monkeypatch.setattr(runtime, "build_process_env", lambda **_kwargs: {})
+
     def start_api(command: list[str], _env: dict[str, str]) -> mock.Mock:
         started.append(command)
         return process

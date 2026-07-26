@@ -1745,11 +1745,7 @@ def quant_agent_workspace_snapshot(
         artifact_ids = payload.get("artifact_ids")
         if not isinstance(artifact_ids, list):
             return []
-        return [
-            str(item)
-            for item in artifact_ids
-            if str(item) not in internal_artifact_ids
-        ]
+        return [str(item) for item in artifact_ids if str(item) not in internal_artifact_ids]
 
     def hide_internal_event(event_type: str, payload: dict[str, Any]) -> bool:
         if not _payload_refs_internal_artifacts(payload, internal_artifact_ids):

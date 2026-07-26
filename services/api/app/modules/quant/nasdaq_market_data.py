@@ -120,9 +120,7 @@ class NasdaqMarketDataClient:
         )
         bars = [self._parse_bar(row) for row in historical_rows]
         if len(bars) > limit:
-            raise NasdaqMarketDataError(
-                "Nasdaq historical response exceeded the requested limit."
-            )
+            raise NasdaqMarketDataError("Nasdaq historical response exceeded the requested limit.")
         bars.sort(key=lambda item: item[0])
         if len({item[0] for item in bars}) != len(bars):
             raise NasdaqMarketDataError("Nasdaq historical response contained duplicate dates.")
@@ -165,19 +163,19 @@ class NasdaqMarketDataClient:
 
     def _request(self, url: str, *, params: dict[str, str | int]) -> bytes:
         try:
-            kwargs: dict[str, object] = {
-                "params": params,
-                "headers": {"User-Agent": NASDAQ_USER_AGENT, "Accept": "application/json"},
-                "timeout": httpx.Timeout(self._timeout_seconds),
-                "follow_redirects": False,
-            }
+            headers = {"User-Agent": NASDAQ_USER_AGENT, "Accept": "application/json"}
+            timeout = httpx.Timeout(self._timeout_seconds)
             if self._transport is not None:
-                response = self._transport.get(url, **kwargs)
+                response = self._transport.get(
+                    url,
+                    params=params,
+                    headers=headers,
+                    timeout=timeout,
+                    follow_redirects=False,
+                )
             else:
-                with httpx.Client(
-                    timeout=httpx.Timeout(self._timeout_seconds), follow_redirects=False
-                ) as client:
-                    response = client.get(url, params=params, headers=kwargs["headers"])
+                with httpx.Client(timeout=timeout, follow_redirects=False) as client:
+                    response = client.get(url, params=params, headers=headers)
             if response.status_code != 200:
                 raise NasdaqMarketDataError("Nasdaq market-data request failed safely.")
             raw = response.content
@@ -273,9 +271,7 @@ class NasdaqMarketDataClient:
             all_dates.append(execution_date)
             if raw_symbol.strip().upper() == symbol:
                 parsed.append(
-                    NasdaqSplitEvent(
-                        symbol=symbol, ratio=ratio, execution_date=execution_date
-                    )
+                    NasdaqSplitEvent(symbol=symbol, ratio=ratio, execution_date=execution_date)
                 )
         parsed.sort(key=lambda item: (item.execution_date, item.ratio))
         if len({(item.symbol, item.execution_date) for item in parsed}) != len(parsed):

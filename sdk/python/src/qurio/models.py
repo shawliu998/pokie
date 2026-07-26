@@ -63,17 +63,13 @@ class QurioArtifact(QurioModel):
 class StrategyExportPreviewRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    export_type: Literal[
-        "strategy_report_markdown", "strategy_evidence_bundle_json"
-    ]
+    export_type: Literal["strategy_report_markdown", "strategy_evidence_bundle_json"]
     run_id: UUID
     candidate_id: UUID
 
 
 class StrategyExportPreviewResponse(QurioModel):
-    export_type: Literal[
-        "strategy_report_markdown", "strategy_evidence_bundle_json"
-    ]
+    export_type: Literal["strategy_report_markdown", "strategy_evidence_bundle_json"]
     run_id: UUID
     candidate_id: UUID
     data_authenticity: str

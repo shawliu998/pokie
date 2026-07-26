@@ -53,9 +53,7 @@ def test_ohlcv_csv_is_stable_across_header_order_and_whitespace() -> None:
         ("date,open,high,low,close\n2024-01-02,100,99,101,100\n", "high must be"),
         ("date,open,high,low,close\n2024-01-02,NaN,102,99,101\n", "finite positive"),
         (
-            "date,open,high,low,close\n"
-            "2024-01-02,100,102,99,101\n"
-            "2024-01-02,101,103,100,102\n",
+            "date,open,high,low,close\n2024-01-02,100,102,99,101\n2024-01-02,101,103,100,102\n",
             "strictly ordered",
         ),
     ],

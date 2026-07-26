@@ -58,21 +58,11 @@ def _synthetic_weekday_bars() -> tuple[QuantFixtureDailyBar, ...]:
             )
             noise = Decimal((index * 37) % 17 - 8) * Decimal("0.00018")
             overnight = Decimal((index * 13) % 9 - 4) * Decimal("0.00025")
-            opening = (prior_close * (Decimal("1") + overnight)).quantize(
-                _PRICE_QUANTUM
-            )
-            close = (prior_close * (Decimal("1") + regime + shock + noise)).quantize(
-                _PRICE_QUANTUM
-            )
-            spread = Decimal("0.0025") + Decimal((index * 11) % 7) * Decimal(
-                "0.00025"
-            )
-            high = (max(opening, close) * (Decimal("1") + spread)).quantize(
-                _PRICE_QUANTUM
-            )
-            low = (min(opening, close) * (Decimal("1") - spread)).quantize(
-                _PRICE_QUANTUM
-            )
+            opening = (prior_close * (Decimal("1") + overnight)).quantize(_PRICE_QUANTUM)
+            close = (prior_close * (Decimal("1") + regime + shock + noise)).quantize(_PRICE_QUANTUM)
+            spread = Decimal("0.0025") + Decimal((index * 11) % 7) * Decimal("0.00025")
+            high = (max(opening, close) * (Decimal("1") + spread)).quantize(_PRICE_QUANTUM)
+            low = (min(opening, close) * (Decimal("1") - spread)).quantize(_PRICE_QUANTUM)
             rows.append(
                 QuantFixtureDailyBar(
                     trading_date=current_date,

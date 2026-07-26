@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Annotated, Any
 from uuid import UUID
@@ -385,6 +385,16 @@ def fetch_nasdaq_equity_dataset(
         info_reference = f"nasdaq:{body.symbol}:info?assetclass=stocks"
         dividends_reference = f"nasdaq:{body.symbol}:dividends?assetclass=stocks"
         splits_reference = "nasdaq:calendar/splits"
+        dividend_coverage_start = (
+            date.fromisoformat(fetched.dividend_coverage_start)
+            if fetched.dividend_coverage_start is not None
+            else None
+        )
+        dividend_coverage_end = (
+            date.fromisoformat(fetched.dividend_coverage_end)
+            if fetched.dividend_coverage_end is not None
+            else None
+        )
         record = _store().import_dataset_csv(
             workspace_id=context.workspace_id,
             name=body.name or f"{body.symbol} Nasdaq daily",
@@ -420,10 +430,10 @@ def fetch_nasdaq_equity_dataset(
             corporate_actions_attestation=QuantCorporateActionsAttestation(
                 dividends_status="retrieved_unverified",
                 splits_status="retrieved_unverified",
-                coverage_start=fetched.dividend_coverage_start,
-                coverage_end=fetched.dividend_coverage_end,
-                dividend_coverage_start=fetched.dividend_coverage_start,
-                dividend_coverage_end=fetched.dividend_coverage_end,
+                coverage_start=dividend_coverage_start,
+                coverage_end=dividend_coverage_end,
+                dividend_coverage_start=dividend_coverage_start,
+                dividend_coverage_end=dividend_coverage_end,
                 split_coverage_start=fetched.split_coverage_start,
                 split_coverage_end=fetched.split_coverage_end,
                 split_snapshot_as_of=fetched.split_snapshot_as_of,

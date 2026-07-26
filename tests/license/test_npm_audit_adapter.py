@@ -52,6 +52,36 @@ packages: {}
 snapshots: {}
 """.lstrip()
 
+DEV_EXCEPTION_LOCK_FIXTURE = """
+lockfileVersion: '9.0'
+importers:
+  apps/mac:
+    dependencies:
+      runtime-tool:
+        specifier: 1.0.0
+        version: 1.0.0
+    devDependencies:
+      eslint:
+        specifier: 9.35.0
+        version: 9.35.0
+packages:
+  brace-expansion@1.1.16:
+    resolution: {integrity: sha512-brace-v1}
+  brace-expansion@2.1.2:
+    resolution: {integrity: sha512-brace-v2}
+  eslint@9.35.0:
+    resolution: {integrity: sha512-eslint}
+  runtime-tool@1.0.0:
+    resolution: {integrity: sha512-runtime}
+snapshots:
+  brace-expansion@1.1.16: {}
+  brace-expansion@2.1.2: {}
+  eslint@9.35.0:
+    dependencies:
+      brace-expansion: 1.1.16
+  runtime-tool@1.0.0: {}
+""".lstrip()
+
 
 class FakeResponse:
     def __init__(self, body: bytes, status: int = 200) -> None:
@@ -237,3 +267,40 @@ def test_configured_threshold_allows_lower_severity_and_empty_response_passes(
     monkeypatch.setattr(audit_npm_lock, "urlopen", _response({}))
     assert audit_npm_lock.main([str(lockfile), "--audit-level", "moderate"]) == 0
     assert "passed at level moderate" in capsys.readouterr().out
+
+
+def test_exact_reviewed_brace_expansion_advisory_is_exempt_only_when_dev_only(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(
+        audit_npm_lock,
+        "urlopen",
+        _response(
+            {
+                "brace-expansion": [
+                    {
+                        "id": 1129999,
+                        "url": "https://github.com/advisories/GHSA-mh99-v99m-4gvg",
+                        "severity": "high",
+                    }
+                ]
+            }
+        ),
+    )
+    assert (
+        audit_npm_lock.main(
+            [
+                str(_lockfile(tmp_path, DEV_EXCEPTION_LOCK_FIXTURE)),
+                "--scope",
+                "full",
+                "--audit-level",
+                "moderate",
+            ]
+        )
+        == 0
+    )
+    output = capsys.readouterr().out
+    assert "blocked=false" in output
+    assert "reviewed_dev_only_exception=true" in output

@@ -17,7 +17,6 @@ from uuid import UUID, uuid5
 
 from .enums import (
     QuantArtifactKind,
-    QuantArtifactStatus,
     QuantCandidateVerdict,
     QuantDataAuthenticity,
     QuantEventType,
@@ -122,7 +121,10 @@ def quant_experiment_id(run_id: str, candidate_key: str) -> str:
 
 def _fixture_metrics(run_id: str, candidate_key: str) -> dict[str, Any]:
     digest = hashlib.sha256(f"quant-metrics:{run_id}:{candidate_key}".encode()).digest()
-    scale = lambda index, modulo: round(digest[index] % modulo / 1000, 3)  # noqa: E731
+
+    def scale(index: int, modulo: int) -> float:
+        return round(digest[index] % modulo / 1000, 3)
+
     return {
         "cagr": scale(0, 220),
         "max_drawdown": scale(1, 35),
@@ -183,8 +185,11 @@ def build_quant_script(
         )
 
     steps.append(
-        QuantScriptStep(QuantEventType.DATA_LOAD_STARTED, QuantRunState.LOADING_DATA,
-                        QuantEventPayload(artifact_id=UUID(dataset_id)))
+        QuantScriptStep(
+            QuantEventType.DATA_LOAD_STARTED,
+            QuantRunState.LOADING_DATA,
+            QuantEventPayload(artifact_id=UUID(dataset_id)),
+        )
     )
     steps.append(
         QuantScriptStep(
@@ -215,12 +220,18 @@ def build_quant_script(
 
     # Candidate A completes cleanly.
     steps.append(
-        QuantScriptStep(QuantEventType.CANDIDATE_GENERATED, QuantRunState.GENERATING_CANDIDATES,
-                        candidate_payload("A"))
+        QuantScriptStep(
+            QuantEventType.CANDIDATE_GENERATED,
+            QuantRunState.GENERATING_CANDIDATES,
+            candidate_payload("A"),
+        )
     )
     steps.append(
-        QuantScriptStep(QuantEventType.BACKTEST_STARTED, QuantRunState.RUNNING_EXPERIMENTS,
-                        candidate_payload("A"))
+        QuantScriptStep(
+            QuantEventType.BACKTEST_STARTED,
+            QuantRunState.RUNNING_EXPERIMENTS,
+            candidate_payload("A"),
+        )
     )
     if scenario == QuantFixtureScenario.FAILED_SAFE:
         diagnostics_id = quant_artifact_id(run_id, QuantArtifactKind.DIAGNOSTICS)
@@ -272,12 +283,18 @@ def build_quant_script(
 
     # Candidate B fails once (candidate-scoped, recoverable) then is repaired.
     steps.append(
-        QuantScriptStep(QuantEventType.CANDIDATE_GENERATED, QuantRunState.GENERATING_CANDIDATES,
-                        candidate_payload("B"))
+        QuantScriptStep(
+            QuantEventType.CANDIDATE_GENERATED,
+            QuantRunState.GENERATING_CANDIDATES,
+            candidate_payload("B"),
+        )
     )
     steps.append(
-        QuantScriptStep(QuantEventType.BACKTEST_STARTED, QuantRunState.RUNNING_EXPERIMENTS,
-                        candidate_payload("B"))
+        QuantScriptStep(
+            QuantEventType.BACKTEST_STARTED,
+            QuantRunState.RUNNING_EXPERIMENTS,
+            candidate_payload("B"),
+        )
     )
     steps.append(
         QuantScriptStep(
@@ -290,16 +307,25 @@ def build_quant_script(
         )
     )
     steps.append(
-        QuantScriptStep(QuantEventType.REPAIR_STARTED, QuantRunState.REPAIRING,
-                        candidate_payload("B", repair_count=1))
+        QuantScriptStep(
+            QuantEventType.REPAIR_STARTED,
+            QuantRunState.REPAIRING,
+            candidate_payload("B", repair_count=1),
+        )
     )
     steps.append(
-        QuantScriptStep(QuantEventType.REPAIR_COMPLETED, QuantRunState.RUNNING_EXPERIMENTS,
-                        candidate_payload("B", repair_count=1))
+        QuantScriptStep(
+            QuantEventType.REPAIR_COMPLETED,
+            QuantRunState.RUNNING_EXPERIMENTS,
+            candidate_payload("B", repair_count=1),
+        )
     )
     steps.append(
-        QuantScriptStep(QuantEventType.BACKTEST_STARTED, QuantRunState.RUNNING_EXPERIMENTS,
-                        candidate_payload("B", repair_count=1))
+        QuantScriptStep(
+            QuantEventType.BACKTEST_STARTED,
+            QuantRunState.RUNNING_EXPERIMENTS,
+            candidate_payload("B", repair_count=1),
+        )
     )
     steps.append(
         QuantScriptStep(
@@ -315,12 +341,18 @@ def build_quant_script(
 
     # Candidate C completes cleanly.
     steps.append(
-        QuantScriptStep(QuantEventType.CANDIDATE_GENERATED, QuantRunState.GENERATING_CANDIDATES,
-                        candidate_payload("C"))
+        QuantScriptStep(
+            QuantEventType.CANDIDATE_GENERATED,
+            QuantRunState.GENERATING_CANDIDATES,
+            candidate_payload("C"),
+        )
     )
     steps.append(
-        QuantScriptStep(QuantEventType.BACKTEST_STARTED, QuantRunState.RUNNING_EXPERIMENTS,
-                        candidate_payload("C"))
+        QuantScriptStep(
+            QuantEventType.BACKTEST_STARTED,
+            QuantRunState.RUNNING_EXPERIMENTS,
+            candidate_payload("C"),
+        )
     )
     steps.append(
         QuantScriptStep(
@@ -333,8 +365,9 @@ def build_quant_script(
     )
 
     steps.append(
-        QuantScriptStep(QuantEventType.VALIDATION_STARTED, QuantRunState.VALIDATING,
-                        QuantEventPayload())
+        QuantScriptStep(
+            QuantEventType.VALIDATION_STARTED, QuantRunState.VALIDATING, QuantEventPayload()
+        )
     )
     no_viable = scenario == QuantFixtureScenario.NO_VIABLE
     verdicts = {
@@ -375,8 +408,11 @@ def build_quant_script(
             )
         )
     steps.append(
-        QuantScriptStep(QuantEventType.VALIDATION_COMPLETED, QuantRunState.GENERATING_REPORT,
-                        QuantEventPayload())
+        QuantScriptStep(
+            QuantEventType.VALIDATION_COMPLETED,
+            QuantRunState.GENERATING_REPORT,
+            QuantEventPayload(),
+        )
     )
     steps.append(
         QuantScriptStep(
@@ -440,7 +476,9 @@ def derive_plan_step_statuses(
         current_key = active_step_by_state.get(
             reference, ("run_experiments", QuantStepStatus.ACTIVE)
         )[0]
-        halted = QuantStepStatus.FAILED if state == QuantRunState.FAILED else QuantStepStatus.SKIPPED
+        halted = (
+            QuantStepStatus.FAILED if state == QuantRunState.FAILED else QuantStepStatus.SKIPPED
+        )
         statuses: dict[str, QuantStepStatus] = {}
         for key in order:
             if order.index(key) < order.index(current_key):

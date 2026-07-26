@@ -168,9 +168,7 @@ def test_market_bar_validates_ohlcv(field: str, value: object, message: str) -> 
         ("volume", "-Infinity"),
     ],
 )
-def test_market_bar_rejects_invalid_or_nonfinite_v2_decimal_values(
-    field: str, value: str
-) -> None:
+def test_market_bar_rejects_invalid_or_nonfinite_v2_decimal_values(field: str, value: str) -> None:
     values: dict[str, object] = {
         "timestamp": datetime(2024, 1, 2, tzinfo=UTC),
         "open": "100",
@@ -199,7 +197,7 @@ def test_market_bar_accepts_eight_decimal_prices_and_digests_them() -> None:
     changed = QuantMarketBarDataset.model_validate(
         _payload(
             bars=[
-                first.model_copy(update={"close": Decimal("101.12345679")} ),
+                first.model_copy(update={"close": Decimal("101.12345679")}),
                 second,
             ]
         )
@@ -211,14 +209,12 @@ def test_market_bar_accepts_eight_decimal_prices_and_digests_them() -> None:
 
 def test_market_bar_preserves_decimal_volume_in_the_canonical_digest() -> None:
     first = _bar().model_copy(update={"volume": Decimal("12.34567890")})
-    second = first.model_copy(
-        update={"timestamp": datetime(2024, 1, 3, tzinfo=UTC)}
-    )
+    second = first.model_copy(update={"timestamp": datetime(2024, 1, 3, tzinfo=UTC)})
     dataset = QuantMarketBarDataset.model_validate(_payload(bars=[first, second]))
     changed = QuantMarketBarDataset.model_validate(
         _payload(
             bars=[
-                first.model_copy(update={"volume": Decimal("12.34567891")} ),
+                first.model_copy(update={"volume": Decimal("12.34567891")}),
                 second,
             ]
         )
@@ -310,9 +306,10 @@ def test_unknown_calendar_explicitly_has_no_annualization() -> None:
         )
     )
     assert dataset.periods_per_year is None
-    assert periods_per_year_for(
-        calendar=QuantMarketCalendar.UNKNOWN, interval=QuantBarInterval.HOUR
-    ) is None
+    assert (
+        periods_per_year_for(calendar=QuantMarketCalendar.UNKNOWN, interval=QuantBarInterval.HOUR)
+        is None
+    )
 
 
 @pytest.mark.parametrize(
@@ -348,9 +345,7 @@ def test_market_dataset_rejects_unsupported_regular_session_intraday_cadence(
         ("time_zone", "Mars/Olympus", "valid IANA"),
     ],
 )
-def test_market_dataset_rejects_invalid_metadata(
-    field: str, value: object, message: str
-) -> None:
+def test_market_dataset_rejects_invalid_metadata(field: str, value: object, message: str) -> None:
     payload = _payload()
     payload[field] = value
     with pytest.raises(ValidationError, match=message):
@@ -435,9 +430,7 @@ def test_market_dataset_digest_includes_interval_timestamp_and_annualization() -
             periods_per_year=365,
             bars=[
                 _bar(0),
-                _bar().model_copy(
-                    update={"timestamp": datetime(2024, 1, 3, tzinfo=UTC)}
-                ),
+                _bar().model_copy(update={"timestamp": datetime(2024, 1, 3, tzinfo=UTC)}),
             ],
         )
     )
@@ -449,22 +442,23 @@ def test_market_dataset_digest_includes_interval_timestamp_and_annualization() -
             periods_per_year=252,
             bars=[
                 _bar(0),
-                _bar().model_copy(
-                    update={"timestamp": datetime(2024, 1, 3, tzinfo=UTC)}
-                ),
+                _bar().model_copy(update={"timestamp": datetime(2024, 1, 3, tzinfo=UTC)}),
             ],
         )
     )
 
-    assert len(
-        {
-            hourly.digest,
-            four_hour.digest,
-            shifted.digest,
-            continuous_daily.digest,
-            nyse_daily.digest,
-        }
-    ) == 5
+    assert (
+        len(
+            {
+                hourly.digest,
+                four_hour.digest,
+                shifted.digest,
+                continuous_daily.digest,
+                nyse_daily.digest,
+            }
+        )
+        == 5
+    )
 
 
 def test_daily_adapter_is_deterministic_without_changing_v1_identity() -> None:
