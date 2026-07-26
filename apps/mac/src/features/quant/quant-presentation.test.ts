@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { QuantExecutableResearchPlan, QuantWorkspaceSnapshot } from '../../quant-domain';
 import type { QuantRunHistoryItem } from '../../quant-api';
 import { quantFixtureSnapshot } from './quant-fixtures';
-import { canContinueResearch, formatTradeHolding, presentQuantWorkspace, presentResearchCopilot, presentStrategyScopeDecision, projectDecisionLedger, projectEvidenceFocusActions, projectNextResearchProposal, projectPaperTradingEligibility, projectQuantRunRelationship, projectTerminalDecision, resolveEvidenceFocusIntent, quantRunHistoryMatchesSnapshot, quantRunRelationshipLabel } from './quant-presentation';
+import { canContinueResearch, formatTradeHolding, presentQuantWorkspace, presentResearchCopilot, presentStrategyScopeDecision, projectDecisionLedger, projectEvidenceFocusActions, projectLatestAgentMove, projectNextResearchProposal, projectPaperTradingEligibility, projectQuantRunRelationship, projectTerminalDecision, resolveEvidenceFocusIntent, quantRunHistoryMatchesSnapshot, quantRunRelationshipLabel } from './quant-presentation';
 
 function fixture(overrides: Partial<QuantWorkspaceSnapshot> = {}): QuantWorkspaceSnapshot {
   return { ...structuredClone(quantFixtureSnapshot), ...overrides };
@@ -31,6 +31,79 @@ function retainValidation(snapshot: QuantWorkspaceSnapshot, status: 'pass' | 'no
     },
   };
 }
+
+describe('projectLatestAgentMove', () => {
+  const event = (
+    sequence: number,
+    type: string,
+    action?: string,
+    safeSummary = `${type} summary`,
+    expectedResult?: string,
+  ) => ({
+    id: `event-${sequence}`,
+    sequence,
+    type,
+    timestamp: '2026-07-26T00:00:00Z',
+    actor: type.startsWith('agent.') ? 'agent' as const : 'system' as const,
+    safeSummary,
+    ...(action ? { action } : {}),
+    ...(expectedResult ? { expectedResult } : {}),
+  });
+
+  it('projects only the latest coherent typed Agent move', () => {
+    const events = [
+      event(1, 'agent.action_selected', 'inspect_research_context', 'Inspect the pinned context.', 'A verified context summary.'),
+      event(2, 'tool.started', 'inspect_research_context'),
+      event(3, 'tool.completed', 'inspect_research_context', 'The pinned context is ready.'),
+      event(4, 'artifact.published', undefined, 'A public artifact was retained.'),
+      event(5, 'agent.action_selected', 'run_backtest', 'Test Candidate A on the training range.', 'Retained training metrics.'),
+      event(6, 'tool.started', 'run_backtest'),
+      event(7, 'tool.completed', 'run_backtest', 'Candidate A completed with 18 trades.'),
+    ];
+
+    expect(projectLatestAgentMove(events)).toEqual({
+      decision: 'Test Candidate A on the training range.',
+      action: 'run_backtest',
+      actionLabel: 'Run training backtest',
+      expectedEvidence: 'Retained training metrics.',
+      observation: 'Candidate A completed with 18 trades.',
+      status: 'completed',
+    });
+  });
+
+  it('shows a selected tool as running until a terminal observation is retained', () => {
+    expect(projectLatestAgentMove([
+      event(1, 'agent.action_selected', 'compare_candidates', 'Compare the completed candidates.', 'A ranked training comparison.'),
+      event(2, 'tool.started', 'compare_candidates'),
+    ])).toMatchObject({
+      actionLabel: 'Compare candidates',
+      observation: null,
+      status: 'running',
+    });
+  });
+
+  it('fails closed on missing starts, unknown actions and action mismatches', () => {
+    expect(projectLatestAgentMove([
+      event(1, 'agent.action_selected', 'run_backtest', 'Decision prose.', 'Expected evidence.'),
+      event(2, 'tool.completed', 'run_backtest', 'Unpaired outcome.'),
+    ])).toBeNull();
+    expect(projectLatestAgentMove([
+      event(1, 'agent.action_selected', 'invent_strategy', 'Decision prose.', 'Expected evidence.'),
+      event(2, 'tool.started', 'invent_strategy'),
+    ])).toBeNull();
+    expect(projectLatestAgentMove([
+      event(1, 'agent.action_selected', 'run_backtest', 'Decision prose.', 'Expected evidence.'),
+      event(2, 'tool.started', 'compare_candidates'),
+    ])).toBeNull();
+    expect(projectLatestAgentMove([
+      event(1, 'agent.action_selected', 'run_backtest', 'Older decision.', 'Older evidence.'),
+      event(2, 'tool.started', 'run_backtest'),
+      event(3, 'tool.completed', 'run_backtest', 'Older observation.'),
+      event(4, 'agent.action_selected', 'invent_strategy', 'Unsupported latest decision.', 'Unknown evidence.'),
+      event(5, 'tool.started', 'invent_strategy'),
+    ])).toBeNull();
+  });
+});
 
 describe('presentQuantWorkspace', () => {
   it('projects and validates only retained, run-bound evidence focus intents', () => {
@@ -909,7 +982,7 @@ describe('presentQuantWorkspace', () => {
     expect(serialized).not.toMatch(/\d+%/);
   });
 
-  it('exposes the API-owned synthetic Agent start only after plan approval', () => {
+  it('exposes the API-owned offline advance control only after plan approval', () => {
     const snapshot = fixture();
     snapshot.run = {
       ...snapshot.run,
@@ -920,7 +993,7 @@ describe('presentQuantWorkspace', () => {
     const presentation = presentQuantWorkspace(snapshot);
     expect(presentation.statusLabel).toBe('Running experiments');
     expect(presentation.actions).toEqual([
-      { kind: 'run_fixture', label: 'Run Synthetic Agent', tone: 'primary' },
+      { kind: 'run_fixture', label: 'Advance Offline Run', tone: 'primary' },
       { kind: 'cancel_run', label: 'Cancel Run', tone: 'default' },
     ]);
   });

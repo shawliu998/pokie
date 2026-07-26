@@ -78,19 +78,18 @@ test('V1 live connector evidence: retained Kraken 183209 branch to report and hi
     .getByRole('button', { name: 'Workspace', exact: true })
     .click();
   await page.getByRole('tab', { name: 'Experiments', exact: true }).click();
-  const ledger = page.locator('.pq-candidate-comparison.is-full');
-  await expect(ledger).toContainText('Decision ledger');
-  await expect(ledger).toContainText('A/B → Observation → Candidate C → Final choice');
+  const ledger = page.locator('.pq-agent-decision-chain.is-completed');
+  await expect(ledger).toContainText('Observation → Why Qurio changed → Next action');
   await expect(ledger).toContainText(candidateA);
   await expect(ledger).toContainText(candidateB);
   await expect(ledger).toContainText(candidateC);
-  await expect(ledger).toContainText('Final choice');
-  await expect(ledger).toContainText('Agent request correction');
+  await expect(ledger).toContainText('Final training choice');
+  await ledger.getByText('One validated tool correction').click();
   await expect(ledger).toContainText('Refine parameters');
   await expect(ledger).toContainText('Switch approved family');
   await expect(ledger).toContainText('changed only the action');
   await expect(page.locator('.quant-run-monitor-meta')).toContainText('Strategy revisions');
-  await ledger.getByRole('button', { name: candidateB }).click();
+  await page.locator('.pq-candidate-comparison.is-full').getByRole('button', { name: candidateB }).click();
   await expectNoHorizontalOverflow(page);
   await capture(page, 'v1-final-183209-02-ledger-repair-1440x960.png');
 

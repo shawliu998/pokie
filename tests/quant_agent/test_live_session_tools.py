@@ -382,6 +382,16 @@ class TestLauncherEnvironmentConstruction:
         env = launcher.build_mac_env(valid_session, api_port=8123)
         assert env["VITE_GLINT_API_URL"] == "http://127.0.0.1:8123"
         assert env["VITE_GLINT_WORKSPACE_ID"] == valid_session["workspace_id"]
+        assert "VITE_QURIO_GUIDED_DEMO_RUN_ID" not in env
+
+    def test_build_mac_env_exposes_guided_demo_run_only_when_requested(
+        self, valid_session: dict[str, str]
+    ) -> None:
+        env = launcher.build_mac_env(valid_session, api_port=8123, guided_demo=True)
+        assert env["VITE_QURIO_GUIDED_DEMO_RUN_ID"] == valid_session["run_id"]
+        assert env["VITE_QURIO_GUIDED_DEMO_LABEL"] == (
+            f"Real market data · DeepSeek {valid_session['model']}"
+        )
 
     def test_build_api_env_legacy_three_positional_args_uses_default_session_path(
         self, monkeypatch: pytest.MonkeyPatch, valid_session: dict[str, str]

@@ -88,25 +88,23 @@ test('P1-C golden visual proof: deterministic BTCUSDT 4h data to approved plan, 
   await approvePlan.click();
   expect((await approveResponse).ok()).toBe(true);
   await page.getByRole('tab', { name: 'Experiments', exact: true }).click();
-  const liveDecision = page.locator('[aria-label="Qurio research decision"]');
-  await expect(liveDecision).toBeVisible();
+  const runContext = page.locator('[aria-label="Run context"]');
+  await expect(runContext).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Candidate experiments' })).toBeVisible();
-  await expect(page.locator('.quant-run-monitor-state strong')).not.toHaveText('Research concluded');
-  const liveMemo = liveDecision.getByLabel('Qurio research memo');
-  await expect(liveMemo.locator('section > span')).toHaveText(['Now', 'Material observation', 'Why this experiment']);
-  await expect(liveDecision).toContainText('Initial hypothesis B · SMA 50/200');
-  await expect(liveDecision).toContainText('SMA 20/100 completed training');
-  await expect(liveDecision).toContainText('SMA 50/200 · Running');
+  await expect(page.locator('.quant-run-monitor h3')).not.toHaveText('Research concluded');
+  const decisionPath = page.locator('[aria-labelledby="pq-agent-decision-chain-heading"]');
+  await expect(decisionPath.locator(':scope > div > section > span')).toHaveText(['Observation', 'Why Qurio changed', 'Next action']);
+  await expect(decisionPath).toContainText('Initial hypothesis B · SMA 50/200');
+  await expect(decisionPath).toContainText('SMA 20/100 completed training');
+  await expect(decisionPath).toContainText('SMA 50/200');
   await noHorizontalOverflow(page);
   await capture(page, 'p1c-03-live-ab-1440x960.png');
 
-  await expect.poll(async () => page.locator('.quant-run-monitor-state strong').textContent(), { timeout: 12_000 }).toContain('Research concluded');
-  const ledger = page.locator('.pq-candidate-comparison.is-full');
-  await expect(ledger).toContainText('Decision ledger');
-  await expect(ledger).toContainText('A/B → Observation → Candidate C → Final choice');
-  await expect(ledger).toContainText('Training observation → Candidate C');
+  await expect.poll(async () => page.locator('.quant-run-monitor h3').textContent(), { timeout: 12_000 }).toContain('Research concluded');
+  const ledger = page.locator('.pq-agent-decision-chain.is-completed');
+  await expect(ledger).toContainText('Observation → Why Qurio changed → Next action');
   await expect(ledger).toContainText('Widen the breakout window after the initial training comparison.');
-  await expect(ledger).toContainText(/Final choice[\s\S]*SMA 50\/200 · Approved comparison objective/);
+  await expect(ledger).toContainText(/Final training choice[\s\S]*SMA 50\/200[\s\S]*Approved comparison objective/);
   await noHorizontalOverflow(page);
   await capture(page, 'p1c-04-observation-to-c-1440x960.png');
 

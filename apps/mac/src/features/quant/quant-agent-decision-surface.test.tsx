@@ -16,7 +16,6 @@ function renderDecision(snapshot: QuantWorkspaceSnapshot) {
       evidenceFocusActions={[]}
       busy={false}
       onAction={vi.fn()}
-      onAsk={vi.fn()}
       onEvidenceFocus={vi.fn()}
     />,
   );
@@ -62,23 +61,52 @@ describe('Live Agent decision surface', () => {
     expect(markup).not.toContain('drove this adaptation');
   });
 
-  it('keeps the Workspace candidate table secondary and labels live A/B roles without duplicating its decision summary', () => {
-    const snapshot = liveFixtures['quant-running'] as unknown as QuantWorkspaceSnapshot;
+  it('keeps the Workspace candidate table secondary to one visible Agent decision', () => {
+    const snapshot = structuredClone(liveFixtures['quant-running']) as unknown as QuantWorkspaceSnapshot;
+    snapshot.events = [
+      ...snapshot.events,
+      {
+        id: 'agent-move-decision',
+        sequence: 100,
+        type: 'agent.action_selected',
+        timestamp: '2026-07-26T00:00:00Z',
+        actor: 'agent',
+        safeSummary: 'Test Candidate B after Candidate A retained positive training evidence.',
+        action: 'run_backtest',
+        expectedResult: 'Retained training metrics and trades for Candidate B.',
+      },
+      {
+        id: 'agent-move-started',
+        sequence: 101,
+        type: 'tool.started',
+        timestamp: '2026-07-26T00:00:01Z',
+        actor: 'system',
+        safeSummary: 'Training backtest started.',
+        action: 'run_backtest',
+      },
+    ];
     const markup = renderToStaticMarkup(
       <QuantStrategyLab
         snapshot={snapshot}
         selectedCandidateId=""
         onSelectCandidate={vi.fn()}
         variant="experiments"
-        showLiveDecisionSummary={false}
       />,
     );
 
+    expect(markup).toContain('Agent decision');
     expect(markup).toContain('Candidate experiments');
     expect(markup).toContain('Initial hypothesis A');
     expect(markup).toContain('Initial hypothesis B');
-    expect(markup).not.toContain('Current experiment');
-    expect(markup).not.toContain('Latest result');
-    expect(markup).not.toContain('Next step');
+    expect(markup).toContain('Observation');
+    expect(markup).toContain('Why Qurio changed');
+    expect(markup).toContain('Next action');
+    expect(markup).toContain('Registered tool');
+    expect(markup).toContain('Run training backtest');
+    expect(markup).toContain('Retained training metrics and trades for Candidate B.');
+    expect(markup).toContain('Tool observation · Running');
+    expect(markup).toContain('The tool is running. Qurio has not retained an observation yet.');
+    expect(markup).not.toContain('run_backtest</code>');
+    expect(markup.match(/Agent decision/g)).toHaveLength(1);
   });
 });

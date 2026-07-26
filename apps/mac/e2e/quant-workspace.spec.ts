@@ -98,18 +98,20 @@ const expectedLiveDecision: Record<string, {
 async function expectLiveAgentDecision(page: Page, state = fixtureState) {
   const expected = expectedLiveDecision[state];
   if (!expected) throw new Error(`No Qurio research decision expectation is registered for ${state}.`);
-  const surface = page.locator('[aria-label="Qurio research memo"]');
+  const surface = page.locator('[aria-labelledby="pq-agent-decision-chain-heading"]');
   await expect(surface).toBeVisible();
-  const sections = surface.locator(':scope > section');
-  const current = sections.nth(0);
-  const observation = sections.nth(1);
-  const why = sections.nth(2);
-  await expect(sections.locator(':scope > span')).toHaveText(['Now', 'Material observation', 'Why this experiment']);
-  await expect(current.getByRole('heading', { level: 2 })).not.toBeEmpty();
-  await expect(observation.getByRole('heading', { level: 2 })).toHaveText(expected.observationTitle);
+  await expect(surface.getByRole('heading', { name: 'Agent decision' })).toBeVisible();
+  const sections = surface.locator(':scope > div > section');
+  const observation = sections.nth(0);
+  const why = sections.nth(1);
+  const next = sections.nth(2);
+  await expect(sections).toHaveCount(3);
+  await expect(observation.locator(':scope > span')).toHaveText('Observation');
+  await expect(why.locator(':scope > span')).toHaveText('Why Qurio changed');
+  await expect(next.locator(':scope > span')).toHaveText('Next action');
+  await expect(next.locator(':scope > strong')).not.toBeEmpty();
+  await expect(observation.locator(':scope > strong')).toHaveText(expected.observationTitle);
   await expect(observation).toContainText(expected.observationDetail);
-  await expect(why.getByRole('heading', { level: 2 })).not.toBeEmpty();
-  await expect(why.locator('p')).not.toBeEmpty();
   return surface;
 }
 
@@ -127,7 +129,7 @@ async function expectWorkspaceTabsInsideHeader(page: Page) {
 }
 
 async function expectLiveDecisionBeforeCandidateProgress(page: Page) {
-  const decisionBox = await page.locator('[aria-label="Qurio research memo"]').boundingBox();
+  const decisionBox = await page.locator('[aria-labelledby="pq-agent-decision-chain-heading"]').boundingBox();
   const candidateBox = await page.getByRole('heading', { name: 'Candidate experiments' }).boundingBox();
   if (!decisionBox || !candidateBox) throw new Error('Live decision and candidate progress must both be measurable.');
   expect(decisionBox.y).toBeLessThan(candidateBox.y);
@@ -644,7 +646,7 @@ test('projects legacy and public market research series while reopened evidence 
   const historicalCopilot = page.getByRole('complementary', { name: 'Qurio', exact: true });
   await expect(historicalCopilot.getByText('Historical evidence is read-only.', { exact: true })).toBeVisible();
   await expect(historicalCopilot.getByRole('button', { name: 'Return to latest', exact: true })).toBeVisible();
-  await expect(historicalCopilot.getByLabel('Ask about this run')).toHaveCount(0);
+  await expect(historicalCopilot.getByLabel('Ask Qurio about this research')).toBeVisible();
   await expect(historicalCopilot.getByRole('button', { name: /Approve|Cancel|Retry|Continue/ })).toHaveCount(0);
   for (const tabName of ['Decision', 'Experiments', 'Analysis'] as const) {
     await page.getByRole('tab', { name: tabName, exact: true }).click();
@@ -683,6 +685,7 @@ test('New Research defaults to a reviewable plan before any experiments run', as
   test.skip(process.env.GLINT_E2E_API_MODE !== 'fixture', 'Mode selection uses the deterministic loopback fixture API.');
   await page.goto('/');
   await page.getByTestId('quant-sidebar').getByRole('button', { name: 'New research', exact: true }).click();
+  await expect(page.getByText('What should Qurio investigate?', { exact: true })).toBeVisible();
   const modes = page.getByRole('group', { name: 'Research mode' });
   await expect(modes.getByRole('button', { name: 'Ask' })).toHaveCount(0);
   await expect(page.locator('.quant-mode-switch button[aria-pressed="true"]')).toHaveText('Plan first');
@@ -746,10 +749,10 @@ test('write operations expose pending state and ignore synchronous duplicate cli
 
   await page.getByTestId('quant-sidebar').getByRole('button', { name: 'Workspace', exact: true }).click();
   await page.getByRole('tab', { name: 'Analysis', exact: true }).click();
-  const run = page.getByRole('button', { name: 'Run Synthetic Agent' });
+  const run = page.getByRole('button', { name: 'Advance Offline Run' });
   await run.evaluate((element) => { (element as HTMLButtonElement).click(); (element as HTMLButtonElement).click(); });
   await expect(page.getByText('Submitting command…')).toBeVisible();
-  await expect(page.getByText('Research started', { exact: true })).toBeVisible();
+  await expect(page.getByText('Offline run advanced', { exact: true })).toBeVisible();
   await expect.poll(mutationCount).toBe(4);
 });
 
@@ -763,34 +766,23 @@ test('successful new research returns focus to the project workbench', async ({ 
   await expect(page.locator('#pq-workspace-tab-overview')).toBeFocused();
 });
 
-test('Research Copilot Ask submits the legal command once and locks while pending', async ({ page }) => {
-  test.skip(process.env.GLINT_E2E_API_MODE !== 'fixture' || fixtureState !== 'quant-ready', 'Ask command coverage requires the ready fixture where Ask is legal.');
-  let releaseRequest!: () => void;
-  let requestPayload: Record<string, unknown> | undefined;
-  const requestReleased = new Promise<void>((resolve) => { releaseRequest = resolve; });
-  let markReceived!: () => void;
-  const requestReceived = new Promise<void>((resolve) => { markReceived = resolve; });
-  await page.route('**/v1/quant/workspace-snapshot/commands', async (route) => {
-    requestPayload = route.request().postDataJSON() as Record<string, unknown>;
-    markReceived();
-    await requestReleased;
-    await route.continue();
+test('Research Copilot answers retained-evidence questions without starting another run', async ({ page }) => {
+  test.skip(process.env.GLINT_E2E_API_MODE !== 'fixture' || fixtureState !== 'quant-completed', 'Retained evidence coverage requires the completed fixture.');
+  let commandRequests = 0;
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && request.url().endsWith('/v1/quant/workspace-snapshot/commands')) commandRequests += 1;
   });
-
   await page.goto('/');
   const copilot = page.getByRole('complementary', { name: 'Qurio', exact: true });
-  const question = copilot.getByLabel('Ask about this run');
-  await question.fill('What evidence should the first experiment produce?');
-  const responsePromise = page.waitForResponse((response) => response.url().endsWith('/v1/quant/workspace-snapshot/commands') && response.request().method() === 'POST');
+  const question = copilot.getByLabel('Ask Qurio about this research');
+  await question.fill('Why was this candidate selected?');
   await copilot.getByRole('button', { name: 'Ask', exact: true }).click();
-  await requestReceived;
-  expect(requestPayload).toMatchObject({ command: 'ask', payload: { question: 'What evidence should the first experiment produce?' } });
-  await expect(question).toBeDisabled();
-  await expect(copilot.locator('.pq-copilot-composer').getByRole('button', { name: 'Working…', exact: true })).toBeDisabled();
-  releaseRequest();
-  expect((await responsePromise).ok()).toBe(true);
-  await expect(question).toBeEnabled();
+  await expect(copilot.getByLabel('Qurio evidence answer')).toContainText('No authoritative final choice');
   await expect(question).toHaveValue('');
+  expect(commandRequests).toBe(0);
+  await question.fill('Will SPY go up tomorrow?');
+  await copilot.getByRole('button', { name: 'Ask', exact: true }).click();
+  await expect(copilot.getByLabel('Qurio evidence answer')).toContainText('does not forecast the next price');
 });
 
 test('Data lists and fetches deterministic provider datasets without network', async ({ page }) => {
@@ -1194,8 +1186,8 @@ test('ready fixture completes the API-owned synthetic Agent workflow', async ({ 
   await expect(page.getByRole('complementary', { name: 'Qurio', exact: true })).toContainText(goal);
   await page.getByRole('tab', { name: 'Analysis' }).click();
   await page.getByRole('button', { name: 'Approve & run' }).click();
-  await expect(page.getByRole('button', { name: 'Run Synthetic Agent' })).toBeVisible();
-  await page.getByRole('button', { name: 'Run Synthetic Agent' }).click();
+  await expect(page.getByRole('button', { name: 'Advance Offline Run' })).toBeVisible();
+  await page.getByRole('button', { name: 'Advance Offline Run' }).click();
   await expect(currentResearch).toContainText('Waiting for review');
   await expect(page.locator('.pq-strategy-chart figcaption')).toContainText('2018-01-02');
   await page.getByRole('button', { name: 'Complete Review' }).click();
@@ -1205,18 +1197,47 @@ test('ready fixture completes the API-owned synthetic Agent workflow', async ({ 
   await expect(page.getByRole('complementary', { name: 'Qurio', exact: true })).toContainText(goal);
 });
 
-test('Run Monitor shows live polling and legal cancel control while running', async ({ page }) => {
+test('Run Monitor distinguishes the manual offline fixture and keeps legal cancel control while running', async ({ page }) => {
   test.skip(process.env.GLINT_E2E_API_MODE !== 'fixture' || fixtureState !== 'quant-running', 'Running-state assertions use the loopback fixture API.');
+  await rewriteWorkspaceSnapshot(page, (snapshot) => {
+    const events = snapshot.events as Array<Record<string, unknown>>;
+    events.push(
+      {
+        id: 'visible-agent-decision',
+        sequence: 100,
+        type: 'agent.action_selected',
+        timestamp: '2026-07-26T00:00:00Z',
+        actor: 'agent',
+        safeSummary: 'Test Candidate B after Candidate A retained positive training evidence.',
+        action: 'run_backtest',
+        expectedResult: 'Retained training metrics and trades for Candidate B.',
+      },
+      {
+        id: 'visible-agent-tool-started',
+        sequence: 101,
+        type: 'tool.started',
+        timestamp: '2026-07-26T00:00:01Z',
+        actor: 'system',
+        safeSummary: 'Training backtest started.',
+        action: 'run_backtest',
+      },
+    );
+  });
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.goto('/');
   await expect(page.getByRole('tab', { name: 'Experiments', exact: true })).toHaveAttribute('aria-selected', 'true');
-  await expect(page.locator('.pq-live-header')).toContainText('Running experiments');
+  await expect(page.locator('.quant-run-monitor h3')).toContainText('Running experiments');
   await expect(page.getByRole('heading', { name: /Testing initial hypothesis b/i })).toBeVisible();
   await expectLiveAgentDecision(page, 'quant-running');
+  const latestMove = page.locator('dl[aria-label="Latest Agent move"]');
+  await expect(latestMove).toContainText('Test Candidate B after Candidate A retained positive training evidence.');
+  await expect(latestMove).toContainText('Run training backtest');
+  await expect(latestMove).toContainText('Tool observation · Running');
+  await expect(latestMove).toContainText('The tool is running. Qurio has not retained an observation yet.');
   await expect(page.getByRole('table', { name: 'Live candidate experiment progress' })).toContainText('Running');
   const monitor = page.locator('.quant-run-monitor');
   await expect(monitor.getByText('Run Monitor')).toBeVisible();
-  await expect(monitor.getByText('Live · polling')).toBeVisible();
+  await expect(monitor.getByText('Offline fixture · manual step')).toBeVisible();
   await expect(monitor.getByRole('button', { name: 'Cancel Run' })).toBeVisible();
   await expect(monitor.getByRole('button', { name: 'Retry' })).toHaveCount(0);
   await expect(monitor.getByText('Immutable')).toHaveCount(0);
@@ -1237,7 +1258,7 @@ test('review gate exposes only human-review actions without active polling', asy
   await expect(page.getByRole('complementary', { name: 'Qurio', exact: true })).not.toContainText('Questions become available');
   await page.getByRole('tab', { name: 'Analysis', exact: true }).click();
   const monitor = page.locator('.quant-run-monitor');
-  await expect(monitor.getByText('Awaiting review', { exact: true })).toBeVisible();
+  await expect(monitor.getByText('Needs your decision', { exact: true })).toBeVisible();
   await expect(monitor.getByText('Live · polling')).toHaveCount(0);
   await expect(monitor.getByRole('button', { name: 'Open Decision Draft' })).toBeVisible();
   await expect(monitor.getByRole('button', { name: 'Review Validation Findings' })).toBeVisible();
@@ -1250,15 +1271,13 @@ test('repair and validation fixtures explain active work without implying run fa
   await page.goto('/');
   await page.getByRole('tab', { name: 'Experiments', exact: true }).click();
   const monitor = page.locator('.quant-run-monitor');
-  await expect(monitor.getByText('Live · polling')).toBeVisible();
+  await expect(monitor.getByText('Running automatically')).toBeVisible();
   await expect(monitor.getByRole('button', { name: 'Cancel Run' })).toBeVisible();
   await expect(monitor).not.toContainText('Failed safely');
   if (fixtureState === 'quant-repairing') {
-    await expect(monitor.getByText('Repairing candidate', { exact: true })).toBeVisible();
-    await expect(monitor.getByRole('heading', { name: 'Retrying a recoverable experiment' })).toBeVisible();
+    await expect(monitor.getByRole('heading', { name: 'Repairing candidate' })).toBeVisible();
   } else {
-    await expect(monitor.getByText('Validating evidence', { exact: true })).toBeVisible();
-    await expect(monitor.getByRole('heading', { name: 'Running robustness checks' })).toBeVisible();
+    await expect(monitor.getByRole('heading', { name: 'Validating evidence' })).toBeVisible();
   }
 });
 
@@ -1283,7 +1302,7 @@ test('transient phases show domain progress and open the relevant detail view', 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   await page.getByRole('button', { name: expected.action, exact: true }).click();
   await expect(page.getByRole('tab', { name: expected.tab, exact: true })).toHaveAttribute('aria-selected', 'true');
-  await expect(page.locator('.quant-run-monitor').getByText('Live · polling')).toBeVisible();
+  await expect(page.locator('.quant-run-monitor').getByText('Running automatically')).toBeVisible();
 });
 
 test('negative and cancelled terminal outcomes expose only relevant next actions', async ({ page }) => {
@@ -1486,17 +1505,17 @@ test('public 4h market data completes the existing Data to Research to History w
   await page.getByRole('tab', { name: 'Experiments', exact: true }).click();
   await expectLiveAgentDecision(page, 'quant-running');
   await expect(page.locator('.pq-live-research')).toContainText(question);
-  await expect.poll(async () => page.locator('.quant-run-monitor-state strong').textContent(), { timeout: 12_000 }).toContain('Research concluded');
+  await expect(page.getByRole('button', { name: 'Advance Offline Run' })).toHaveCount(0);
+  await expect.poll(async () => page.locator('.quant-run-monitor h3').textContent(), { timeout: 12_000 }).toContain('Research concluded');
 
+  const rootDecision = page.locator('.pq-agent-decision-chain.is-completed');
   const rootComparison = page.locator('.pq-candidate-comparison.is-full');
-  await expect(rootComparison).toContainText('Decision ledger');
-  await expect(rootComparison).toContainText('A/B → Observation → Candidate C → Final choice');
-  await expect(rootComparison).toContainText('Training observation → Candidate C');
-  await expect(rootComparison).toContainText('Widen the breakout window after the initial training comparison.');
-  await expect(rootComparison).toContainText(/Final choice[\s\S]*SMA 50\/200 · Approved comparison objective/);
+  await expect(rootDecision).toContainText('Observation → Why Qurio changed → Next action');
+  await expect(rootDecision).toContainText('Widen the breakout window after the initial training comparison.');
+  await expect(rootDecision).toContainText(/Final training choice[\s\S]*SMA 50\/200[\s\S]*Approved comparison objective/);
   await rootComparison.getByRole('button', { name: '200-day breakout' }).click();
   await expect(page.getByText('Inspecting strategy · 200-day breakout', { exact: true })).toBeVisible();
-  await expect(rootComparison).toContainText(/Final choice[\s\S]*SMA 50\/200 · Approved comparison objective/);
+  await expect(rootDecision).toContainText(/Final training choice[\s\S]*SMA 50\/200[\s\S]*Approved comparison objective/);
   await rootComparison.getByRole('button', { name: 'SMA 50/200' }).click();
 
   await page.getByRole('tab', { name: 'Overview', exact: true }).click();
@@ -1578,7 +1597,7 @@ test('public 4h market data completes the existing Data to Research to History w
   const approveChildResponse = page.waitForResponse((response) => response.url().endsWith('/v1/quant/market-runs/77777777-7777-4777-8777-777777777708/approve-plan') && response.request().method() === 'POST');
   await page.getByRole('button', { name: 'Approve & Run' }).click();
   expect((await approveChildResponse).ok()).toBe(true);
-  await expect.poll(async () => page.locator('.quant-run-monitor-state strong').textContent(), { timeout: 12_000 }).toContain('Experiments complete — validation pending');
+  await expect.poll(async () => page.locator('.quant-run-monitor h3').textContent(), { timeout: 12_000 }).toContain('Experiments complete — validation pending');
   await page.getByRole('tab', { name: 'Decision', exact: true }).click();
   await expect(page.locator('.quant-report')).toContainText('Continued from source version');
   await expect(page.locator('.quant-report')).toContainText('Source candidate: Candidate B · SMA 50/200');
@@ -1597,7 +1616,7 @@ test('public 4h market data completes the existing Data to Research to History w
     attempt_number: 2,
     retry_of_run_id: '77777777-7777-4777-8777-777777777708',
   });
-  await expect.poll(async () => page.locator('.quant-run-monitor-state strong').textContent(), { timeout: 12_000 }).toContain('Experiments complete — validation pending');
+  await expect.poll(async () => page.locator('.quant-run-monitor h3').textContent(), { timeout: 12_000 }).toContain('Experiments complete — validation pending');
   await page.getByRole('tab', { name: 'Decision', exact: true }).click();
   await expect(page.locator('.quant-report')).toContainText('Continued from source version');
   await expect(page.locator('.quant-report')).toContainText('Retry attempt 2');
@@ -1731,7 +1750,7 @@ test('public 1h market data preserves intraday points through Analysis, Report, 
   await page.getByRole('button', { name: 'Approve & Run' }).click();
   expect((await approveResponse).ok()).toBe(true);
   await page.getByRole('tab', { name: 'Experiments', exact: true }).click();
-  await expect.poll(async () => page.locator('.quant-run-monitor-state strong').textContent(), { timeout: 12_000 }).toContain('Research concluded');
+  await expect.poll(async () => page.locator('.quant-run-monitor h3').textContent(), { timeout: 12_000 }).toContain('Research concluded');
 
   await page.getByRole('tab', { name: 'Overview', exact: true }).click();
   const completionNotice = page.getByRole('button', { name: 'Dismiss notification' });

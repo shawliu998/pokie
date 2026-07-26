@@ -21,17 +21,25 @@ def test_parse_arguments_and_provider_model_selection(tmp_path: Path) -> None:
     assert runtime.selected_model("mock", "ignored") is None
     with pytest.raises(ValueError, match="--model"):
         runtime.selected_model("deepseek", " ")
+    assert runtime.selected_base_url(
+        "openai_compatible", "https://provider.example/v1/"
+    ) == "https://provider.example/v1"
+    with pytest.raises(ValueError, match="HTTPS"):
+        runtime.selected_base_url("openai_compatible", "http://provider.example/v1")
+    with pytest.raises(ValueError, match="only"):
+        runtime.selected_base_url("deepseek", "https://provider.example/v1")
 
 
-def test_deepseek_requires_only_environment_credential_names(
+def test_model_providers_require_only_environment_credential_names(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv("POKIEQUANT_AGENT_API_KEY", raising=False)
     monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
     with pytest.raises(ValueError, match="POKIEQUANT_AGENT_API_KEY"):
-        runtime.require_deepseek_key("deepseek")
+        runtime.require_provider_key("deepseek")
     monkeypatch.setenv("DEEPSEEK_API_KEY", "not-printed")
-    runtime.require_deepseek_key("deepseek")
+    runtime.require_provider_key("deepseek")
+    runtime.require_provider_key("openai_compatible")
 
 
 def test_metadata_is_owner_only_and_reused(tmp_path: Path) -> None:
@@ -100,6 +108,7 @@ def test_api_and_worker_environment_share_provider_model_and_cors(tmp_path: Path
         assert env["POKIEQUANT_AGENT_MODEL"] == "deepseek-v4"
         assert env["POKIEQUANT_AGENT_ALLOW_MOCK_FALLBACK"] == "false"
         assert json.loads(env["GLINT_ALLOWED_ORIGINS"]) == ["tauri://localhost"]
+        assert "POKIEQUANT_AGENT_BASE_URL" not in env
     assert worker["GLINT_WORKSPACE_ID"] == "workspace-1"
     assert worker["GLINT_WORKER_MODE"] == "dev"
     assert worker["GLINT_WORKER_DOMAIN_ADAPTER"] == (
@@ -112,6 +121,30 @@ def test_api_and_worker_environment_share_provider_model_and_cors(tmp_path: Path
     assert "GLINT_WORKER_MODE" not in api
     assert "GLINT_WORKER_DOMAIN_ADAPTER" not in api
     assert "GLINT_WORKER_OBJECT_STORE" not in api
+
+
+def test_openai_compatible_environment_retains_only_endpoint_model_and_process_key(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("POKIEQUANT_AGENT_API_KEY", "process-only")
+    database_path, object_root, _ = runtime.runtime_paths(tmp_path)
+    env = runtime.build_process_env(
+        role="worker",
+        metadata={
+            "principal_id": "principal-1",
+            "workspace_id": "workspace-1",
+            "database_path": str(database_path),
+        },
+        database_path=database_path,
+        object_root=object_root,
+        provider="openai_compatible",
+        model="provider-model",
+        base_url="https://provider.example/v1",
+    )
+    assert env["POKIEQUANT_AGENT_PROVIDER"] == "openai_compatible"
+    assert env["POKIEQUANT_AGENT_MODEL"] == "provider-model"
+    assert env["POKIEQUANT_AGENT_BASE_URL"] == "https://provider.example/v1"
+    assert env["POKIEQUANT_AGENT_API_KEY"] == "process-only"
 
 
 def test_mock_ready_contract_uses_null_model(tmp_path: Path) -> None:
@@ -132,6 +165,7 @@ def test_mock_ready_contract_uses_null_model(tmp_path: Path) -> None:
     )
     assert env["POKIEQUANT_AGENT_PROVIDER"] == "mock"
     assert "POKIEQUANT_AGENT_MODEL" not in env
+    assert "POKIEQUANT_AGENT_BASE_URL" not in env
 
 
 def test_frozen_runtime_reexecutes_itself_for_api_and_worker_children(

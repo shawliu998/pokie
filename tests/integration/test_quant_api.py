@@ -1032,6 +1032,17 @@ def test_iteration_feedback_snapshot_filters_old_feedback_events_but_keeps_other
     )
     legacy._append_event(
         recorded,
+        "tool.completed",
+        {
+            "action": "compare_candidates",
+            "artifact_ids": [feedback.id, normal_artifact.id],
+            "safe_summary": (
+                "Candidate comparison completed with prior training comparison retained."
+            ),
+        },
+    )
+    legacy._append_event(
+        recorded,
         "agent.action_selected",
         {
             "action": "create_candidate",
@@ -1068,6 +1079,14 @@ def test_iteration_feedback_snapshot_filters_old_feedback_events_but_keeps_other
         )
         assert normal_artifact.id in artifact_ids
         assert any(item.get("artifactId") == normal_artifact.id for item in payload["events"])
+        comparison_outcome = next(
+            item
+            for item in payload["events"]
+            if item["type"] == "tool.completed"
+            and item.get("action") == "compare_candidates"
+        )
+        assert comparison_outcome["artifactIds"] == [normal_artifact.id]
+        assert feedback.id not in comparison_outcome["safeSummary"]
         action_summary = next(
             item["safeSummary"]
             for item in payload["events"]
