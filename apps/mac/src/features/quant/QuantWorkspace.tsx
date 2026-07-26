@@ -81,12 +81,19 @@ function commandSuccessTitle(kind: QuantCommand): string {
   }[kind];
 }
 
-function continuationContext(snapshot: QuantWorkspaceSnapshot, candidateId: string): QuantRefinementContext | null {
+export function continuationContext(snapshot: QuantWorkspaceSnapshot, candidateId: string): QuantRefinementContext | null {
   const candidate = snapshot.candidates.find((item) => item.id === candidateId);
   if (!candidate || !canContinueResearch(snapshot, candidate)) return null;
   const terminalDecision = projectTerminalDecision(snapshot);
-  if (!terminalDecision || terminalDecision.finalCandidateId !== candidate.id) return null;
-  const summary = `${terminalDecision.selectionReason} · Sealed holdout ${terminalDecision.holdoutStatus}: ${terminalDecision.holdoutReason}`;
+  const isLegacyRetainedCandidate = snapshot.run.contract === 'legacy-daily-v1'
+    && snapshot.dataset.contract === 'legacy-daily-v1'
+    && Boolean(snapshot.report)
+    && candidate.verdict === 'promising'
+    && snapshot.candidates.filter((item) => item.verdict === 'promising').length === 1;
+  if (terminalDecision ? terminalDecision.finalCandidateId !== candidate.id : !isLegacyRetainedCandidate) return null;
+  const summary = terminalDecision
+    ? `${terminalDecision.selectionReason} · Sealed holdout ${terminalDecision.holdoutStatus}: ${terminalDecision.holdoutReason}`
+    : `${snapshot.report!.conclusion} · Legacy evidence has no sealed-holdout terminal decision.`;
   return {
     projectId: snapshot.project.id,
     parentRunId: snapshot.run.id,
