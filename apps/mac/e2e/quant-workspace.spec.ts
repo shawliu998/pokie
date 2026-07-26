@@ -578,7 +578,7 @@ test('finds, compares, and reopens server-owned historical research runs', async
   await expect(page.getByRole('region', { name: 'Research version change' })).toContainText('Change vs source');
   await expect(page.getByText('2 selected · Metrics are shown from each run’s stored result.')).toBeVisible();
   await page.getByRole('button', { name: 'Refine from this result' }).click();
-  await expect(page.getByRole('heading', { name: 'New research' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Refine research' })).toBeVisible();
   await expect(page.getByLabel('Research goal')).toHaveValue(/Continue research from SMA 50\/200/);
   await expect(page.getByLabel('Refinement reason')).toHaveValue(/Retain Candidate B · SMA 50\/200.*as the seed/);
 });
@@ -1602,7 +1602,7 @@ test('public 4h market data completes the existing Data to Research to History w
   await expect(page.locator('.quant-report')).toContainText('Continued from source version');
   await expect(page.locator('.quant-report')).toContainText('Source candidate: Candidate B · SMA 50/200');
   await expect(page.locator('.quant-report')).toContainText(`Reason: ${refinementReason}`);
-  await expect(page.locator('.quant-report')).toContainText('Sealed holdout pending');
+  await expect(page.locator('.quant-report')).toContainText('Sealed-holdout evidence is withheld');
 
   await page.getByRole('tab', { name: 'Analysis', exact: true }).click();
   const retryResponsePromise = page.waitForResponse((response) => response.url().endsWith('/v1/quant/market-runs/77777777-7777-4777-8777-777777777708/retry') && response.request().method() === 'POST');
@@ -1620,7 +1620,7 @@ test('public 4h market data completes the existing Data to Research to History w
   await page.getByRole('tab', { name: 'Decision', exact: true }).click();
   await expect(page.locator('.quant-report')).toContainText('Continued from source version');
   await expect(page.locator('.quant-report')).toContainText('Retry attempt 2');
-  await expect(page.locator('.quant-report')).toContainText('Sealed holdout pending');
+  await expect(page.locator('.quant-report')).toContainText('Sealed-holdout evidence is withheld');
 
   await page.getByTestId('quant-sidebar').getByRole('button', { name: 'History', exact: true }).click();
   const history = page.getByRole('table', { name: 'Searchable and filterable research run history' });
