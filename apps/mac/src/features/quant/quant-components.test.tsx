@@ -14,7 +14,7 @@ import { QuantPaperTradingPage } from './QuantPaperTradingPage';
 import { presentQuantWorkspace, type QuantEvidenceFocusIntent } from './quant-presentation';
 import { QuantRunsPage } from './QuantRunsPage';
 import { QuantSidebar } from './QuantSidebar';
-import { QuantWorkspace, QuantWorkspaceLoading } from './QuantWorkspace';
+import { continuationContext, QuantWorkspace, QuantWorkspaceLoading } from './QuantWorkspace';
 import { QuantRuntimeSettings } from './QuantRuntimeSettings';
 import { SessionRecovery } from '../session/SessionBoundary';
 import { QuantGeneralizationPanel, QuantStrategyReport } from './QuantStrategyReport';
@@ -1821,6 +1821,27 @@ describe('Quant Workspace components', () => {
     const retainedFallbackMarkup = renderToStaticMarkup(<QuantTerminalDecision decision={{ finalCandidateId: 'candidate-b', finalCandidateName: 'Candidate B · SMA 50/200', selectionReason: 'walk_forward_stability', selectionBasis: 'robustness_override', holdoutStatus: 'fail', holdoutReason: 'The retained holdout failed.', decision: 'refine', decisionDetail: 'Review one bounded change.', canRefine: false, refinementReason: '' }} onOpenHistory={vi.fn()} />);
     expect(retainedFallbackMarkup).toContain('Walk-forward stability');
     expect(retainedFallbackMarkup).not.toContain('walk_forward_stability');
+  });
+
+  it('continues only the uniquely retained candidate from completed legacy evidence', () => {
+    const snapshot = structuredClone(quantFixtureSnapshot);
+    snapshot.candidates = snapshot.candidates.map((candidate) => ({
+      ...candidate,
+      canSeedResearch: candidate.id === 'candidate-b',
+    }));
+
+    const context = continuationContext(snapshot, 'candidate-b');
+    expect(context).toMatchObject({
+      parentRunId: snapshot.run.id,
+      seedCandidateId: 'candidate-b',
+      candidateName: 'SMA 50/200',
+      sourceQuestion: snapshot.project.goal,
+    });
+    expect(context?.summary).toContain('Legacy evidence has no sealed-holdout terminal decision.');
+    expect(continuationContext(snapshot, 'candidate-a')).toBeNull();
+
+    snapshot.run.contract = 'market-v2-public';
+    expect(continuationContext(snapshot, 'candidate-b')).toBeNull();
   });
 
   it('hides continuation entry points for fixture and ineligible terminal states', () => {
