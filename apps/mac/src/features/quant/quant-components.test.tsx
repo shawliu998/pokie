@@ -176,7 +176,7 @@ describe('Quant Workspace components', () => {
     expect(markup).not.toContain('text-transform:uppercase');
   });
 
-  it('uses the authoritative terminal lifecycle label in History and Recent', () => {
+  it('uses the authoritative terminal lifecycle label in History and current research', () => {
     const passed = structuredClone(quantFixtureSnapshot);
     passed.report = {
       ...passed.report!,
@@ -201,6 +201,23 @@ describe('Quant Workspace components', () => {
     expect(pendingRecent).toContain('Experiments complete — validation pending');
   });
 
+  it('keeps the sidebar research-led and removes development-only identity', () => {
+    const markup = renderToStaticMarkup(<QuantSidebar snapshot={quantFixtureSnapshot} destination="projects" onSelect={vi.fn()} />);
+    expect(markup).toContain('Current research');
+    expect(markup).toContain('SPY · Trend Research');
+    expect(markup).toContain('US Equity · 1D');
+    expect(markup).toContain('Experiments complete — validation pending');
+    expect(markup).toContain('Paper Trading');
+    expect(markup).toContain('Product settings');
+    expect(markup).not.toContain('Search research');
+    expect(markup).not.toContain('⌘ K');
+    expect(markup).not.toContain('Mock Agent');
+    expect(markup).not.toContain('Provider ·');
+    expect(markup).not.toContain('Incremental local Agent');
+    expect(markup).not.toContain('>Workspaces<');
+    expect(markup).not.toContain('>Recent<');
+  });
+
   it('exposes the primary research views as a keyboard-oriented tab set', () => {
     const markup = renderToStaticMarkup(<QuantOverviewWorkbench snapshot={quantFixtureSnapshot} activeTab="overview" onTabChange={vi.fn()} onRunResearch={vi.fn()} onOpenAnalysis={vi.fn()} onOpenReport={vi.fn()} selectedCandidateId="candidate-b" onSelectCandidate={vi.fn()} onCommand={vi.fn()} />);
     expect(markup).toContain('role="tablist"');
@@ -219,6 +236,22 @@ describe('Quant Workspace components', () => {
     expect(markup).toContain('>Observation<');
     expect(markup).toContain('>Next<');
     expect(markup).not.toContain('aria-label="Research Copilot"');
+  });
+
+  it('reduces a draft workspace to one research-plan decision', () => {
+    const snapshot = liveFixtures['quant-ready'] as unknown as QuantWorkspaceSnapshot;
+    const markup = renderToStaticMarkup(<QuantOverviewWorkbench snapshot={snapshot} activeTab="overview" onTabChange={vi.fn()} onRunResearch={vi.fn()} onOpenAnalysis={vi.fn()} onOpenReport={vi.fn()} selectedCandidateId="" onSelectCandidate={vi.fn()} onCommand={vi.fn()} compactLayout />);
+    expect(markup).toContain('Generate the research plan');
+    expect(markup).toContain(snapshot.project.goal);
+    expect(markup.match(/>Generate plan</g)).toHaveLength(1);
+    expect(markup).toContain('>Edit objective<');
+    expect(markup).not.toContain('>Current<');
+    expect(markup).not.toContain('>Observation<');
+    expect(markup).not.toContain('Decision pending');
+    expect(markup).not.toContain('Ask about this run');
+    expect(markup).not.toContain('Run details');
+    expect(markup).not.toContain('aria-label="Qurio"');
+    expect(markup).toContain('aria-disabled="true"');
   });
 
   it('distills the terminal Research Copilot into non-duplicative run context', () => {
@@ -483,6 +516,27 @@ describe('Quant Workspace components', () => {
     expect(markup).not.toContain('Research evaluation stages');
   });
 
+  it('withholds Overview holdout and decision claims when final candidate identities conflict', () => {
+    const snapshot = structuredClone(quantFixtureSnapshot);
+    snapshot.run.state = 'completed';
+    snapshot.report!.selectionDecision = {
+      ...snapshot.report!.selectionDecision!,
+      selectedCandidateId: 'candidate-b',
+    };
+    snapshot.report!.generalization = {
+      ...snapshot.report!.generalization!,
+      status: 'pass',
+      selectedCandidateId: 'candidate-a',
+    };
+    const markup = renderToStaticMarkup(<QuantOverviewWorkbench snapshot={snapshot} activeTab="overview" onTabChange={vi.fn()} onRunResearch={vi.fn()} onOpenAnalysis={vi.fn()} onOpenReport={vi.fn()} selectedCandidateId="candidate-b" onSelectCandidate={vi.fn()} onCommand={vi.fn()} />);
+
+    expect(markup).toContain('Validation evidence withheld');
+    expect(markup).toContain('The final candidate identity could not be verified');
+    expect(markup).toContain('>Unavailable<');
+    expect(markup).toContain('>Evidence unavailable<');
+    expect(markup).not.toContain('Sealed holdout passed');
+  });
+
   it('uses the shared candidate selection and switches the overview performance view', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -648,7 +702,7 @@ describe('Quant Workspace components', () => {
     };
     const report = renderToStaticMarkup(<QuantStrategyReport api={createFixtureQuantApi()} snapshot={reportSnapshot} candidates={presentQuantWorkspace(reportSnapshot).candidates} decision={presentQuantWorkspace(reportSnapshot).decision} selectedCandidateId="candidate-c" onSelectCandidate={vi.fn()} onOpenAnalysis={vi.fn()} onOpenHistory={vi.fn()} onStartNewResearch={vi.fn()} />);
     expect(report).toContain('Research hypothesis');
-    expect(report).toContain('Training selection basis');
+    expect(report).toContain('Training selection');
     expect(report).toContain('walk-forward stability override');
     expect(report).toContain('Selected by a server-validated walk-forward stability override');
   });
@@ -769,9 +823,10 @@ describe('Quant Workspace components', () => {
     expect(markup).toContain(phaseLabel);
     expect(markup).toContain('Current experiment');
     expect(markup).toContain('Latest result');
-    expect(markup).toContain('Candidate progress');
-    expect(markup).toContain('Next step');
-    expect(markup).not.toMatch(/0%/);
+    expect(markup).toContain('Candidate experiments');
+    expect(markup).toContain('>Observation<');
+    expect(markup).toMatch(/>(?:Next|Adaptation)</);
+    expect(markup).not.toContain('0% complete');
   });
 
   it('shows persisted running and completed candidate data without parsing activity copy', () => {
@@ -855,12 +910,17 @@ describe('Quant Workspace components', () => {
 
   it('renders a locked source dataset and an explicit reason for continuation', () => {
     const markup = renderToStaticMarkup(<QuantGoalComposer snapshot={quantFixtureSnapshot} large refinement={{ projectId: 'project-source', parentRunId: 'run-source', seedCandidateId: 'candidate-b', candidateName: 'Risk-adjusted trend', sourceQuestion: 'Original source question.', sourceDateRange: { ...quantFixtureSnapshot.scope.dateRange }, summary: '+12.4% annual return · sealed holdout fail', initialReason: 'Address the retained sealed holdout failure with one bounded parameter change.' }} onCancelRefinement={vi.fn()} onSubmit={vi.fn()} onStartNewRun={vi.fn()} />);
-    expect(markup).toContain('Continuing from Risk-adjusted trend');
+    expect(markup).toContain('Next research version');
+    expect(markup).toContain('Refine one bounded change');
+    expect(markup).toContain('Risk-adjusted trend');
+    expect(markup).toContain('What stays pinned');
     expect(markup).toContain('Refinements keep the source dataset');
-    expect(markup).toContain('What should change?');
+    expect(markup).toContain('Proposed change');
     expect(markup).toContain('Address the retained sealed holdout failure with one bounded parameter change.');
-    expect(markup).toContain('Cancel continuation');
+    expect(markup).toContain('Generate next plan');
+    expect(markup).toContain('Cancel refinement');
     expect(markup).toContain('aria-label="Research dataset" disabled=""');
+    expect(markup).not.toContain('Version 2');
   });
 
   it('starts terminal research through a new API-owned Run and honors the requested mode', () => {
@@ -1029,7 +1089,7 @@ describe('Quant Workspace components', () => {
     expect(markup).toContain('quant-tab-validation');
     expect(markup).not.toContain('quant-tab-performance');
     expect(markup).not.toContain('quant-tab-experiments');
-    expect(markup).toContain('Strategy vs benchmark');
+    expect(markup).toContain('Retained development performance');
     expect(markup).toContain('aria-label="SMA 50/200 equity compared with benchmark"');
     expect(markup).toContain('Selected strategy key metrics');
     expect(markup).toContain('Vs benchmark');
@@ -1062,14 +1122,14 @@ describe('Quant Workspace components', () => {
       root.render(<QuantStrategyReport api={createFixtureQuantApi()} snapshot={snapshot} candidates={nextPresentation.candidates} decision={nextPresentation.decision} selectedCandidateId="candidate-b" onSelectCandidate={vi.fn()} onOpenAnalysis={vi.fn()} onRunAutopilot={onRunAutopilot} onContinueResearch={onContinueResearch} onOpenHistory={vi.fn()} onStartNewResearch={vi.fn()} />);
     });
     expect(container.textContent).toContain('Final decision');
-    expect(container.textContent).toContain('Refine the final choice');
+    expect(container.textContent).toContain('Refine one bounded parameter in the next version');
     expect(container.textContent).toContain('Proposed change');
-    expect(container.textContent).toContain('Evidence basis / Why');
+    expect(container.textContent).toContain('Evidence basis');
     expect(container.textContent).toContain('Success / stop condition');
     expect(container.textContent).toContain('The strategy failed to preserve positive holdout return.');
     expect(container.textContent).not.toContain('Recommended next step');
     expect(container.textContent).not.toContain('Run one suggested refinement');
-    const refineButton = [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Review & refine research');
+    const refineButton = [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Refine version');
     await act(async () => { refineButton?.click(); });
     expect(onRunAutopilot).not.toHaveBeenCalled();
     expect(onContinueResearch).toHaveBeenCalledOnce();
@@ -1693,22 +1753,22 @@ describe('Quant Workspace components', () => {
     expect(container.textContent).toContain('Alternative candidate · training evidence');
     expect(container.textContent).not.toContain('Continue research');
     expect(container.textContent).toContain('Proposed change');
-    expect(container.textContent).toContain('Evidence basis / Why');
+    expect(container.textContent).toContain('Evidence basis');
     expect(container.textContent).toContain('Success / stop condition');
-    await act(async () => { [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Review & refine research')?.click(); });
+    await act(async () => { [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Refine version')?.click(); });
     expect(onContinueResearch).toHaveBeenCalledWith('candidate-b', expect.stringContaining('Retain Candidate B'));
     await act(async () => { [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Research history')?.click(); });
     expect(onOpenHistory).toHaveBeenCalledTimes(1);
-    await act(async () => { [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Export final evidence')?.click(); await Promise.resolve(); });
+    await act(async () => { [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Export evidence')?.click(); await Promise.resolve(); });
     expect(previewStrategyReportExport).toHaveBeenCalledWith(snapshot.run.id, 'candidate-b', 'strategy_report_markdown');
     expect(container.querySelector('option[value="strategy_evidence_bundle_json"]')).not.toHaveProperty('disabled', true);
     await act(async () => { root.unmount(); });
     container.remove();
 
     const historicalMarkup = renderToStaticMarkup(<QuantStrategyReport api={createFixtureQuantApi()} snapshot={snapshot} candidates={presentQuantWorkspace(snapshot).candidates} decision={presentQuantWorkspace(snapshot).decision} selectedCandidateId="candidate-a" onSelectCandidate={vi.fn()} onOpenAnalysis={vi.fn()} onOpenHistory={vi.fn()} onStartNewResearch={vi.fn()} />);
-    expect(historicalMarkup).toContain('Read-only final decision');
-    expect(historicalMarkup).toContain('Export final evidence');
-    expect(historicalMarkup).not.toContain('Review & refine research');
+    expect(historicalMarkup).toContain('Keep this final decision read-only');
+    expect(historicalMarkup).toContain('Export evidence');
+    expect(historicalMarkup).not.toContain('Refine version');
     expect(historicalMarkup).not.toContain('Proposed change');
 
     const conflictingIdentity = structuredClone(snapshot);
@@ -1716,7 +1776,7 @@ describe('Quant Workspace components', () => {
     const unavailableMarkup = renderToStaticMarkup(<QuantStrategyReport api={createFixtureQuantApi()} snapshot={conflictingIdentity} candidates={presentQuantWorkspace(conflictingIdentity).candidates} decision={presentQuantWorkspace(conflictingIdentity).decision} selectedCandidateId="candidate-a" onSelectCandidate={vi.fn()} onOpenAnalysis={vi.fn()} onContinueResearch={vi.fn()} onRunAutopilot={vi.fn()} onOpenHistory={vi.fn()} onStartNewResearch={vi.fn()} />);
     expect(unavailableMarkup).toContain('Final decision unavailable');
     expect(unavailableMarkup).toContain('Sealed-holdout evidence is withheld');
-    expect(unavailableMarkup).not.toContain('Review & refine research');
+    expect(unavailableMarkup).not.toContain('Refine version');
     expect(unavailableMarkup).not.toContain('Recommended next step');
     expect(unavailableMarkup).not.toContain('Run one suggested refinement');
 
@@ -1725,9 +1785,9 @@ describe('Quant Workspace components', () => {
     const unseedableMarkup = renderToStaticMarkup(<QuantStrategyReport api={createFixtureQuantApi()} snapshot={unseedableFinal} candidates={presentQuantWorkspace(unseedableFinal).candidates} decision={presentQuantWorkspace(unseedableFinal).decision} selectedCandidateId="candidate-a" onSelectCandidate={vi.fn()} onOpenAnalysis={vi.fn()} onContinueResearch={vi.fn()} onOpenHistory={vi.fn()} onStartNewResearch={vi.fn()} />);
     expect(unseedableMarkup).toContain('Final choice');
     expect(unseedableMarkup).toContain('Sealed holdout');
-    expect(unseedableMarkup).toContain('Read-only final decision');
-    expect(unseedableMarkup).toContain('Export final evidence');
-    expect(unseedableMarkup).not.toContain('Review & refine research');
+    expect(unseedableMarkup).toContain('Keep this final decision read-only');
+    expect(unseedableMarkup).toContain('Export evidence');
+    expect(unseedableMarkup).not.toContain('Refine version');
 
     const retainedFallbackMarkup = renderToStaticMarkup(<QuantTerminalDecision decision={{ finalCandidateId: 'candidate-b', finalCandidateName: 'Candidate B · SMA 50/200', selectionReason: 'walk_forward_stability', selectionBasis: 'robustness_override', holdoutStatus: 'fail', holdoutReason: 'The retained holdout failed.', decision: 'refine', decisionDetail: 'Review one bounded change.', canRefine: false, refinementReason: '' }} onOpenHistory={vi.fn()} />);
     expect(retainedFallbackMarkup).toContain('Walk-forward stability');
@@ -1857,7 +1917,7 @@ describe('Quant Workspace components', () => {
     await act(async () => { root.render(<QuantStrategyReport api={api} snapshot={finalSnapshot} candidates={finalPresentation.candidates} decision={finalPresentation.decision} selectedCandidateId="candidate-b" onSelectCandidate={vi.fn()} onOpenAnalysis={vi.fn()} onOpenHistory={vi.fn()} onStartNewResearch={vi.fn()} />); });
     const format = container.querySelector<HTMLSelectElement>('[aria-label="Export format"]');
     expect(format).toBeNull();
-    await act(async () => { [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Export final evidence')?.click(); });
+    await act(async () => { [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Export evidence')?.click(); });
     const exportFormat = container.querySelector<HTMLSelectElement>('[aria-label="Export format"]');
     expect(exportFormat?.value).toBe('strategy_report_markdown');
     exportFormat!.value = 'strategy_evidence_bundle_json';
@@ -1910,7 +1970,7 @@ describe('Quant Workspace components', () => {
     const previewStrategyReportExport = vi.fn().mockRejectedValueOnce(new Error('Report renderer unavailable.')).mockResolvedValue(preview);
     const api = { ...createFixtureQuantApi(), previewStrategyReportExport };
     await act(async () => { root.render(<QuantStrategyReport api={api} snapshot={finalSnapshot} candidates={finalPresentation.candidates} decision={finalPresentation.decision} selectedCandidateId="candidate-b" onSelectCandidate={vi.fn()} onOpenAnalysis={vi.fn()} onOpenHistory={vi.fn()} onStartNewResearch={vi.fn()} />); });
-    await act(async () => { [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Export final evidence')?.click(); await Promise.resolve(); });
+    await act(async () => { [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Export evidence')?.click(); await Promise.resolve(); });
     expect(container.querySelector('[role="alert"]')?.textContent).toContain('Report renderer unavailable.');
     await act(async () => { [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Retry preview')?.click(); await Promise.resolve(); });
     expect(container.querySelector('[aria-label="Rendered Strategy Report Markdown"]')?.textContent).toContain('Retried report');

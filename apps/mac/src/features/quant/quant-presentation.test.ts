@@ -848,6 +848,10 @@ describe('presentQuantWorkspace', () => {
     snapshot.report = {
       ...snapshot.report!,
       proposedNextStep: 'Start paper evaluation immediately.',
+      selectionDecision: {
+        basis: 'approved_objective_rank',
+        selectedCandidateId: 'candidate-b',
+      },
       generalization: {
         status: 'fail',
         reason: 'The selected candidate failed on holdout data.',

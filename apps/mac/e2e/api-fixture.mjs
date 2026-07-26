@@ -15,9 +15,62 @@ if (!Number.isInteger(QUANT_MUTATION_DELAY_MS) || QUANT_MUTATION_DELAY_MS < 0 ||
 const QUANT_FAILURES = new Set(['rate-limit', 'provider-timeout']);
 if (QUANT_FAILURE && !QUANT_FAILURES.has(QUANT_FAILURE)) throw new Error(`Unsupported POKIEQUANT_E2E_FAILURE: ${QUANT_FAILURE}`);
 const QUANT_FIXTURES = JSON.parse(readFileSync(new URL('./fixtures/quant-workspace-fixtures.json', import.meta.url), 'utf8'));
+
+function quantPaperPassGeneralizationSplit(snapshot) {
+  const dataset = snapshot.dataset;
+  const scope = snapshot.scope;
+  const range = scope.dateRange;
+  const bars = snapshot.bars;
+  const barCount = typeof dataset.barCount === 'number' ? dataset.barCount : bars?.length ?? 2;
+  const trainBarCount = Math.max(1, Math.min(Math.floor(barCount * 80 / 100), barCount - 1));
+  const holdoutBarCount = barCount - trainBarCount;
+  const cutoffDate = typeof bars?.[trainBarCount]?.date === 'string'
+    ? bars[trainBarCount].date
+    : String(range.start);
+  if (trainBarCount < 1 || holdoutBarCount < 1 || !dataset.id || !dataset.digest || !cutoffDate) {
+    throw new Error('Paper-pass fixture requires a complete chronological generalization split.');
+  }
+  return {
+    method: 'chronological',
+    ruleVersion: 'chronological-80-20-v1',
+    trainBarCount,
+    holdoutBarCount,
+    cutoffDate,
+    datasetId: dataset.id,
+    datasetDigest: dataset.digest,
+  };
+}
+
+function buildPaperPassFixture() {
+  const snapshot = JSON.parse(JSON.stringify(QUANT_FIXTURES['quant-completed']));
+  snapshot.report.selectionDecision = {
+    basis: 'approved_objective_rank',
+    selectedCandidateId: 'candidate-b',
+    reason: 'Candidate B passed the sealed holdout and is retained for paper simulation.',
+  };
+  snapshot.report.generalization = {
+    status: 'pass',
+    reason: 'The retained sealed holdout supports the final choice.',
+    selectedCandidateId: 'candidate-b',
+    split: quantPaperPassGeneralizationSplit(snapshot),
+  };
+  snapshot.report.proposedNextStep = 'Review the retained result and consider paper-trading simulation.';
+  for (const candidate of snapshot.candidates) {
+    if (candidate.id === 'candidate-b') {
+      candidate.canSeedResearch = true;
+      candidate.evolution.selectionReason = 'Ranked 1 of 3 and passed the sealed holdout; retained for paper simulation.';
+    } else {
+      candidate.canSeedResearch = false;
+    }
+  }
+  return snapshot;
+}
+
+QUANT_FIXTURES['quant-paper-pass'] = buildPaperPassFixture();
+
 const INITIAL_QUANT_FIXTURE_STATE = process.env.POKIEQUANT_E2E_RUN_STATE ?? 'quant-completed';
 let quantFixtureState = INITIAL_QUANT_FIXTURE_STATE;
-if (!(quantFixtureState in QUANT_FIXTURES) && quantFixtureState !== 'quant-paper-pass') throw new Error(`Unsupported POKIEQUANT_E2E_RUN_STATE: ${quantFixtureState}`);
+if (!(quantFixtureState in QUANT_FIXTURES)) throw new Error(`Unsupported POKIEQUANT_E2E_RUN_STATE: ${quantFixtureState}`);
 
 // Keep the generated fixture JSON immutable: this browser-only variant derives a
 // terminal, identity-consistent sealed-holdout pass for the Paper handoff proof.
@@ -1577,7 +1630,7 @@ const server = createServer(async (req, res) => {
         if (!activeMarketSnapshot) return failCode(res, 'NOT_FOUND', 'Active Market Run was not found.', 404);
         const reads = (dynamicMarketSnapshotReads.get(activeMarketRunId) ?? 0) + 1;
         dynamicMarketSnapshotReads.set(activeMarketRunId, reads);
-        if (activeMarketSnapshot.run.state === 'running_experiments' && reads >= 3) {
+        if (activeMarketSnapshot.run.state === 'running_experiments' && reads >= 5) {
           const prior = activeMarketSnapshot;
           activeMarketSnapshot = marketSnapshot('quant-completed', prior.run.id, prior.project.goal, prior.run.mode, prior.dataset.id, prior.scope.dateRange);
           activeMarketSnapshot.project.id = prior.project.id;

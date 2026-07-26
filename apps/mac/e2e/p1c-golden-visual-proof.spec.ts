@@ -90,16 +90,17 @@ test('P1-C golden visual proof: deterministic BTCUSDT 4h data to approved plan, 
   await page.getByRole('tab', { name: 'Experiments', exact: true }).click();
   const liveDecision = page.locator('[aria-label="Qurio research decision"]');
   await expect(liveDecision).toBeVisible();
-  await expect(liveDecision.locator('.pq-copilot-section > span')).toHaveText(['Current', 'Observation', 'Next']);
+  await expect(page.getByRole('heading', { name: 'Candidate experiments' })).toBeVisible();
+  await expect(page.locator('.quant-run-monitor-state strong')).not.toHaveText('Research concluded');
+  const liveMemo = liveDecision.getByLabel('Qurio research memo');
+  await expect(liveMemo.locator('section > span')).toHaveText(['Now', 'Material observation', 'Why this experiment']);
   await expect(liveDecision).toContainText('Initial hypothesis B · SMA 50/200');
   await expect(liveDecision).toContainText('SMA 20/100 completed training');
-  await expect(liveDecision).toContainText('Compare the initial A/B hypotheses');
-  await expect(page.getByRole('heading', { name: 'Candidate progress' })).toBeVisible();
-  await expect(page.locator('.quant-run-monitor-state strong')).not.toHaveText('Completed');
+  await expect(liveDecision).toContainText('SMA 50/200 · Running');
   await noHorizontalOverflow(page);
   await capture(page, 'p1c-03-live-ab-1440x960.png');
 
-  await expect.poll(async () => page.locator('.quant-run-monitor-state strong').textContent(), { timeout: 12_000 }).toContain('Completed');
+  await expect.poll(async () => page.locator('.quant-run-monitor-state strong').textContent(), { timeout: 12_000 }).toContain('Research concluded');
   const ledger = page.locator('.pq-candidate-comparison.is-full');
   await expect(ledger).toContainText('Decision ledger');
   await expect(ledger).toContainText('A/B → Observation → Candidate C → Final choice');
@@ -126,17 +127,16 @@ test('P1-C golden visual proof: deterministic BTCUSDT 4h data to approved plan, 
 
   await page.getByRole('tab', { name: 'Decision', exact: true }).click();
   const terminal = page.locator('.quant-terminal-decision');
+  await expect(terminal).toContainText('Qurio decision');
   await expect(terminal).toContainText('Final choice');
-  await expect(terminal).toContainText('Why');
+  await expect(terminal).toContainText('Training selection');
   await expect(terminal).toContainText('Sealed holdout');
-  await expect(terminal).toContainText('Decision');
-  await expect(terminal).toContainText('Deliverable / Memory');
   await expect(terminal).toContainText('SMA 50/200');
   await expect(terminal).toContainText('Failed');
   await expect(terminal).toContainText('Proposed change');
-  await expect(terminal).toContainText('Evidence basis / Why');
+  await expect(terminal).toContainText('Evidence basis');
   await expect(terminal).toContainText('Success / stop condition');
-  await terminal.getByRole('button', { name: 'Export final evidence' }).click();
+  await terminal.getByRole('button', { name: 'Export evidence' }).click();
   const exportDialog = page.locator('.quant-report-export');
   await expect(exportDialog).toBeVisible();
   await expect(exportDialog.getByRole('heading', { name: 'Strategy Report preview' })).toBeVisible();
@@ -159,13 +159,13 @@ test('P1-C golden visual proof: deterministic BTCUSDT 4h data to approved plan, 
 
   const childQuestion = 'Refine the retained BTCUSDT 4h final choice with one bounded drawdown change.';
   const refinementReason = 'Retain the authoritative SMA 50/200 final choice and test one bounded drawdown refinement.';
-  await terminal.getByRole('button', { name: 'Review & refine research' }).click();
-  await expect(page.getByRole('heading', { name: 'New research' })).toBeVisible();
+  await terminal.getByRole('button', { name: 'Refine version' }).click();
+  await expect(page.getByRole('heading', { name: 'Refine research' })).toBeVisible();
   await expect(page.getByLabel('Research dataset')).toBeDisabled();
   await page.getByLabel('Research goal').fill(childQuestion);
   await page.getByLabel('Refinement reason').fill(refinementReason);
   const createChild = page.waitForResponse((response) => response.url().endsWith('/v1/quant/market-runs') && response.request().method() === 'POST');
-  await page.getByRole('button', { name: 'Generate plan' }).click();
+  await page.getByRole('button', { name: 'Generate next plan' }).click();
   const child = await createChild;
   expect(child.ok()).toBe(true);
   expect(child.request().postDataJSON()).toMatchObject({

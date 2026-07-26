@@ -40,12 +40,11 @@ describe('Live Agent decision surface', () => {
 
     const markup = renderDecision(snapshot);
 
-    expect(markup).toMatch(/>Current<[\s\S]*>Observation<[\s\S]*>Next</);
-    expect(markup).toContain('Initial hypothesis A');
-    expect(markup).toContain('Initial hypothesis B');
+    expect(markup).toMatch(/>Now<[\s\S]*>Material observation<[\s\S]*>Why this experiment</);
+    expect(markup).toContain('Agent adaptation C · 200-day breakout');
     expect(markup).toContain('200-day breakout completed training');
     expect(markup).toContain('+16.3% annual return · 4.46 Sharpe · -15.5% drawdown.');
-    expect(markup).toContain('The train-only observation from SMA 20/100 drove this adaptation.');
+    expect(markup).toContain('Based on SMA 20/100.');
     expect(markup).toContain('Widen the lookback');
     expect(markup).not.toContain('Run details');
     expect(markup).not.toContain('Recent activity');
@@ -58,7 +57,8 @@ describe('Live Agent decision surface', () => {
     expect(markup).toContain('Initial hypothesis A · SMA 20/100');
     expect(markup).toContain('Candidate specifications in progress');
     expect(markup).toContain('No training result is available until the first bounded candidate completes.');
-    expect(markup).toContain('Complete the initial A/B hypotheses');
+    expect(markup).toContain('Why this experiment');
+    expect(markup).toContain('Test a faster moving-average trend signal against buy and hold.');
     expect(markup).not.toContain('drove this adaptation');
   });
 
@@ -74,7 +74,7 @@ describe('Live Agent decision surface', () => {
       />,
     );
 
-    expect(markup).toContain('Candidate progress');
+    expect(markup).toContain('Candidate experiments');
     expect(markup).toContain('Initial hypothesis A');
     expect(markup).toContain('Initial hypothesis B');
     expect(markup).not.toContain('Current experiment');
