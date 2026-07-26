@@ -1,6 +1,6 @@
 # Qurio
 
-Qurio is an AI-native quant research workspace powered by one verifiable autonomous Research Agent. It turns a bounded investment idea into comparable evidence and supports continuation from retained results; it is not an Agent Builder or trading platform.
+Qurio is an AI-native quant research workspace powered by one verifiable autonomous Research Agent. It turns a bounded investment idea into comparable evidence, supports continuation from retained results, and can hand a sealed-holdout pass into an isolated Paper simulation; it is not an Agent Builder, broker, or live-trading platform.
 
 This repository retains the historical name **PokieQuant** in paths, implementation documents, contracts, and earlier phase records. PokieQuant is not the current product or UI brand. Product-facing work must use the canonical Qurio assets documented in [`apps/mac/public/brand/README.md`](./apps/mac/public/brand/README.md).
 
@@ -47,7 +47,7 @@ Implemented:
 
 - independent Quant contracts, enums, safe event payloads, SSE encoding, and OpenAPI registration;
 - authenticated, workspace-scoped `/v1/quant` project/run, approval, cancellation, retry, event, artifact, and experiment routes;
-- a server-owned deterministic workspace fixture with ten named E2E states;
+- a server-owned deterministic workspace fixture with eleven named E2E states;
 - a canonical deterministic runtime script covering Candidate B's recoverable candidate-scoped failure and repair, no-viable-candidate, failed-safe, and cancellation paths;
 - PostgreSQL/SQLAlchemy-backed, workspace-scoped Phase 0 aggregate and fixture snapshot state, including refresh/restart recovery and optimistic concurrency;
 - a registered `quant-fixture` worker path with lease, heartbeat, fencing, stale-claim rejection, and cancellation fence invalidation;
@@ -98,7 +98,7 @@ Not implemented at the retained Phase 0 checkpoint below; current superseding ca
 - Spark/Jupyter/sandbox or uploaded-code execution;
 - providers other than the optional DeepSeek-compatible decision endpoint; the decision provider
   never receives market-network or arbitrary execution tools;
-- paper or live trading, broker credentials, order routing, or portfolio execution;
+- live trading, broker credentials, live order routing, or production portfolio execution;
 - PokieTicker or Spark code migration (both remain blocked on repository, immutable commit, license, and security review);
 - a normalized production Quant research schema, multi-worker throughput/SLO validation, and long-running lease cadence. Phase 0 intentionally persists its synthetic aggregate in one workspace-scoped JSON document; it is durable but is not presented as the future market/backtest schema.
 
@@ -116,6 +116,7 @@ quant-repairing
 quant-validating
 quant-waiting-review
 quant-completed
+quant-paper-pass
 quant-no-viable-candidate
 quant-failed-safe
 quant-cancelled

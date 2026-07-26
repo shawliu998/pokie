@@ -28,8 +28,9 @@ profitability, general model reliability or production readiness.
 
 ## Qurio P1-C golden mainline captures
 
-These seven PNG files were captured on 2026-07-24 from the actual Qurio React
-workbench connected to the deterministic loopback fixture API:
+These seven PNG files were refreshed on 2026-07-26 from the actual Qurio React
+workbench connected to the deterministic loopback fixture API after the RC1
+information-hierarchy pass:
 
 - `pokiequant/p1c-01-data-1440x960.png`
 - `pokiequant/p1c-02-plan-approval-1440x960.png`
@@ -48,6 +49,16 @@ The BTCUSDT `4h` data and Agent progression are deterministic fixtures. These
 captures prove the implemented UI path, retained identities and responsive
 viewport behavior; they are not evidence of live Binance/Kraken/DeepSeek
 reliability, strategy profitability or discovered alpha.
+
+SHA-256 hashes:
+
+- `66fae594be5cfaadeaf5ae7b9bd3125d16140c4afbe686e8acfd13eb0674c47c`
+- `2a3e70f25c06b027d65ac6ad84d2dcdd39b9bdd76caf7473ce896f3939edd02b`
+- `ee0930afbcd7a5ddaa5f8af157600043b01487722d48e2481ae0254a6df0e673`
+- `350c7fab8cab1e57829c71ebb8874ec72123007a5215b5e183026155b6ad16ae`
+- `ca0dacd271a9154662abae7a28b699f894c4538649f5c81a2b82f2598f873e01`
+- `ad1a77c7e1cc953f181f8879c76203ea61ea6d1c6acf4af686cf133aa09a222b`
+- `df04ae46c3f9f33c44daa8c7f87b7a6033396d4e61c40e2eaaa368193607adab`
 
 ## Historical Glint captures — 2026-07-16
 

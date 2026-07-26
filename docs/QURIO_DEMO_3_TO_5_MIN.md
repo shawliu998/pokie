@@ -1,182 +1,139 @@
-# Qurio 面试演示脚本（3–5 分钟版）
+# Qurio 面试演示脚本（3–5 分钟）
 
-**产品名称**：Qurio
+## 一句话定位
 
-**用途**：展示 Qurio 如何把固定公开数据、受界研究契约、A/B/C 候选修复、排名与证据选择、密封 holdout 失败，以及 E0 导出 + History 重开串成一个可验证的研究工作流。
+Qurio 是由一个受界自主 Research Agent 驱动的 AI-native 量化研究工作台：它把固定市场数据、可审批计划、候选实验、比较证据、密封 holdout 决策和下一版本串成一条可验证主线。
 
-**适用对象**：面试官、投资人、产品评审。
-**时长**：主讲 90 秒，完整版 3–5 分钟，附 Q&A 与 presenter notes。
+它不是 Agent Builder、券商或实盘交易平台。Paper Trading 是与研究隔离的本地模拟边界，只有最终候选通过密封 holdout 后才能创建待复核订单。
 
-Qurio 是由单一可验证自主研究 Agent 驱动的 AI-native 量化研究工作台；本演示不声称
-Agent Builder、回放/纸面交易、经纪商执行或策略盈利能力。
+## 90 秒主讲
 
----
+### 1. 独立安装与首次启动
 
-## 90 秒主讲版
+> 这是可独立安装的 Apple-silicon macOS 应用。DMG 内置 FastAPI、Quant Agent worker 和本地数据库，面试演示不需要仓库、Python 或 Node。首次启动可以选择 Offline deterministic，无需 API key；也可以在 Settings 配置 DeepSeek。
 
-> 这六张截图来自一次真实的 Qurio 研究会话。界面是历史只读重开，没有重新调用模型或 worker。我只点真实的 UI 元素。
+不要在主讲中展示终端。若被追问，再说明当前包采用 ad-hoc 签名，公开分发前仍需 Developer ID 与 Apple notarization。
 
-### Node 1：固定数据与研究问题（约 20 秒）
+### 2. 从保留数据开始
 
-**Presenter clicks**：Data 工作区里已保留的 **Kraken Spot BTCUSD 4h** 数据集行。
+打开 **Data**，展示 `BTCUSDT · 4h` 数据预览。
 
-> 我先点这里。这是 Qurio 的 Data 工作区，数据来源是 Kraken Spot 公开 K 线。系统丢弃了当前未收盘的那一根，最终保留 **548 根已收盘 bar**。数据集身份固定，后面 A/B/C 三个候选人都绑定同一个不可变数据版本，起点是统一的。
+> Agent 不从一句聊天直接“猜策略”。我先选一份已验证、具有固定身份和覆盖范围的数据，再定义可衡量的研究目标。这个演示使用确定性 fixture，因此证明的是产品工作流，不是行情真实性或 alpha。
 
-### Node 2：Agent A/B → 候选 C 修复（约 20 秒）
+对应截图：`p1c-01-data-1440x960.png`
 
-**Presenter clicks**：Decision Ledger / learning trace 区域里“Candidate C 第一次被拒绝、第二次成功”的相邻两行。
+### 3. 计划先于执行
 
-> 然后点 Decision Ledger。这里能看到 Agent 先生成 A 和 B，再尝试创建候选 C。第一次 C 因为模板关系不匹配被拒绝；我们没有重跑整段 prompt，而是把被拒绝的输入原样返回，Agent 只改了一个字段就通过了。修复是单一、可审计的，不是模型偷偷重写候选。
+点击 **Generate plan**，展示待审批计划，再点击 **Approve & run**。
 
-### Node 3：排名 ≠ 选择（约 20 秒）
+> Qurio 先冻结研究范围、候选家族、比较目标与完成条件。Agent 只有在批准后才能运行受注册工具；它不能写任意 Python、访问 shell、Broker 或下单。
 
-**Presenter clicks**：Analysis 页面里的训练排名，以及“最终选中 B”的说明文字。
+对应截图：`p1c-02-plan-approval-1440x960.png`
 
-> 接着看 Analysis。三名候选人的训练排名是 C/B/A，但 C 在训练期产生了 **0 笔交易**。所以 Qurio 按“最小交易证据”规则把选中对象改成 B，同时保留 C 作为排名参考。排名高不等于能进入 holdout，这是我们做选择时的核心约束。
+### 4. 让 Agent 的自主性可读
 
-### Node 4：密封 holdout 失败 → 可执行的 Refine（约 20 秒）
+切到 **Experiments**。
 
-**Presenter clicks**：holdout 指标区域，以及下一步动作按钮 **“Review & refine research”**。
+> 右侧 Research memo 只回答三件事：现在在做什么、出现了什么重要观察、为什么进行当前实验。这里 A 已完成，B 正在运行；中间区域保留最新训练证据与候选表。Agent 是主动执行和适应的，但每一步仍绑定批准的研究边界。
 
-> B 进入密封 holdout 后失败。注意 holdout 总收益和按持有期年化后的收益是两个不同的数字，不能混着说。因为 holdout 失败，系统没有给出上线或推广动作，而是把下一步固定为 **Review & refine research**：先审阅下一轮要改变什么、依据什么、需要什么证据，再进入可编辑的研究设置。失败被显式保留，不会把训练集结果误当成可交付策略。
+对应截图：`p1c-03-live-ab-1440x960.png`
 
-### Close：E0 导出 + History 重开（约 10 秒）
+### 5. 从观察适应到最终选择
 
-**Presenter clicks**：E0 导出按钮，再切到 History 列表中同一个 Run 的 reopen 视图。
+等待运行结束，展示 Candidate comparison 与 Decision Ledger。
 
-> 最后点 E0 导出，再点 History 重开。失败结果仍然可以导出为机器可读的证据包；从 History 重新打开同一个 Run，数据集、Run 身份、选中候选、证据路径完全一致。这是真正的只读重开，没有写数据库，也没有重新调用模型。
+> Qurio 不把“模型思考日志”当产品。A/B 的训练结果形成结构化观察，再驱动 Candidate C；最终选择同时保留候选身份、比较指标和选择理由。排名、选择与 holdout 是不同阶段，不能混成一个结论。
 
----
+对应截图：`p1c-04-observation-to-c-1440x960.png`
 
-## 3–5 分钟详细版
+### 6. 诚实决策、Refine、导出与历史
 
-### 1. 数据：固定且可追踪（30–45 秒）
+切到 **Decision**，展示 holdout 失败结论、**Refine version** 与 **Export evidence**。
 
-**画面**：`v1-final-183209-01-data-1440x960.png`
-**Presenter clicks**：Data 页 Kraken Spot BTCUSD 4h 行 → 数据集详情面板。
+> 这个 Run 的密封 holdout 不支持推广，所以 Qurio 不生成 Paper 或上线动作，而是给出一项有边界的 Refine：改变什么、证据依据是什么、何时停止。证据包由服务端生成；History 重开同一 Run 时保持只读身份。
 
-讲稿：
+对应截图：
 
-> 这是 Qurio 的 Data 工作区。我不演示本地上传，而是直接展示已保留的 Kraken Spot 公开 BTCUSD 4 小时 K 线。原始响应移除当前未收盘 bar 后，保留 **548 根已收盘 bar**。数据集 ID 固定，本次 Run 中所有候选人都绑定这同一个不可变数据集版本。界面会显示 bar 数与数据状态，不需要去猜数据是否完整。
+- `p1c-05-report-json-1440x960.png`
+- `p1c-06-history-reopen-1440x960.png`
 
-### 2. 研究契约与候选身份（30–45 秒）
+## 3–5 分钟展开顺序
 
-**画面**：`v1-final-183209-02-ledger-repair-1440x960.png` 上部 Plan 区
-**Presenter clicks**：已批准的 plan 卡片 → A/B/C 策略身份列表。
+1. **安装形态（20 秒）**：DMG → Applications → 首次启动选择 Offline deterministic。
+2. **Data（30 秒）**：来源、interval、coverage、bar count、Research ready。
+3. **Research Contract（30 秒）**：目标、候选家族、选择目标、完成条件。
+4. **Agent 运行（45 秒）**：Now、Material observation、Why this experiment、实验预算。
+5. **比较与适应（45 秒）**：A/B → Observation → Candidate C → Final choice。
+6. **Analysis（30 秒）**：Equity、Drawdown、Trades；强调训练证据与 benchmark。
+7. **Decision（45 秒）**：holdout 状态、Qurio decision、Refine version、停止条件。
+8. **Export / History（30 秒）**：机器可读 evidence bundle 与历史只读重开。
+9. **可选 Paper（20 秒）**：换到 sealed-holdout pass fixture，说明仅为本地确定性模拟，不连接 Broker。
 
-讲稿：
+## 真相边界
 
-> 这是研究契约。模型只有一个受注册的 Research Agent，可用工具集和策略模板是固定的。本次三名候选人分别是：A `sma_crossover_20_100`、B `breakout_20`、C `sma_crossover_50_200`。策略身份由模板 + 参数 + canonical key 决定，没有自定义 DSL，也不让模型写任意 Python。
+可以说：
 
-### 3. A/B → 被拒绝 → 修复为 C（45–60 秒）
+- “Qurio 已完成 Data → Plan → Experiments → Compare → Analyze → Decision → Refine / History 的可执行主线。”
+- “Agent 会根据保留的训练观察生成 Candidate C，但只能使用批准的策略模板和工具。”
+- “密封 holdout 失败时不会进入 Paper；通过时才允许建立待复核的模拟订单。”
+- “应用可独立安装，并提供无 key 的 Offline deterministic 首次启动路径。”
 
-**画面**：`v1-final-183209-02-ledger-repair-1440x960.png` 中 Decision Ledger / learning trace 区
-**Presenter clicks**：Candidate C 第一次创建被拒绝的记录 → 同一行的第二次成功记录 → learning trace 的 `correction_delta`。
+不要说：
 
-讲稿：
+- “这个策略能盈利或跑赢市场。”
+- “已经有真实用户或验证了市场需求。”
+- “支持券商、实盘、任意 Python 策略或 Agent marketplace。”
+- “当前包已经 Apple notarized，任何 Mac 都能无提示安装。”
+- “fixture 结果证明 Binance、Kraken 或 DeepSeek 的生产可靠性。”
 
-> 第一次创建 Candidate C 时被拒绝。我们没有简单重试整段 prompt，而是把被拒绝的完整参数原封不动返回给模型，Agent 只把 `replan_decision.action` 从 `refine_parameters` 改成 `switch_approved_family`，第二次就成功了。`correction_delta` 里只记录了这个字段变化，没有混入其他输入。这是可验证的修复学习，不是“模型自己重写候选”。
+## 常见追问
 
-Presenter notes / 技术附录可补充：拒绝原因为 `ITERATION_REPLAN_TEMPLATE_RELATION_INVALID`。
+**为什么不是聊天框？**
 
-### 4. 训练排名 vs 基于证据的选择（45–60 秒）
+量化研究的核心对象是数据、计划、实验、比较和结论。对话只辅助定位证据，不能代替结构化研究状态。
 
-**画面**：`v1-final-183209-03-analysis-selection-1440x960.png`
-**Presenter clicks**：训练排名 C/B/A → C 的 0 交易提示 → 最终选中 B 的说明。
+**Agent 的新意是什么？**
 
-讲稿：
+不是多 Agent 数量，而是一个有预算、有工具边界、能从训练观察适应候选、又能被完整验证的 Research Agent。界面直接呈现它的当前行动、重要观察和实验理由。
 
-> 三名候选人在训练集上的最终排名是 C/B/A。但 C 在训练期产生了 **0 笔交易**，所以结构化决策通过 robustness override / minimum_trade_evidence 把选中对象改为 B，同时引用 C 作为排名参考。这不是说 B 能赚钱，而是说在“有交易信号”这个最低证据门槛上，B 比 C 更适合进入 holdout。B 的训练指标本身也是亏损的：Sharpe 约 -2.14，最大回撤约 -17.5%，年化收益约 -38.1%。
+**持续学习在哪里？**
 
-### 5. 密封 holdout 失败与下一步（45–60 秒）
+当前实现的是 verified learning：保留 Research Series、版本、尝试、修复差异和证据引用。它不会未经批准修改基础模型权重，也不会把聊天历史伪装成长期记忆。
 
-**画面**：`v1-final-183209-04-holdout-revise-1440x960.png`
-**Presenter clicks**：holdout 指标卡 → “Review & refine research” 下一步动作。
+**Paper Trading 是实盘吗？**
 
-讲稿：
+不是。它是 workspace-scoped、确定性的本地模拟账户与订单边界，没有 Broker host、凭证或 live-order route。
 
-> B 进入密封 holdout 后失败。注意区分两个数字：holdout 总收益约 -5.40%，按持有期年化后约 -67.2%；最大回撤约 -8.5%，3 笔交易。因为 holdout 失败，系统没有给上线或推广动作，而是展示下一轮的改变、证据依据和停止条件，再由 **Review & refine research** 进入可编辑的研究设置。这就是 Qurio 的诚实边界：失败被显式保留，而不是被训练集指标掩盖。
+**为什么限制任意 Python？**
 
-### 6. E0 导出 + History 只读重开（30–45 秒）
+当前产品的差异化是权威证据链，而不是通用 IDE。固定模板和 canonical strategy identity 让候选比较、holdout 与历史重开保持同一计算路径。
 
-**画面**：`v1-final-183209-05-e0-export-1440x960.png` 与 `v1-final-183209-06-history-reopen-1440x960.png`
-**Presenter clicks**：E0 导出按钮 / 导出路径 → History 列表中同一个 Run → reopen 后的只读视图。
+## 演示前检查
 
-讲稿：
+- 使用最新 `Qurio_0.1.0_aarch64.dmg`，或运行下方确定性浏览器路径。
+- 1440×960 下确认 Data、Plan、Experiments、Decision、History 无横向溢出。
+- 1024×960 下确认导出弹窗的 Close 与 Download 按钮可用。
+- 主讲使用当前按钮名：**Refine version**、**Export evidence**、**Generate next plan**。
+- 不展示 access token、API key、私有路径或终端环境变量。
 
-> 失败的结果仍然可以被导出为机器可读的 E0 证据包。然后从 History 重新打开同一个 Run，身份、数据集、选中候选、E0 路径完全一致。这次重开是纯 SQLite 历史只读重开，没有调用 worker 或模型，数据库字节未被修改。
+重建安装包：
 
-Presenter notes / 技术附录可补充：Run ID 为 `6ad1c324-b6c5-55af-aa51-411d676b15d8`，数据集 ID 为 `kraken-BTCUSD-4h-0b4ade74171c8dc0`，重开后 SHA-256 不变。
+```bash
+pnpm --dir apps/mac package:mac
+```
 
----
+重放黄金路径并刷新截图：
 
-## 真相边界与失败回退
+```bash
+GLINT_E2E_API_MODE=fixture \
+GLINT_FIXTURE_PORT=4521 \
+GLINT_E2E_APP_PORT=5521 \
+POKIEQUANT_CAPTURE_SCREENSHOTS=1 \
+pnpm --dir apps/mac exec playwright test e2e/p1c-golden-visual-proof.spec.ts
+```
 
-**收尾讲稿（30 秒）**：
+安装包位置：
 
-> 这个演示不是 alpha 声明，也不证明策略盈利、模型泛化或生产可用。它证明的是：Qurio 能把固定公开数据、受界研究契约、A/B/C 候选修复、训练排名、最小交易证据选择、密封 holdout 失败，以及 E0 导出和历史重开串成一条可验证的链。失败时下一步自动是 Refine，而不是把训练集结果当成可交付策略。
-
-**绝对禁止的说法**：
-
-- “这个策略是盈利的 / 能跑赢市场。”
-- “DeepSeek 模型在交易上很可靠。”
-- “这是生产就绪的 alpha。”
-- “用户已经在用了 / 有市场需求。”
-- “支持券商 / 实盘交易。”
-- “结果具有统计显著性。”
-
-**可接受的说法**：
-
-- “训练排名 C/B/A，但 C 零交易，所以按最小交易证据选了 B。”
-- “B 在 holdout 失败，下一步是审阅并编辑一轮有边界的 Refine。”
-- “整个链条的数据集、Run、候选、E0 身份在导出和历史重开中保持一致。”
-
----
-
-## 追问附录（Q&A）
-
-**Q：候选 C 为什么第一次被拒绝？**
-A：模板关系校验失败，错误码 `ITERATION_REPLAN_TEMPLATE_RELATION_INVALID`。系统把完整输入返回给 Agent，Agent 只修正 `replan_decision.action` 一个字段后通过。
-
-**Q：为什么选 B 而不是训练排名最高的 C？**
-A：C 在训练期 0 交易，不满足最小交易证据门槛。B 虽然训练指标也是亏损的，但有交易信号，因此进入 holdout。
-
-**Q：holdout 失败意味着什么？**
-A：意味着基于当前数据和参数，B 在未参与训练选择的 holdout 区间表现不佳。系统的下一步不是上线，而是 Refine / revise research。
-
-**Q：History 重开是真的只读吗？**
-A：是。演示使用的是 SQLite 只读会话回放，不调用 worker 或模型，数据库 SHA-256 在重开前后保持一致。
-
-**Q：E0 导出里有什么？**
-A：包含该 Run 的数据集身份、候选列表、训练与 holdout 指标、选择理由、失败判定和下一步动作，是机器可读的完整证据包。
-
----
-
-## 演示前准备
-
-- 打开已保留的只读 SQLite 会话目录：`.run/v1-kraken-deepseek-20260724-183209`。
-- 在仓库根目录执行以下命令；它只启动 API + Mac UI，不启动 worker，也不需要模型 key：
-
-  ```bash
-  export VITE_GLINT_ACCESS_TOKEN="$(jq -r .principal_id .run/v1-kraken-deepseek-20260724-183209/pokiequant-live-session.json)"
-  .venv/bin/python scripts/launch_quant_live_session.py --readonly-reopen
-  ```
-
-- 演示的是**真实数据库只读重开**，不是重新跑模型；启动后使用终端打印的 Mac UI 地址。
-- 确认六个 1440×960 截图已就位：
-  1. `docs/assets/pokiequant/v1-final-183209-01-data-1440x960.png`
-  2. `docs/assets/pokiequant/v1-final-183209-02-ledger-repair-1440x960.png`
-  3. `docs/assets/pokiequant/v1-final-183209-03-analysis-selection-1440x960.png`
-  4. `docs/assets/pokiequant/v1-final-183209-04-holdout-revise-1440x960.png`
-  5. `docs/assets/pokiequant/v1-final-183209-05-e0-export-1440x960.png`
-  6. `docs/assets/pokiequant/v1-final-183209-06-history-reopen-1440x960.png`
-
-## 演示核对清单
-
-- [ ] 六个截图路径存在且分辨率为 1440×960。
-- [ ] 90 秒主讲不提 token、终端命令、devtools、SHA 值、错误码、精确工程内部值。
-- [ ] 区分 holdout 总收益与年化收益。
-- [ ] 强调“C 训练排名第一但零交易，因此未选中”。
-- [ ] 强调 holdout 失败后下一步是 Review & refine research，不是推广。
-- [ ] 说明 History 是只读重开，未重新调用模型。
-- [ ] 出现任何追问盈利/可靠性/生产就绪时，回退到本脚本的“真相边界”。
+- `apps/mac/src-tauri/target/release/bundle/macos/Qurio.app`
+- `apps/mac/src-tauri/target/release/bundle/dmg/Qurio_0.1.0_aarch64.dmg`
+- `apps/mac/src-tauri/target/release/bundle/dmg/SHA256SUMS.txt`
