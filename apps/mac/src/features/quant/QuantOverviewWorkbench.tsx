@@ -84,6 +84,32 @@ function ResearchPlanForApproval({ snapshot }: { snapshot: QuantWorkspaceSnapsho
   </section>;
 }
 
+function ResearchLaunchPanel({ snapshot, busy, onGeneratePlan, onEditObjective }: {
+  snapshot: QuantWorkspaceSnapshot;
+  busy: boolean;
+  onGeneratePlan: () => void;
+  onEditObjective: () => void;
+}) {
+  const isPlanning = snapshot.run.state === 'planning';
+  return <section className="pq-research-launch" aria-labelledby="pq-research-launch-title">
+    <span className="pq-research-launch-kicker">{isPlanning ? 'Preparing plan' : 'Ready to plan'}</span>
+    <h2 id="pq-research-launch-title">{isPlanning ? 'Generating the research plan' : 'Generate the research plan'}</h2>
+    <p className="pq-research-launch-objective">{snapshot.project.goal}</p>
+    <dl className="pq-research-launch-facts">
+      <div><dt>Market</dt><dd>{snapshot.scope.symbol} · {snapshot.scope.market} · {snapshot.scope.interval}</dd></div>
+      <div><dt>Research period</dt><dd>{snapshot.scope.dateRange.start} — {snapshot.scope.dateRange.end}</dd></div>
+      <div><dt>Experiment budget</dt><dd>{snapshot.limits.maxExperiments} candidates · {snapshot.limits.maxRepairAttempts} repairs each</dd></div>
+      <div><dt>Execution costs</dt><dd>{snapshot.kernelCheck.feeRateBps} bps fee · {snapshot.kernelCheck.slippageRateBps} bps slippage</dd></div>
+    </dl>
+    <div className="pq-research-launch-actions">
+      {!isPlanning && <button className="pq-primary-button" disabled={busy} onClick={onGeneratePlan}>{busy ? 'Generating plan…' : 'Generate plan'}</button>}
+      {!isPlanning && <button className="pq-text-action" disabled={busy} onClick={onEditObjective}>Edit objective</button>}
+      {isPlanning && <p role="status">Qurio is turning the objective into a bounded experiment and validation plan.</p>}
+    </div>
+    <p className="pq-research-launch-note">You will review the candidate families, comparison objective and limits before any experiment runs.</p>
+  </section>;
+}
+
 function validationStatusLabel(status: string | undefined) {
   if (!status || status === 'not_evaluated') return 'Pending';
   return `${status[0]?.toUpperCase()}${status.slice(1).replaceAll('_', ' ')}`;
@@ -139,7 +165,7 @@ export function ResearchCopilotContent({ projection, snapshot, recentEvents, evi
   const live = liveDecision ? snapshot.liveResearch : null;
   const current = live?.currentExperiment ?? null;
   const initialCandidates = live?.candidates.filter((candidate) => candidate.ordinal <= 2) ?? [];
-  const candidateC = live?.candidates.find((candidate) => candidate.ordinal > 2);
+  const candidateC = live?.candidates.find((candidate) => candidate.ordinal === 3);
   const retainedCandidateC = candidateC
     ? snapshot.candidates.find((candidate) => candidate.id === candidateC.id && candidate.evolution?.origin === 'training_feedback')
     : undefined;
@@ -174,6 +200,64 @@ export function ResearchCopilotContent({ projection, snapshot, recentEvents, evi
     nextTitle = 'Wait for bounded execution';
   }
   const idPrefix = liveDecision ? 'pq-live-agent' : compact ? 'pq-compact' : 'pq-rail';
+  if (liveDecision) {
+    const now = current ?? live?.latestResult ?? null;
+    const nowRetained = now ? snapshot.candidates.find((candidate) => candidate.id === now.id) : undefined;
+    const nowEvolution = nowRetained?.evolution?.origin === 'training_feedback' ? nowRetained.evolution : undefined;
+    const nowRole = now
+      ? now.ordinal === 1
+        ? 'Initial hypothesis A'
+        : now.ordinal === 2
+          ? 'Initial hypothesis B'
+          : nowEvolution
+            ? 'Agent adaptation C'
+            : `Candidate ${now.ordinal}`
+      : 'Research run';
+    const whyCandidate = candidateC ?? current;
+    const whyRetained = whyCandidate
+      ? snapshot.candidates.find((candidate) => candidate.id === whyCandidate.id)
+      : undefined;
+    const whyEvolution = whyRetained?.evolution?.origin === 'training_feedback'
+      ? whyRetained.evolution
+      : undefined;
+    const whyTitle = whyCandidate
+      ? `${whyCandidate.ordinal > 2 && whyEvolution ? 'Agent adaptation C' : liveCandidateName(whyCandidate.name)} · ${liveCandidateState(whyCandidate.state)}`
+      : nextTitle;
+    const whyDetail = whyEvolution?.changeRationale
+      ? `${whyEvolution.feedbackReferenceCandidateName ? `Based on ${liveCandidateName(whyEvolution.feedbackReferenceCandidateName)}. ` : ''}${whyEvolution.changeRationale}`
+      : whyCandidate?.hypothesis ?? projection.next.detail;
+    const completedExperiments = live?.candidates.filter((candidate) => candidate.state === 'completed').length ?? 0;
+    const remainingExperiments = Math.max(0, snapshot.limits.maxExperiments - snapshot.run.usedExperiments);
+    const evidenceReference = whyEvolution?.feedbackReferenceCandidateName
+      ? `Training comparison · ${liveCandidateName(whyEvolution.feedbackReferenceCandidateName)} supplied the retained observation`
+      : live?.latestResult
+        ? `Latest retained training result · Experiment ${live.latestResult.ordinal}`
+        : 'No completed training result has been retained yet';
+    return <div className="pq-live-memo" aria-label="Qurio research memo">
+      <span className="pq-live-memo-kicker">Qurio memo</span>
+      <section aria-labelledby={`${idPrefix}-now`}>
+        <span id={`${idPrefix}-now`}>Now</span>
+        <h2>{now ? `${nowRole} · ${liveCandidateName(now.name)}` : projection.current.title}</h2>
+        <p>{now ? liveCandidateState(now.state) : projection.current.detail}</p>
+      </section>
+      <section aria-labelledby={`${idPrefix}-observation`}>
+        <span id={`${idPrefix}-observation`}>Material observation</span>
+        <h2>{projection.observation.title}</h2>
+        <p>{projection.observation.detail}</p>
+        <small>{evidenceReference}</small>
+      </section>
+      <section aria-labelledby={`${idPrefix}-why`}>
+        <span id={`${idPrefix}-why`}>Why this experiment</span>
+        <h2>{whyTitle}</h2>
+        <p>{whyDetail}</p>
+      </section>
+      <footer>
+        <span>{completedExperiments} complete · {remainingExperiments} experiment{remainingExperiments === 1 ? '' : 's'} remaining</span>
+        <small>{Math.max(0, snapshot.run.maxAgentIterations - snapshot.run.agentIteration)} Agent actions remain inside the approved plan</small>
+      </footer>
+      {projection.next.actions.length > 0 && <div className="pq-copilot-actions">{projection.next.actions.map((action) => <button key={action.kind} className={action.tone === 'primary' ? 'is-primary' : undefined} disabled={busy} onClick={() => onAction(action.kind)}>{busy ? 'Working…' : action.label}</button>)}</div>}
+    </div>;
+  }
   return <div className={`pq-copilot-content${compact ? ' is-compact' : ''}${liveDecision ? ' is-live-decision' : ''}`}>
     <div className="pq-copilot-sections">
       <section className="pq-copilot-section is-current" aria-labelledby={`${idPrefix}-current`}>
@@ -252,15 +336,29 @@ export function QuantOverviewWorkbench({
   compactLayout?: boolean;
   children?: ReactNode;
 }) {
-  const retained = snapshot.candidates.find((candidate) => candidate.verdict === 'promising');
-  const featuredCandidate = retained ?? snapshot.candidates.reduce<(typeof snapshot.candidates)[number] | undefined>((best, candidate) => {
-    if (!best || candidate.metrics.sharpe > best.metrics.sharpe) return candidate;
-    return best;
-  }, undefined);
+  const terminalRun = ['completed', 'failed', 'cancelled'].includes(snapshot.run.state);
+  const reportSelectionId = snapshot.report?.selectionDecision?.selectedCandidateId;
+  const generalizationSelectionId = snapshot.report?.generalization?.selectedCandidateId;
+  const authoritativeSelectionId = reportSelectionId
+    && (terminalRun ? generalizationSelectionId === reportSelectionId : !generalizationSelectionId || generalizationSelectionId === reportSelectionId)
+    ? reportSelectionId
+    : undefined;
+  const authoritativeSelection = authoritativeSelectionId
+    ? snapshot.candidates.find((candidate) => candidate.id === authoritativeSelectionId)
+    : undefined;
+  const trainingLeader = snapshot.candidates.find((candidate) => candidate.verdict === 'promising');
+  const featuredCandidate = authoritativeSelection ?? (terminalRun ? undefined : trainingLeader ?? snapshot.candidates[0]);
   const selectedCandidate = snapshot.candidates.find((candidate) => candidate.id === selectedCandidateId) ?? featuredCandidate;
-  const walkForward = snapshot.report?.walkForward;
+  const validationEvidenceApplies = Boolean(
+    authoritativeSelection
+    && generalizationSelectionId === reportSelectionId
+    && selectedCandidate?.id === authoritativeSelection.id,
+  );
+  const hasValidationResult = Boolean(snapshot.report?.generalization);
+  const validationEvidenceUnavailable = hasValidationResult && !validationEvidenceApplies;
+  const walkForward = validationEvidenceApplies ? snapshot.report?.walkForward : undefined;
   const holdout = snapshot.run.state === 'completed' || snapshot.run.state === 'waiting_for_review'
-    ? snapshot.report?.generalization
+    ? validationEvidenceApplies ? snapshot.report?.generalization : undefined
     : undefined;
   const decision = useMemo(() => presentPromotionDecision(snapshot), [snapshot]);
   const [performanceView, setPerformanceView] = useState<'equity' | 'drawdown'>('equity');
@@ -269,7 +367,8 @@ export function QuantOverviewWorkbench({
   const copilot = useMemo(() => presentResearchCopilot(snapshot, { selectedCandidateId, isHistorical }), [isHistorical, selectedCandidateId, snapshot]);
   const evidenceFocusActions = useMemo(() => onEvidenceFocus ? projectEvidenceFocusActions(snapshot, selectedCandidateId) : [], [onEvidenceFocus, selectedCandidateId, snapshot]);
   const canAsk = copilot.canAsk;
-  const terminal = ['completed', 'failed', 'cancelled'].includes(snapshot.run.state);
+  const isResearchLaunch = snapshot.run.state === 'draft' || snapshot.run.state === 'planning';
+  const terminal = terminalRun;
   const noViableCandidate = snapshot.run.state === 'completed' && snapshot.candidates.length > 0 && snapshot.candidates.every((candidate) => candidate.verdict !== 'promising');
   const showResults = terminal || snapshot.run.state === 'waiting_for_review';
   const hasPerformance = Boolean(selectedCandidate && snapshot.performanceSeries.some((series) => series.id === selectedCandidate.id && series.points.length > 1));
@@ -290,32 +389,36 @@ export function QuantOverviewWorkbench({
         ? { ...decision, nextStep: 'Revise the hypothesis or candidate constraints, then start new research.' }
         : snapshot.run.state === 'waiting_for_review'
           ? { ...decision, summary: 'The completed evidence is ready for a human decision.', nextStep: 'Review the strategy report and validation findings.' }
-          : snapshot.run.state === 'completed' && selectedCandidate
-            ? { ...decision, title: `${selectedCandidate.name.replace(/^Candidate [A-Z] · /, '')} · ${decision.title}` }
+          : snapshot.run.state === 'completed' && authoritativeSelection
+            ? { ...decision, title: `${authoritativeSelection.name.replace(/^Candidate [A-Z] · /, '')} · ${decision.title}` }
             : decision;
   const onTabKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    const current = workspaceTabs.indexOf(activeTab);
+    const enabledTabs = isResearchLaunch ? workspaceTabs.slice(0, 1) : workspaceTabs;
+    const current = enabledTabs.indexOf(activeTab);
     let next = current;
-    if (event.key === 'ArrowRight') next = (current + 1) % workspaceTabs.length;
-    else if (event.key === 'ArrowLeft') next = (current - 1 + workspaceTabs.length) % workspaceTabs.length;
+    if (event.key === 'ArrowRight') next = (current + 1) % enabledTabs.length;
+    else if (event.key === 'ArrowLeft') next = (current - 1 + enabledTabs.length) % enabledTabs.length;
     else if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = workspaceTabs.length - 1;
+    else if (event.key === 'End') next = enabledTabs.length - 1;
     else return;
     event.preventDefault();
-    const nextTab = workspaceTabs[next] ?? activeTab;
+    const nextTab = enabledTabs[next] ?? activeTab;
     onTabChange(nextTab);
     requestAnimationFrame(() => document.getElementById(`pq-workspace-tab-${nextTab}`)?.focus());
   };
 
   const tabLabel: Record<WorkspaceTab, string> = { overview: 'Overview', experiments: 'Experiments', analysis: 'Analysis', report: 'Decision' };
-  return <section className={`pq-workbench${terminal ? ' is-terminal' : ''}${canAsk ? ' has-interactive-copilot' : ' is-context'}`} aria-label="Qurio research workspace">
+  return <section className={`pq-workbench${terminal ? ' is-terminal' : ''}${isResearchLaunch ? ' is-research-launch' : ''}${canAsk && !isResearchLaunch ? ' has-interactive-copilot' : ' is-context'}`} aria-label="Qurio research workspace">
     <header className="pq-workbench-header">
       <h1>{snapshot.scope.symbol} Research</h1>
       <nav aria-label="Research views" role="tablist" onKeyDown={onTabKeyDown}>
-        {workspaceTabs.map((tab) => <button key={tab} role="tab" id={`pq-workspace-tab-${tab}`} aria-controls={`pq-workspace-panel-${tab}`} aria-selected={activeTab === tab} tabIndex={activeTab === tab ? 0 : -1} onClick={() => onTabChange(tab)}>{tabLabel[tab]}</button>)}
+        {workspaceTabs.map((tab) => {
+          const unavailable = isResearchLaunch && tab !== 'overview';
+          return <button key={tab} role="tab" id={`pq-workspace-tab-${tab}`} aria-controls={`pq-workspace-panel-${tab}`} aria-selected={activeTab === tab} aria-disabled={unavailable || undefined} disabled={unavailable} tabIndex={activeTab === tab ? 0 : -1} onClick={() => onTabChange(tab)}>{tabLabel[tab]}</button>;
+        })}
       </nav>
     </header>
-    {activeTab === 'overview' ? <div className="pq-overview-grid" role="tabpanel" id="pq-workspace-panel-overview" aria-labelledby="pq-workspace-tab-overview">
+    {activeTab === 'overview' ? <div className={`pq-overview-grid${isResearchLaunch ? ' is-research-launch' : ''}`} role="tabpanel" id="pq-workspace-panel-overview" aria-labelledby="pq-workspace-tab-overview">
       <main className="pq-overview-main">
         <div className="pq-context-bar">
           <strong>{snapshot.scope.symbol}</strong>
@@ -325,9 +428,10 @@ export function QuantOverviewWorkbench({
           {snapshot.researchMemory && <span>Prior research: {snapshot.researchMemory.sourceRunCount} runs · {snapshot.researchMemory.testedCandidateCount} strategies considered</span>}
         </div>
         <div className="pq-overview-content">
-          {compactLayout && <ResearchCopilotContent compact projection={copilot} snapshot={snapshot} recentEvents={recentEvents} evidenceFocusActions={evidenceFocusActions} busy={busy} onAction={handleCopilotAction} onAsk={(value) => onCommand('ask', { question: value })} onEvidenceFocus={onEvidenceFocus ?? (() => undefined)} />}
+          {isResearchLaunch && <ResearchLaunchPanel snapshot={snapshot} busy={busy} onGeneratePlan={() => onCommand('generate_plan')} onEditObjective={onRunResearch} />}
+          {compactLayout && !isResearchLaunch && <ResearchCopilotContent compact projection={copilot} snapshot={snapshot} recentEvents={recentEvents} evidenceFocusActions={evidenceFocusActions} busy={busy} onAction={handleCopilotAction} onAsk={(value) => onCommand('ask', { question: value })} onEvidenceFocus={onEvidenceFocus ?? (() => undefined)} />}
           <ResearchPlanForApproval snapshot={snapshot} />
-          <QuantDecisionGate decision={overviewDecision} className="is-overview" />
+          {!isResearchLaunch && <QuantDecisionGate decision={overviewDecision} className="is-overview" />}
           {transientRows && <section className="pq-transient-phase" aria-label="Current run progress" aria-live="polite">
             <header><strong>Run progress</strong><span>Live</span></header>
             <ol>
@@ -352,13 +456,13 @@ export function QuantOverviewWorkbench({
             </dl>
             <section className="pq-validation-summary" aria-labelledby="pq-validation-summary-heading">
               <header><h2 id="pq-validation-summary-heading">Validation and decision</h2><span>{hasPerformance ? 'Performance series retained' : 'Performance series unavailable'}</span></header>
-              <dl><div><dt>Sealed holdout</dt><dd className={`is-${holdout?.status ?? 'pending'}`}>{validationStatusLabel(holdout?.status)}</dd></div><div><dt>Positive-return folds</dt><dd>{walkForward ? `${walkForward.aggregate.candidatePositiveReturnFolds} / ${walkForward.foldCount}` : '—'}</dd></div><div><dt>Holdout annual return</dt><dd>{formatPercent(holdout?.holdout?.candidate.annualizedReturn)}</dd></div><div><dt>Decision</dt><dd>{decision.label}</dd></div></dl>
+              <dl><div><dt>Sealed holdout</dt><dd className={`is-${validationEvidenceUnavailable ? 'unavailable' : holdout?.status ?? 'pending'}`}>{validationEvidenceUnavailable ? 'Unavailable' : validationStatusLabel(holdout?.status)}</dd></div><div><dt>Positive-return folds</dt><dd>{walkForward ? `${walkForward.aggregate.candidatePositiveReturnFolds} / ${walkForward.foldCount}` : '—'}</dd></div><div><dt>Holdout annual return</dt><dd>{formatPercent(holdout?.holdout?.candidate.annualizedReturn)}</dd></div><div><dt>Decision</dt><dd>{validationEvidenceUnavailable ? 'Evidence unavailable' : decision.label}</dd></div></dl>
             </section>
             {snapshot.candidates.length > 0 && <CandidateComparison snapshot={snapshot} selectedCandidateId={selectedCandidate?.id ?? ''} onSelectCandidate={onSelectCandidate} variant="snapshot" />}
           </div>}
         </div>
       </main>
-      {!compactLayout && <aside className={`pq-copilot ${canAsk ? 'is-interactive' : 'is-context'}`} aria-label="Qurio">
+      {!compactLayout && !isResearchLaunch && <aside className={`pq-copilot ${canAsk ? 'is-interactive' : 'is-context'}`} aria-label="Qurio">
         <header><strong>Qurio</strong><span>{snapshot.scope.symbol} · Overview</span></header>
         <ResearchCopilotContent projection={copilot} snapshot={snapshot} recentEvents={recentEvents} evidenceFocusActions={evidenceFocusActions} busy={busy} onAction={handleCopilotAction} onAsk={(value) => onCommand('ask', { question: value })} onEvidenceFocus={onEvidenceFocus ?? (() => undefined)} />
       </aside>}

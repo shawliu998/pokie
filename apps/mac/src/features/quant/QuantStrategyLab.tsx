@@ -191,15 +191,74 @@ function LiveResearchWorkbench({ snapshot, showDecisionSummary }: { snapshot: Qu
   const live = snapshot.liveResearch;
   const current = live?.currentExperiment ?? null;
   const candidates = live?.candidates ?? [];
+  const completedCandidates = candidates.filter((candidate) => candidate.state === 'completed');
   const pendingSlots = Math.max(0, snapshot.limits.maxExperiments - candidates.length);
+  const latest = live?.latestResult ?? null;
+  const latestHasPerformance = Boolean(
+    latest
+    && snapshot.performanceSeries.some((series) => series.id === latest.id && series.points.length > 1),
+  );
+  const adaptation = candidates.find((candidate) => {
+    const retained = snapshot.candidates.find((item) => item.id === candidate.id);
+    return candidate.ordinal === 3 && retained?.evolution?.origin === 'training_feedback';
+  });
+  const adaptationEvolution = adaptation
+    ? snapshot.candidates.find((candidate) => candidate.id === adaptation.id)?.evolution
+    : undefined;
+  const currentRole = current ? liveCandidateRole(snapshot, current) : null;
+  const headline = adaptation && adaptation.state !== 'completed'
+    ? 'Testing an evidence-led adaptation'
+    : completedCandidates.length >= 2 && pendingSlots > 0 && !current
+      ? 'Choosing the next experiment'
+      : current
+        ? `Testing ${currentRole?.[0]?.toLowerCase() ?? ''}${currentRole?.slice(1) ?? ''}`
+        : live?.phase === 'validating'
+          ? 'Evaluating the final candidate'
+          : live?.phase === 'generating_report'
+            ? 'Assembling the evidence decision'
+            : live?.phaseLabel ?? 'Research queued';
+  const observation = latest?.metrics
+    ? `${candidateLabel(latest.name)} retained ${percent(latest.metrics.annualizedReturn)} annual return, ${latest.metrics.sharpe.toFixed(2)} Sharpe, ${percent(latest.metrics.maxDrawdown)} drawdown and ${latest.metrics.trades} trades.`
+    : 'No completed training result has been retained yet.';
+  const adaptationDetail = adaptation && adaptationEvolution?.origin === 'training_feedback'
+    ? `${adaptationEvolution.feedbackReferenceCandidateName ? `${candidateLabel(adaptationEvolution.feedbackReferenceCandidateName)} supplied the train-only observation. ` : ''}${adaptationEvolution.changeRationale ?? adaptation.hypothesis}`
+    : current
+      ? current.hypothesis
+      : live?.nextStep ?? 'Wait for the next retained research decision.';
   return <section className="pq-live-research" aria-labelledby="pq-live-research-heading">
-    <header className="pq-live-header"><div><h2 id="pq-live-research-heading">{live?.phaseLabel ?? 'Research queued'}</h2><p>{snapshot.project.goal}</p></div>{live && <span>Iteration {live.iteration} of {snapshot.run.maxAgentIterations}</span>}</header>
-    {showDecisionSummary && live && <div className="pq-live-focus">
-      <section aria-labelledby="pq-current-experiment-heading"><header><h3 id="pq-current-experiment-heading">Current experiment</h3>{current && <span>Experiment {current.ordinal} of {snapshot.limits.maxExperiments}</span>}</header>{current ? <><strong>{candidateLabel(current.name)}</strong><p>{current.hypothesis}</p><dl><div><dt>Parameters</dt><dd>{current.parameters || 'Parameters are being prepared'}</dd></div><div><dt>Stage</dt><dd>{liveStatus(current)}</dd></div>{current.repairCount > 0 && <div><dt>Revision</dt><dd>{current.repairCount}</dd></div>}</dl></> : <div className="pq-live-pending"><strong>{live.phase === 'loading_data' ? 'Verifying the selected dataset' : live.phase === 'validating' ? 'Candidate execution complete' : 'No candidate is running'}</strong><p>{live.phase === 'loading_data' ? 'Candidate generation begins after coverage and quality checks finish.' : live.phase === 'validating' ? 'Completed candidates are moving through robustness and holdout checks.' : 'The retained results are being assembled into the research report.'}</p></div>}</section>
-      <section aria-labelledby="pq-latest-result-heading"><header><h3 id="pq-latest-result-heading">Latest result</h3>{live.latestResult && <span>Experiment {live.latestResult.ordinal}</span>}</header>{live.latestResult && <><strong>{candidateLabel(live.latestResult.name)}</strong><p>{live.latestResult.hypothesis}</p></>}<LiveMetrics candidate={live.latestResult} /></section>
-    </div>}
-    <section className="pq-live-candidates" aria-labelledby="pq-live-candidates-heading"><header><div><h3 id="pq-live-candidates-heading">Candidate progress</h3><p>{candidates.filter((candidate) => candidate.state === 'completed').length} completed · {pendingSlots} candidate slots remain</p></div></header><div className="pq-table-scroll"><table className="quant-research-table"><caption className="quant-visually-hidden">Live candidate experiment progress</caption><thead><tr><th>Candidate</th><th>Role</th><th>Hypothesis</th><th>Parameters</th><th className="is-numeric">Return</th><th className="is-numeric">Sharpe</th><th className="is-action">State</th></tr></thead><tbody>{candidates.map((candidate) => <tr key={candidate.id}><th scope="row">{candidateLabel(candidate.name)}</th><td>{liveCandidateRole(snapshot, candidate)}</td><td>{candidate.hypothesis}</td><td>{candidate.parameters || '—'}</td><td className="is-numeric">{candidate.metrics ? percent(candidate.metrics.annualizedReturn) : '—'}</td><td className="is-numeric">{candidate.metrics ? candidate.metrics.sharpe.toFixed(2) : '—'}</td><td className="is-action">{liveStatus(candidate)}</td></tr>)}{candidates.length === 0 && <tr className="is-pending"><th scope="row">No candidate yet</th><td>Waiting</td><td>The Agent has not retained an initial hypothesis.</td><td>—</td><td className="is-numeric">—</td><td className="is-numeric">—</td><td className="is-action">Queued</td></tr>}{Array.from({ length: pendingSlots }, (_, index) => <tr key={`pending-${index}`} className="is-pending"><th scope="row">Candidate slot {candidates.length + index + 1}</th><td>Not assigned</td><td>Not selected yet</td><td>—</td><td className="is-numeric">—</td><td className="is-numeric">—</td><td className="is-action">Pending</td></tr>)}</tbody></table></div></section>
-    {showDecisionSummary && live && <footer><strong>Next step</strong><span>{live.nextStep}</span></footer>}
+    <header className="pq-live-header">
+      <div>
+        <span>Autonomous research · {adaptation ? 'adapting from evidence' : 'bounded execution'}</span>
+        <h2 id="pq-live-research-heading">{headline}</h2>
+        <p>{snapshot.scope.symbol} · {snapshot.scope.interval} · {completedCandidates.length} complete · {snapshot.project.goal}</p>
+      </div>
+      {live && <strong>{live.phaseLabel} · iteration {live.iteration} of {snapshot.run.maxAgentIterations}</strong>}
+    </header>
+    {showDecisionSummary && live && <section className="pq-live-inline-summary" aria-label="Current experiment and latest result">
+      <div><span>Current experiment</span><strong>{current ? `${currentRole} · ${candidateLabel(current.name)}` : 'No candidate is running'}</strong><small>{current?.hypothesis ?? live.nextStep}</small></div>
+      <div><span>Latest result</span><strong>{latest ? candidateLabel(latest.name) : 'No completed result'}</strong><small>{observation}</small></div>
+    </section>}
+    <section className={`pq-live-evidence${latestHasPerformance ? '' : ' is-metric-only'}`} aria-labelledby="pq-live-evidence-heading">
+      <header>
+        <div><h3 id="pq-live-evidence-heading">{latestHasPerformance ? 'Latest retained training performance' : 'Latest retained training result'}</h3><p>{latest ? `${candidateLabel(latest.name)} · Experiment ${latest.ordinal}` : 'Waiting for the first completed candidate'}</p></div>
+        {latest && <span>{liveStatus(latest)}</span>}
+      </header>
+      {latestHasPerformance && latest
+        ? <StrategyPerformanceChart snapshot={snapshot} selectedCandidateId={latest.id} view="equity" />
+        : <div className="pq-live-result-snapshot">{latest && <><strong>{candidateLabel(latest.name)}</strong><p>{latest.hypothesis}</p></>}<LiveMetrics candidate={latest} /></div>}
+    </section>
+    <section className="pq-live-candidates" aria-labelledby="pq-live-candidates-heading">
+      <header><div><h3 id="pq-live-candidates-heading">Candidate experiments</h3><p>{completedCandidates.length} completed · {pendingSlots} candidate slots remain</p></div></header>
+      <div className="pq-table-scroll"><table className="quant-research-table"><caption className="quant-visually-hidden">Live candidate experiment progress</caption><thead><tr><th>Candidate</th><th>Role</th><th>Parameters</th><th className="is-numeric">Return</th><th className="is-numeric">Sharpe</th><th className="is-numeric">Drawdown</th><th className="is-numeric">Trades</th><th className="is-action">Evidence</th></tr></thead><tbody>
+        {candidates.map((candidate) => <tr key={candidate.id} className={candidate.id === current?.id ? 'is-current' : undefined}><th scope="row">{candidateLabel(candidate.name)}</th><td>{liveCandidateRole(snapshot, candidate)}</td><td>{candidate.parameters || '—'}</td><td className="is-numeric">{candidate.metrics ? percent(candidate.metrics.annualizedReturn) : '—'}</td><td className="is-numeric">{candidate.metrics ? candidate.metrics.sharpe.toFixed(2) : '—'}</td><td className="is-numeric">{candidate.metrics ? percent(candidate.metrics.maxDrawdown) : '—'}</td><td className="is-numeric">{candidate.metrics?.trades ?? '—'}</td><td className="is-action">{liveStatus(candidate)}</td></tr>)}
+        {candidates.length === 0 && <tr className="is-pending"><th scope="row">No candidate yet</th><td>Waiting</td><td>—</td><td className="is-numeric">—</td><td className="is-numeric">—</td><td className="is-numeric">—</td><td className="is-numeric">—</td><td className="is-action">Pending</td></tr>}
+        {Array.from({ length: pendingSlots }, (_, index) => <tr key={`pending-${index}`} className="is-pending"><th scope="row">Candidate slot {candidates.length + index + 1}</th><td>Not assigned</td><td>—</td><td className="is-numeric">—</td><td className="is-numeric">—</td><td className="is-numeric">—</td><td className="is-numeric">—</td><td className="is-action">Pending</td></tr>)}
+      </tbody></table></div>
+    </section>
+    {live && <footer className="pq-live-adaptation">
+      <div><strong>Observation</strong><span>{observation}</span></div>
+      <div><strong>{adaptation ? 'Adaptation' : 'Next'}</strong><span>{adaptationDetail}</span></div>
+    </footer>}
   </section>;
 }
 

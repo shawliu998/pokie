@@ -913,6 +913,14 @@ const commandLabels: Partial<Record<QuantCommand, string>> = {
 
 export function presentPromotionDecision(snapshot: QuantWorkspaceSnapshot): QuantDecisionPresentation {
   const generalization = snapshot.report?.generalization;
+  const reportSelectionId = snapshot.report?.selectionDecision?.selectedCandidateId;
+  const generalizationSelectionId = generalization?.selectedCandidateId;
+  const selectionIdentityConsistent = Boolean(
+    reportSelectionId
+    && generalizationSelectionId === reportSelectionId
+    && snapshot.candidates.some((candidate) => candidate.id === reportSelectionId),
+  );
+  const claimsRetainedHoldout = Boolean(generalization && generalization.status !== 'not_evaluated');
   const noViableCandidate = snapshot.run.state === 'completed'
     && snapshot.candidates.length > 0
     && snapshot.candidates.every((candidate) => candidate.verdict !== 'promising');
@@ -937,6 +945,17 @@ export function presentPromotionDecision(snapshot: QuantWorkspaceSnapshot): Quan
       summary: 'The run ended before sealed-holdout validation produced a promotion decision.',
       nextStep: 'Review retained work or start a new immutable research run.',
       tone: 'neutral',
+    };
+  }
+  if ((snapshot.run.state === 'completed' || snapshot.run.state === 'waiting_for_review')
+    && claimsRetainedHoldout
+    && !selectionIdentityConsistent) {
+    return {
+      label: 'Evidence unavailable',
+      title: 'Validation evidence withheld',
+      summary: 'The final candidate identity could not be verified, so sealed-holdout evidence is not shown.',
+      nextStep: 'Resolve the retained final-candidate identity before using this decision.',
+      tone: 'warning',
     };
   }
   if (snapshot.run.state === 'waiting_for_review' && !generalization) {
