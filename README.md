@@ -9,8 +9,8 @@
 <p align="center"><strong>Research a market idea, compare what survives, and keep the evidence.</strong></p>
 
 <p align="center">
-  Qurio is a quantitative research workspace where ideas become experiments,
-  comparisons, and reproducible evidence.
+  An <strong>agent-native</strong> quantitative research workspace built around one inspectable
+  loop: plan, experiment, observe, adapt, and decide.
 </p>
 
 <p align="center">
@@ -31,9 +31,10 @@ Qurio is a macOS workspace for doing quantitative research as a sequence you can
 bring in market data, state a bounded objective, approve a plan, compare experiments, inspect
 the result, and continue from the retained evidence.
 
-A single Research Agent proposes the next research action. Registered tools keep that action
-inside the approved scope, while one deterministic evaluator calculates every quantitative
-metric. The model can change the research path; it cannot quietly change the math.
+Agent-native here describes the structure, not a chat layer. The Research Agent owns bounded
+research decisions, registered tools keep each action inside the approved scope, and retained
+evidence determines the next legal action. One deterministic evaluator calculates every
+quantitative metric. The model can change the research path; it cannot quietly change the math.
 
 Not a crystal ball. It is a place to find out which ideas survive contact with data.
 
@@ -82,7 +83,15 @@ Not a crystal ball. It is a place to find out which ideas survive contact with d
 
 Fewer “trust me” charts. More runs you can inspect.
 
-## How it holds together
+## The Agent loop
+
+```text
+Objective → Approved plan → Experiments → Observation → Adaptation
+    ↑                                                     ↓
+Continue / Revise ← Sealed holdout ← Decision ← Comparison
+```
+
+That loop lives inside the product flow:
 
 ```text
 Data → Research → Compare → Analyze → Continue / History
