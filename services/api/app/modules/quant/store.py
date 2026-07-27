@@ -139,6 +139,7 @@ RESEARCH_MEMORY_MAX_CANDIDATE_KEYS = 15
 RESEARCH_MEMORY_CONTRACT_VERSION = "quant-research-memory-v1"
 LEGACY_RESEARCH_MEMORY_CONTRACT_VERSION = "legacy-pre-p17"
 VERIFIED_LEARNING_REPOSITORY_CONTRACT_VERSION = "qvl1:"
+EXECUTION_BOUNDARY_APPROVAL_CONTRACT_VERSION = "quant-execution-boundary-approval-v1"
 VERIFIED_LEARNING_POLICY_VERSION = "quant-verified-learning-policy-v1"
 EVIDENCE_REPLAN_REPOSITORY_PREFIX = "p18v1:"
 LEGACY_EVIDENCE_REPLAN_REPOSITORY_MARKER = "legacy-pre-p18"
@@ -1854,6 +1855,33 @@ class QuantStore:
                     )
             else:
                 run.latest_sequence = len(events)
+            approval_events = [
+                event
+                for event in events
+                if event.event_type == "plan.approved"
+                and event.payload.get("approval_contract_version")
+                == EXECUTION_BOUNDARY_APPROVAL_CONTRACT_VERSION
+            ]
+            if approval_events:
+                approval = approval_events[-1].payload
+                expected_boundary = (
+                    "one_evidence_led_follow_up"
+                    if run.research_loop_policy is not None
+                    else "one_research_run"
+                )
+                expected_policy_digest = (
+                    research_loop_policy_digest(run.research_loop_policy)
+                    if run.research_loop_policy is not None
+                    else None
+                )
+                if (
+                    approval.get("execution_boundary") != expected_boundary
+                    or approval.get("research_loop_policy_digest")
+                    != expected_policy_digest
+                ):
+                    raise ValueError(
+                        "Persisted Quant approval evidence differs from the Run policy."
+                    )
 
         for events in event_records.values():
             ordered_events = events
@@ -8917,6 +8945,7 @@ class QuantStore:
         expected_row_version: int,
         plan_revision: int,
         reason: str | None,
+        research_loop: QuantResearchLoopPolicy | None = None,
     ) -> QuantRunRecord:
         with self._lock:
             self._ensure_workspace_loaded(workspace_id)
@@ -8927,6 +8956,7 @@ class QuantStore:
                 expected_row_version=expected_row_version,
                 plan_revision=plan_revision,
                 reason=reason,
+                research_loop=research_loop,
             )
 
     def _approve_plan_locked(
@@ -8936,6 +8966,7 @@ class QuantStore:
         expected_row_version: int,
         plan_revision: int,
         reason: str | None,
+        research_loop: QuantResearchLoopPolicy | None = None,
     ) -> QuantRunRecord:
         if (
             run.row_version != expected_row_version
@@ -8953,11 +8984,44 @@ class QuantStore:
         if run.state in {QuantRunState.COMPLETED, QuantRunState.FAILED}:
             return run
         if run.state is QuantRunState.RUNNING_EXPERIMENTS:
+            if (
+                research_loop is not None
+                and run.research_loop_policy != research_loop
+            ):
+                raise invalid_state(
+                    "The approved research loop no longer matches this Run."
+                )
             return run
         if run.state is not QuantRunState.WAITING_PLAN_APPROVAL:
             raise invalid_state("Approve-plan requires a plan awaiting approval.")
+        if research_loop is not None:
+            if run.market_run_contract_version != QUANT_MARKET_RUN_CONTRACT_VERSION:
+                raise invalid_state(
+                    "A research loop can be attached only to a public market Run."
+                )
+            if (
+                research_loop.follow_up_mode != "one_train_only_follow_up"
+                or run.parent_run_id is not None
+                or run.retry_of_run_id is not None
+                or run.research_loop_policy is not None
+                or run.research_series_root_run_id is not None
+                or run.research_series_version is not None
+                or run.mode is not QuantRunMode.PLAN
+            ):
+                raise invalid_state(
+                    "A research loop can be approved only for a root Plan-first market Run."
+                )
         baseline = self._workspace_mutation_baseline(run.workspace_id)
-        self._start_run(run, reason, explicit_approval=True)
+        try:
+            if research_loop is not None:
+                run.mode = QuantRunMode.AUTO
+                run.research_loop_policy = research_loop
+                run.research_series_root_run_id = run.id
+                run.research_series_version = 1
+            self._start_run(run, reason, explicit_approval=True)
+        except Exception:
+            self._restore_mutation_baseline(run.workspace_id, baseline)
+            raise
         self._persist_workspace_or_restore(run.workspace_id, baseline)
         return run
 
@@ -9625,12 +9689,24 @@ class QuantStore:
         run.approval_reason = reason
         run.row_version += 1
         run.updated_at = _utcnow()
+        execution_boundary = (
+            "one_evidence_led_follow_up"
+            if run.research_loop_policy is not None
+            else "one_research_run"
+        )
         self._append_event(
             run,
             "plan.approved",
             {
                 "state": QuantRunState.RUNNING_EXPERIMENTS,
                 "plan_revision": run.plan_revision,
+                "approval_contract_version": EXECUTION_BOUNDARY_APPROVAL_CONTRACT_VERSION,
+                "execution_boundary": execution_boundary,
+                "research_loop_policy_digest": (
+                    research_loop_policy_digest(run.research_loop_policy)
+                    if run.research_loop_policy is not None
+                    else None
+                ),
                 "safe_summary": "The bounded Agent plan was accepted.",
             },
         )
@@ -9641,7 +9717,7 @@ class QuantStore:
                 "state": QuantRunState.RUNNING_EXPERIMENTS,
                 "plan_revision": run.plan_revision,
                 "attempt_number": run.attempt_number,
-                "safe_summary": "The autonomous research run started.",
+                "safe_summary": "The bounded research run started.",
             },
         )
 

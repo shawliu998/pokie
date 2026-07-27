@@ -1,10 +1,11 @@
-import { useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { DatasetSnapshot, QuantCommand, QuantNavDestination, QuantWorkspaceSnapshot } from '../../quant-domain';
 import { QuantDecisionGate } from './QuantDecisionGate';
 import { CandidateComparison, StrategyPerformanceChart } from './QuantStrategyLab';
 import { presentPromotionDecision, presentResearchCopilot, presentStrategyScopeDecision, projectEvidenceFocusActions, type QuantCopilotActionKind, type QuantCopilotProjection, type QuantEvidenceFocusRequest } from './quant-presentation';
 
 type WorkspaceTab = 'overview' | 'experiments' | 'analysis' | 'report';
+type ApprovalResearchLoop = 'one_research_run' | 'one_train_only_follow_up';
 const workspaceTabs: WorkspaceTab[] = ['overview', 'experiments', 'analysis', 'report'];
 
 function formatPercent(value: number | undefined, digits = 1) {
@@ -66,8 +67,16 @@ function StrategyScopeContract({ snapshot }: { snapshot: QuantWorkspaceSnapshot 
   </section>;
 }
 
-function ResearchPlanForApproval({ snapshot }: { snapshot: QuantWorkspaceSnapshot }) {
+function ResearchPlanForApproval({ snapshot, busy, researchLoop, onResearchLoopChange }: {
+  snapshot: QuantWorkspaceSnapshot;
+  busy: boolean;
+  researchLoop: ApprovalResearchLoop;
+  onResearchLoopChange: (value: ApprovalResearchLoop) => void;
+}) {
   if (snapshot.run.state !== 'waiting_plan_approval' || !snapshot.researchPlan) return null;
+  const canChooseResearchLoop = snapshot.run.contract === 'market-v2-public'
+    && !snapshot.run.continuedFrom
+    && !snapshot.run.retryOfRunId;
   return <section className="pq-plan-review" aria-label="Research plan awaiting approval">
     <header><div><span>Plan review</span><h2>Plan for approval</h2></div><span>{snapshot.dataset.symbol} · {snapshot.scope.interval}</span></header>
     {snapshot.researchPlan.objectiveSummary && <p className="pq-plan-review-objective">{snapshot.researchPlan.objectiveSummary}</p>}
@@ -82,6 +91,16 @@ function ResearchPlanForApproval({ snapshot }: { snapshot: QuantWorkspaceSnapsho
       {snapshot.researchMemory && <div><dt>Prior-work constraint</dt><dd>{snapshot.researchMemory.sourceRunCount} same-evidence runs · {snapshot.researchMemory.testedCandidateCount} exact strategies. Approved execution excludes the same template + parameters; prior holdout evidence is not reused.</dd></div>}
       <div><dt>Budgets</dt><dd>{snapshot.run.maxAgentIterations} Agent actions · {snapshot.limits.maxExperiments} experiments · {snapshot.limits.maxRepairAttempts} repairs per experiment</dd></div>
     </dl>
+    {canChooseResearchLoop && <fieldset className="pq-plan-loop" disabled={busy}>
+      <legend>Research loop</legend>
+      <div className="quant-mode-switch">
+        <button type="button" aria-pressed={researchLoop === 'one_research_run'} onClick={() => onResearchLoopChange('one_research_run')}>One research run</button>
+        <button type="button" aria-pressed={researchLoop === 'one_train_only_follow_up'} onClick={() => onResearchLoopChange('one_train_only_follow_up')}>Allow one evidence-led follow-up</button>
+      </div>
+      <p>{researchLoop === 'one_train_only_follow_up'
+        ? 'The Agent may use the final training comparison to precommit one independent follow-up under the same approved constraints, then stops for review.'
+        : 'Run the approved plan once, open the sealed holdout once, then stop for review.'}</p>
+    </fieldset>}
   </section>;
 }
 
@@ -449,6 +468,10 @@ export function QuantOverviewWorkbench({
     : undefined;
   const decision = useMemo(() => presentPromotionDecision(snapshot), [snapshot]);
   const [performanceView, setPerformanceView] = useState<'equity' | 'drawdown'>('equity');
+  const [approvalResearchLoop, setApprovalResearchLoop] = useState<ApprovalResearchLoop>('one_research_run');
+  useEffect(() => {
+    setApprovalResearchLoop('one_research_run');
+  }, [snapshot.run.id, snapshot.run.planRevision]);
   const recentEvents = snapshot.events.slice(-4).reverse();
   const transientRows = transientPhaseRows[snapshot.run.state];
   const copilot = useMemo(() => presentResearchCopilot(snapshot, { selectedCandidateId, isHistorical }), [isHistorical, selectedCandidateId, snapshot]);
@@ -465,7 +488,9 @@ export function QuantOverviewWorkbench({
     else if (kind === 'new_research') onRunResearch();
     else if (kind === 'continue_research') onContinueResearch?.();
     else if (kind === 'return_latest') onReturnLatest?.();
-    else if (payload) onCommand(kind, payload);
+    else if (kind === 'approve_plan' && approvalResearchLoop === 'one_train_only_follow_up') {
+      onCommand(kind, { followUpMode: approvalResearchLoop });
+    } else if (payload) onCommand(kind, payload);
     else onCommand(kind);
   };
   const overviewDecision = snapshot.run.state === 'failed'
@@ -517,7 +542,7 @@ export function QuantOverviewWorkbench({
         <div className="pq-overview-content">
           {isResearchLaunch && <ResearchLaunchPanel snapshot={snapshot} busy={busy} onGeneratePlan={() => onCommand('generate_plan')} onEditObjective={onRunResearch} />}
           {compactLayout && !isResearchLaunch && <ResearchCopilotContent compact projection={copilot} snapshot={snapshot} recentEvents={recentEvents} evidenceFocusActions={evidenceFocusActions} busy={busy} onAction={handleCopilotAction} onEvidenceFocus={onEvidenceFocus ?? (() => undefined)} />}
-          <ResearchPlanForApproval snapshot={snapshot} />
+          <ResearchPlanForApproval snapshot={snapshot} busy={busy} researchLoop={approvalResearchLoop} onResearchLoopChange={setApprovalResearchLoop} />
           {!isResearchLaunch && <QuantDecisionGate decision={overviewDecision} className="is-overview" />}
           {transientRows && <section className="pq-transient-phase" aria-label="Current run progress" aria-live="polite">
             <header><strong>Run progress</strong><span>Live</span></header>

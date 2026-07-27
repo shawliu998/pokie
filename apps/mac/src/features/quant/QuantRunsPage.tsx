@@ -39,6 +39,12 @@ function runStateTone(state: string) {
   return 'active';
 }
 
+function researchLoopLabel(run: QuantRunHistoryItem) {
+  return run.researchLoop?.followUpMode === 'one_train_only_follow_up'
+    ? 'Agent loop · one evidence-led follow-up'
+    : 'One research run';
+}
+
 function outcomeForState(state: string): Exclude<OutcomeFilter, 'all'> {
   if (state === 'completed') return 'completed';
   if (state === 'waiting_plan_approval' || state === 'waiting_for_review') return 'review';
@@ -353,7 +359,7 @@ export function QuantRunsPage({ api, snapshot, openingRunId = null, openRunError
               const lifecycleLabel = run.id === snapshot.run.id ? presentation.statusLabel : runStateLabel(run.state);
               return <tr key={run.id} className={run.id === snapshot.run.id ? 'is-current' : ''}>
                 <td className="is-select"><label><input type="checkbox" checked={isSelected} disabled={selectionDisabled} onChange={() => toggleComparison(run.id)} /><span className="quant-visually-hidden">Select {run.question} for comparison</span></label></td>
-                <th scope="row"><button className="quant-run-question" aria-busy={isOpening} disabled={isPending} onClick={() => void onOpenRun(run.id)}>{run.question}</button><small>{projectLabel(projectNames.get(run.projectId) ?? 'Research project')} · {run.mode === 'auto' ? 'Agent run' : 'Plan first'}</small>{run.contract === 'market-v2-public' && <small>{run.symbol} · {run.interval} · {run.researchStartUtc} – {run.researchEndUtc} · {run.periodsPerYear?.toLocaleString()} periods/year</small>}</th>
+                <th scope="row"><button className="quant-run-question" aria-busy={isOpening} disabled={isPending} onClick={() => void onOpenRun(run.id)}>{run.question}</button><small>{projectLabel(projectNames.get(run.projectId) ?? 'Research project')} · {run.mode === 'auto' ? 'Agent run' : 'Plan first'}</small>{run.contract === 'market-v2-public' && <><small>{run.symbol} · {run.interval} · {run.researchStartUtc} – {run.researchEndUtc} · {run.periodsPerYear?.toLocaleString()} periods/year</small><small>{researchLoopLabel(run)}</small></>}</th>
                 <td className="quant-series-cell">{relationshipLabel}</td>
                 <td><strong className={`is-${runStateTone(run.state)}`}>{isOpening ? 'Opening…' : lifecycleLabel}</strong></td>
                 <td><time dateTime={run.updatedAt}>{shortDate(run.updatedAt || run.createdAt)}</time></td>

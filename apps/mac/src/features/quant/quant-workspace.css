@@ -1528,6 +1528,11 @@
 .pq-plan-review .pq-strategy-scope { margin-top:var(--space-5); }
 .pq-plan-review .pq-strategy-scope>p { max-width:70ch; margin:0; color:var(--muted); }
 .pq-plan-review .pq-strategy-scope .pq-strategy-scope-confirmation { padding-top:var(--space-3); border-top:1px solid var(--border-strong); color:var(--text); font-weight:600; }
+.pq-plan-loop { display:grid; gap:var(--space-3); margin:var(--space-5) 0 0; padding:var(--space-4); border:1px solid var(--border-strong); border-radius:var(--radius-control); background:var(--surface); }
+.pq-plan-loop legend { padding:0 var(--space-2); color:var(--text); font-size:var(--type-body); font-weight:650; }
+.pq-plan-loop .quant-mode-switch { width:max-content; max-width:100%; flex-wrap:wrap; }
+.pq-plan-loop .quant-mode-switch button { min-height:var(--control-default); padding-inline:var(--space-4); }
+.pq-plan-loop>p { max-width:76ch; margin:0; color:var(--muted); font-size:var(--type-dense); line-height:var(--leading-dense); }
 .pq-strategy-scope { display:grid; gap:var(--space-3); margin-top:var(--space-4); padding:var(--space-4); border:1px solid var(--border-strong); border-radius:var(--radius-control); background:var(--surface); }
 .pq-strategy-scope.is-bounded_proxy { border-color:color-mix(in srgb,var(--warning) 55%,var(--border)); background:color-mix(in srgb,var(--warning) 7%,var(--surface)); }
 .pq-strategy-scope.is-unsupported { border-color:color-mix(in srgb,var(--danger) 60%,var(--border)); background:color-mix(in srgb,var(--danger) 7%,var(--surface)); }

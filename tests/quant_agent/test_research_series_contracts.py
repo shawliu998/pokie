@@ -8,6 +8,7 @@ from pydantic import ValidationError
 
 from packages.contracts.quant import (
     FinishResearchArguments,
+    QuantMarketPlanApproveRequest,
     QuantMarketRunV2CreateRequest,
     QuantResearchDecision,
     QuantResearchLoopPolicy,
@@ -108,4 +109,37 @@ def test_market_research_loop_is_root_auto_only() -> None:
                 "refinement_reason": "Refine the source.",
                 **common,
             }
+        )
+
+
+def test_market_plan_approval_can_attach_only_the_supported_bounded_loop() -> None:
+    default_approval = QuantMarketPlanApproveRequest(
+        expected_row_version=2,
+        plan_revision=1,
+    )
+    assert default_approval.research_loop is None
+
+    bounded_approval = QuantMarketPlanApproveRequest(
+        expected_row_version=2,
+        plan_revision=1,
+        research_loop=QuantResearchLoopPolicy(
+            follow_up_mode="one_train_only_follow_up",
+            max_versions=2,
+            max_total_experiments=6,
+            max_total_agent_actions=24,
+        ),
+    )
+    assert bounded_approval.research_loop is not None
+    assert bounded_approval.research_loop.follow_up_mode == "one_train_only_follow_up"
+
+    with pytest.raises(ValidationError):
+        QuantMarketPlanApproveRequest(
+            expected_row_version=2,
+            plan_revision=1,
+            research_loop=QuantResearchLoopPolicy(
+                follow_up_mode="stop_after_run",
+                max_versions=1,
+                max_total_experiments=3,
+                max_total_agent_actions=12,
+            ),
         )

@@ -391,6 +391,12 @@ export interface QuantRunHistoryItem {
   datasetDigest?: string;
   runtimeDescriptorDigest?: string;
   sealedSplitDigest?: string;
+  researchLoop?: {
+    followUpMode: 'stop_after_run' | 'one_train_only_follow_up';
+    maxVersions: 1 | 2;
+    maxTotalExperiments: 3 | 6;
+    maxTotalAgentActions: 12 | 24;
+  } | null;
 }
 
 export type QuantStrategyReportExportType = 'strategy_report_markdown' | 'strategy_evidence_bundle_json';
@@ -928,8 +934,24 @@ export function createApiQuantApi(api: GlintApi): QuantApi {
       if (request.run?.contract === 'market-v2-public') {
         if (!['approve_plan', 'request_plan_changes', 'cancel_run', 'retry_run'].includes(request.command)) return { status: 'rejected', message: 'This command is not part of the public Market Run contract.' };
         const action = request.command === 'approve_plan' ? 'approve-plan' : request.command === 'request_plan_changes' ? 'request-plan-changes' : request.command === 'cancel_run' ? 'cancel' : 'retry';
+        const followUpMode = request.payload?.followUpMode;
+        if (request.command === 'approve_plan' && followUpMode !== undefined && followUpMode !== 'one_train_only_follow_up') {
+          throw new Error('The requested research-loop boundary is unsupported.');
+        }
         const body = request.command === 'approve_plan'
-          ? { expected_row_version: request.expectedVersion, plan_revision: request.run.planRevision, reason: 'Plan approved from the research workspace.' }
+          ? {
+              expected_row_version: request.expectedVersion,
+              plan_revision: request.run.planRevision,
+              reason: 'Plan approved from the research workspace.',
+              ...(followUpMode === 'one_train_only_follow_up' ? {
+                research_loop: {
+                  follow_up_mode: followUpMode,
+                  max_versions: 2,
+                  max_total_experiments: 6,
+                  max_total_agent_actions: 24,
+                },
+              } : {}),
+            }
           : request.command === 'request_plan_changes'
             ? { expected_row_version: request.expectedVersion, plan_revision: request.run.planRevision, change_request: String(request.payload?.changeRequest ?? 'Revise the plan before running experiments.') }
             : { expected_row_version: request.expectedVersion, reason: request.command === 'cancel_run' ? 'Cancelled from the research workspace.' : 'Retry requested from the research workspace.' };
@@ -1027,7 +1049,7 @@ export function createApiQuantApi(api: GlintApi): QuantApi {
     async listMarketRuns(projectId) {
       const suffix = projectId ? `?project_id=${encodeURIComponent(projectId)}&limit=100` : '?limit=100';
       const rows = await quantRequest<unknown[]>(`/quant/market-runs${suffix}`);
-      return rows.map(parseQuantMarketRun).map((run) => ({ contract: run.contract, id: run.id, projectId: run.projectId, datasetId: run.datasetId, state: run.state, mode: run.mode, question: run.question, attemptNumber: run.attemptNumber, parentRunId: run.parentRunId, seedCandidateId: run.seedCandidateId, refinementReason: run.refinementReason, retryOfRunId: run.retryOfRunId, provider: run.provider, model: run.model, usedExperiments: run.usedExperiments, createdAt: run.createdAt, updatedAt: run.updatedAt, symbol: run.symbol, interval: run.interval, periodsPerYear: run.periodsPerYear, researchStartUtc: run.researchStartUtc, researchEndUtc: run.researchEndUtc, datasetDigest: run.datasetDigest, runtimeDescriptorDigest: run.runtimeDescriptorDigest, sealedSplitDigest: run.sealedSplitDigest }));
+      return rows.map(parseQuantMarketRun).map((run) => ({ contract: run.contract, id: run.id, projectId: run.projectId, datasetId: run.datasetId, state: run.state, mode: run.mode, question: run.question, attemptNumber: run.attemptNumber, parentRunId: run.parentRunId, seedCandidateId: run.seedCandidateId, refinementReason: run.refinementReason, retryOfRunId: run.retryOfRunId, provider: run.provider, model: run.model, usedExperiments: run.usedExperiments, createdAt: run.createdAt, updatedAt: run.updatedAt, symbol: run.symbol, interval: run.interval, periodsPerYear: run.periodsPerYear, researchStartUtc: run.researchStartUtc, researchEndUtc: run.researchEndUtc, datasetDigest: run.datasetDigest, runtimeDescriptorDigest: run.runtimeDescriptorDigest, sealedSplitDigest: run.sealedSplitDigest, researchLoop: run.researchLoop }));
     },
     async getRunWorkspaceSnapshot(runId) {
       const raw = await quantRequest<unknown>(`/quant/runs/${encodeURIComponent(runId)}/workspace-snapshot`);
