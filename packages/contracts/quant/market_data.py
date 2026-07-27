@@ -9,7 +9,7 @@ calculations; that belongs to the later runtime migration.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, time
+from datetime import UTC, datetime, time, timedelta
 from decimal import Decimal
 from enum import StrEnum
 from typing import Annotated, Any, Literal
@@ -182,6 +182,76 @@ _CALENDAR_TIME_ZONES: dict[QuantMarketCalendar, str] = {
     QuantMarketCalendar.XSHE: "Asia/Shanghai",
 }
 
+EXCHANGE_MARKET_CALENDARS = frozenset(
+    {
+        QuantMarketCalendar.XNYS,
+        QuantMarketCalendar.XNAS,
+        QuantMarketCalendar.XSHG,
+        QuantMarketCalendar.XSHE,
+    }
+)
+
+
+def market_calendar_metadata(
+    *, calendar: QuantMarketCalendar, interval: QuantBarInterval
+) -> tuple[QuantMarketSession, str, int]:
+    """Derive supported import metadata from one declared calendar."""
+
+    if calendar is QuantMarketCalendar.CONTINUOUS:
+        periods_per_year = periods_per_year_for(calendar=calendar, interval=interval)
+        if periods_per_year is None:
+            raise ValueError("continuous calendar requires annualization metadata")
+        return QuantMarketSession.CONTINUOUS, "UTC", periods_per_year
+    if calendar in EXCHANGE_MARKET_CALENDARS:
+        periods_per_year = periods_per_year_for(calendar=calendar, interval=interval)
+        if periods_per_year is None:
+            raise ValueError("exchange calendar requires annualization metadata")
+        return (
+            QuantMarketSession.REGULAR,
+            _CALENDAR_TIME_ZONES[calendar],
+            periods_per_year,
+        )
+    raise ValueError(f"{calendar.value} calendar is not supported by market CSV import")
+
+
+def market_bar_label_is_consistent(
+    *,
+    timestamp: datetime,
+    calendar: QuantMarketCalendar,
+    interval: QuantBarInterval,
+) -> bool:
+    """Check deterministic session-label rules without inferring holidays."""
+
+    if calendar in EXCHANGE_MARKET_CALENDARS or calendar is QuantMarketCalendar.WEEKDAY:
+        return interval is QuantBarInterval.DAILY and timestamp.weekday() < 5
+    return True
+
+
+def market_bar_transition_is_consistent(
+    *,
+    left: datetime,
+    right: datetime,
+    calendar: QuantMarketCalendar,
+    interval: QuantBarInterval,
+) -> bool:
+    """Return whether two stored labels obey the declared cadence semantics."""
+
+    if not (
+        market_bar_label_is_consistent(timestamp=left, calendar=calendar, interval=interval)
+        and market_bar_label_is_consistent(timestamp=right, calendar=calendar, interval=interval)
+    ):
+        return False
+    if calendar in EXCHANGE_MARKET_CALENDARS or calendar is QuantMarketCalendar.WEEKDAY:
+        # Without an authoritative holiday schedule, a multi-day weekday gap
+        # cannot truthfully be classified as either a closure or missing data.
+        return right > left
+    expected_delta = {
+        QuantBarInterval.HOUR: timedelta(hours=1),
+        QuantBarInterval.FOUR_HOURS: timedelta(hours=4),
+        QuantBarInterval.DAILY: timedelta(days=1),
+    }[interval]
+    return right - left == expected_delta
+
 
 class QuantMarketBar(ContractModel):
     """One UTC-aligned OHLCV observation at a declared v2 interval."""
@@ -239,7 +309,7 @@ class QuantMarketBarDataset(ContractModel):
 
     dataset_id: VersionString
     provenance: QuantMarketDataProvenance
-    symbol: NonEmptyString = Field(pattern=r"^[A-Z][A-Z0-9.\-]{0,15}$")
+    symbol: NonEmptyString = Field(pattern=r"^[A-Z0-9][A-Z0-9.\-]{0,15}$")
     interval: QuantBarInterval
     covered_start: datetime
     covered_end: datetime

@@ -57,6 +57,17 @@ class _ReplanRelationInvalidStore:
         return self.experiments
 
 
+class _PrematureReplanStore:
+    def __init__(self) -> None:
+        self.write_count = 0
+
+    def create_agent_candidate(
+        self, *args: object, **kwargs: object
+    ) -> tuple[None, list[str], str]:
+        self.write_count += 1
+        return None, [], "UNEXPECTED_ITERATION_REPLAN_DECISION"
+
+
 def test_invalid_candidate_parameters_fail_before_store_mutation() -> None:
     lease = QuantFixtureLease(
         workspace_id="workspace",
@@ -182,6 +193,66 @@ def _reference_candidate(*, candidate_id: str, template: str) -> QuantExperiment
         summary="Reference candidate.",
         template=template,
         parameters={"fast_window": 20, "slow_window": 100},
+    )
+
+
+def test_premature_replan_returns_remove_only_typed_repair() -> None:
+    store = _PrematureReplanStore()
+    arguments: dict[str, object] = {
+        "name": "SMA 20/100",
+        "template": "sma_crossover",
+        "hypothesis": "Establish one base candidate before comparison evidence exists.",
+        "parameters": {"fast_window": 20, "slow_window": 100},
+        "change_rationale": "No iteration evidence exists yet.",
+        "replan_decision": {
+            "action": "refine_parameters",
+            "source_comparison_artifact_id": "comparison-not-yet-created",
+            "improvement_reference_candidate_id": "candidate-not-yet-created",
+        },
+    }
+
+    observation = QuantToolRegistry().execute(
+        action=QuantAgentAction.CREATE_CANDIDATE,
+        context=QuantToolExecutionContext(store=cast(QuantStore, store), lease=_replan_lease()),
+        arguments=arguments,
+    )
+
+    assert store.write_count == 1
+    assert observation.error_code == "INVALID_ARGUMENTS"
+    assert observation.call_fingerprint == canonical_digest(
+        {"action": "create_candidate", "arguments": arguments}
+    )
+    assert observation.repair is not None
+    assert observation.repair.allowed_shape == (
+        "Before two base candidates and their training comparison exist, keep the "
+        "create_candidate proposal unchanged and remove only replan_decision."
+    )
+    assert [
+        (
+            violation.path,
+            violation.code,
+            violation.required_change,
+            violation.rejected_value_fingerprint,
+        )
+        for violation in observation.repair.violations
+    ] == [
+        (
+            "replan_decision",
+            "field_not_allowed_for_action",
+            "remove",
+            canonical_digest(arguments["replan_decision"]),
+        )
+    ]
+    corrected = QuantAgentDecision(
+        action=QuantAgentAction.CREATE_CANDIDATE,
+        arguments={key: value for key, value in arguments.items() if key != "replan_decision"},
+        decision_summary="Remove only the premature iteration evidence.",
+        expected_result="The unchanged base candidate can be created.",
+    )
+    assert QuantAgentRunner._applies_tool_repair(  # pyright: ignore[reportPrivateUsage]
+        decision=corrected,
+        repair=observation.repair,
+        rejected_arguments=arguments,
     )
 
 

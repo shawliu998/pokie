@@ -93,6 +93,7 @@ from .learning import (
     QuantToolIdentity,
 )
 from .market_data import (
+    EXCHANGE_MARKET_CALENDARS,
     QUANT_MARKET_BAR_SCHEMA_VERSION,
     NonNegativeMarketVolume,
     PositiveMarketPrice,
@@ -105,6 +106,9 @@ from .market_data import (
     QuantMarketDatasetEvidence,
     QuantMarketSession,
     daily_bar_dataset_to_market_dataset,
+    market_bar_label_is_consistent,
+    market_bar_transition_is_consistent,
+    market_calendar_metadata,
     periods_per_year_for,
 )
 from .quality import (

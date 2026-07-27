@@ -959,7 +959,7 @@ def test_internal_market_runtime_rejects_quality_range_metadata_and_float_failur
         gap_after=200,
     )
     assert gap_record.quality.status == "blocked"
-    with pytest.raises(ApiError, match="accepted, gap-free"):
+    with pytest.raises(ApiError, match="accepted, cadence-consistent"):
         gap_store._create_market_runtime_run(  # pyright: ignore[reportPrivateUsage]
             workspace_id=gap_workspace,
             project_id=gap_project.id,

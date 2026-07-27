@@ -1,0 +1,112 @@
+{
+  "claims": {
+    "alpha_claim": false,
+    "investment_recommendation": false,
+    "live_market_feed": false,
+    "professional_dataset_integration": true,
+    "wind_api_connection": false
+  },
+  "dataset_provenance": {
+    "bar_count": 619,
+    "cadence_gap_count": 0,
+    "covered_end": "2026-07-24T00:00:00Z",
+    "covered_start": "2024-01-02T00:00:00Z",
+    "dataset_digest": "sha256:43c879662659d8e773b9a326b19df4fcf9f668c340ed5b992ec4e23c672e412e",
+    "dataset_id": "market-csv-000300.SH-1D-bbb8ad9dca449bca",
+    "dataset_type": "index_ohlcv",
+    "frequency": "1D",
+    "holiday_completeness_inferred": false,
+    "market_calendar": "XSHG",
+    "market_session": "regular",
+    "normalizer_version": "quant-market-ohlcv-csv-v3",
+    "periods_per_year": 252,
+    "quality_status": "accepted",
+    "raw_csv_sha256": "99c6efb063e8668a0e043a3fd277725c7a58aa2042a4bd127a6ddd9ef8de1c1e",
+    "record_digest": "sha256:f83fa58b534772271229254fdea4390bb6e8a483501713c7557fb76ba9722ada",
+    "retrieved_at_utc": "2026-07-27T06:33:00Z",
+    "source_identifier": "000300.SH",
+    "source_provider": "Wind",
+    "submitted_csv_digest": "sha256:a57cb36c72c5e16689afc2878d3413b3a914209fb1e3c917d4ce17e9805c2b54",
+    "time_zone": "Asia/Shanghai"
+  },
+  "limitations": [
+    "This is an authorized exported-dataset integration proof, not a live market feed.",
+    "It does not prove a direct Wind API connection or general multi-source coverage.",
+    "Exchange holiday completeness is not inferred from weekday-consistent session labels.",
+    "It is not an alpha, profitability, trading, or investment-recommendation claim.",
+    "The raw Wind CSV and retained SQLite database are not published."
+  ],
+  "run_lineage": {
+    "continue": {
+      "artifact_count": 13,
+      "artifact_type_counts": {
+        "backtest_result": 2,
+        "equity_curve": 2,
+        "iteration_feedback": 1,
+        "plan": 1,
+        "research_report": 1,
+        "robustness_sensitivity": 1,
+        "strategy_spec": 2,
+        "trade_log": 2,
+        "validation_report": 1
+      },
+      "candidate_count": 2,
+      "dataset_digest": "sha256:43c879662659d8e773b9a326b19df4fcf9f668c340ed5b992ec4e23c672e412e",
+      "dataset_id": "market-csv-000300.SH-1D-bbb8ad9dca449bca",
+      "event_count": 61,
+      "experiment_count": 2,
+      "model": "deepseek-v4-flash",
+      "parent_run_id": "6e4c1de9-909f-58b4-9540-2bfccf32634f",
+      "planned_candidate_families": [
+        "sma_crossover",
+        "rsi_mean_reversion"
+      ],
+      "provider": "deepseek",
+      "provider_decision_failure_count": 0,
+      "run_id": "9c1ca7ff-4ea6-563e-9e95-520111e081a7",
+      "seed_candidate_id": "1bab71cf-65bb-5aad-8b50-24c55feff0a5",
+      "status": "completed",
+      "tool_failure_code_counts": {
+        "RESEARCH_MEMORY_EXACT_DUPLICATE": 5
+      },
+      "tool_failure_count": 5
+    },
+    "history_count": 2,
+    "parent_run_link_verified": true,
+    "plan_scope_consistent": true,
+    "root": {
+      "artifact_count": 18,
+      "artifact_type_counts": {
+        "backtest_result": 3,
+        "equity_curve": 3,
+        "iteration_feedback": 1,
+        "plan": 1,
+        "research_report": 1,
+        "robustness_sensitivity": 1,
+        "strategy_spec": 3,
+        "trade_log": 3,
+        "validation_report": 2
+      },
+      "candidate_count": 3,
+      "dataset_digest": "sha256:43c879662659d8e773b9a326b19df4fcf9f668c340ed5b992ec4e23c672e412e",
+      "dataset_id": "market-csv-000300.SH-1D-bbb8ad9dca449bca",
+      "event_count": 61,
+      "experiment_count": 3,
+      "model": "deepseek-v4-flash",
+      "parent_run_id": null,
+      "planned_candidate_families": [
+        "sma_crossover",
+        "rsi_mean_reversion"
+      ],
+      "provider": "deepseek",
+      "provider_decision_failure_count": 0,
+      "run_id": "6e4c1de9-909f-58b4-9540-2bfccf32634f",
+      "seed_candidate_id": null,
+      "status": "completed",
+      "tool_failure_code_counts": {},
+      "tool_failure_count": 0
+    }
+  },
+  "schema_version": "qurio-wind-professional-data-integration-proof-v1",
+  "status": "passed"
+}

@@ -41,6 +41,7 @@ from packages.contracts.quant import (
     QuantLearningViolation,
     QuantMarketBar,
     QuantMarketBarDataset,
+    QuantMarketCalendar,
     QuantMarketDataProvenance,
     QuantMarketDatasetCadenceQuality,
     QuantMarketDatasetEvidence,
@@ -58,6 +59,8 @@ from packages.contracts.quant import (
     QuantToolObservation,
     QuantToolRepair,
     assess_daily_bar_quality,
+    market_bar_label_is_consistent,
+    market_bar_transition_is_consistent,
     parse_market_ohlcv_csv,
     parse_ohlcv_csv,
     quant_tool_identity,
@@ -463,19 +466,44 @@ def _market_interval_delta(interval: QuantBarInterval) -> timedelta:
 def _market_dataset_cadence_quality(
     dataset: QuantMarketBarDataset,
 ) -> QuantMarketDatasetCadenceQuality:
-    expected_delta = _market_interval_delta(dataset.interval)
-    gap_count = sum(
+    invalid_label_count = sum(
+        not market_bar_label_is_consistent(
+            timestamp=bar.timestamp,
+            calendar=dataset.market_calendar,
+            interval=dataset.interval,
+        )
+        for bar in dataset.bars
+    )
+    transition_violation_count = sum(
         1
         for left, right in zip(dataset.bars, dataset.bars[1:], strict=False)
-        if right.timestamp - left.timestamp != expected_delta
+        if not market_bar_transition_is_consistent(
+            left=left.timestamp,
+            right=right.timestamp,
+            calendar=dataset.market_calendar,
+            interval=dataset.interval,
+        )
+    )
+    gap_count = invalid_label_count + transition_violation_count
+    calendar_completeness_note = (
+        " Session labels are weekday-consistent; exchange holiday completeness is not inferred."
+        if dataset.market_calendar
+        in {
+            QuantMarketCalendar.XNYS,
+            QuantMarketCalendar.XNAS,
+            QuantMarketCalendar.XSHG,
+            QuantMarketCalendar.XSHE,
+        }
+        else ""
     )
     return QuantMarketDatasetCadenceQuality(
         status="blocked" if gap_count else "accepted",
         cadence_gap_count=gap_count,
         normalization_note=(
-            "No cadence gaps detected."
+            f"No cadence consistency violations detected.{calendar_completeness_note}"
             if not gap_count
-            else "Cadence gaps were retained without filling; research remains unavailable."
+            else "Cadence consistency violations were retained without filling; "
+            "research remains unavailable."
         ),
     )
 
@@ -485,15 +513,41 @@ def _latest_contiguous_market_tail(
 ) -> tuple[QuantMarketBar, ...]:
     """Return only the latest real continuous segment; never sample across a gap."""
 
-    expected_delta = _market_interval_delta(dataset.interval)
     start_index = len(dataset.bars) - 1
-    while (
-        start_index > 0
-        and dataset.bars[start_index].timestamp - dataset.bars[start_index - 1].timestamp
-        == expected_delta
+    while start_index > 0 and market_bar_transition_is_consistent(
+        left=dataset.bars[start_index - 1].timestamp,
+        right=dataset.bars[start_index].timestamp,
+        calendar=dataset.market_calendar,
+        interval=dataset.interval,
     ):
         start_index -= 1
     return dataset.bars[max(start_index, len(dataset.bars) - max_points) :]
+
+
+def _pin_seed_family_to_plan(
+    plan: QuantAgentPlan | None, *, seed_template: str | None
+) -> QuantAgentPlan | None:
+    """Keep a Continue plan inside the selected seed's registered strategy scope."""
+
+    if (
+        plan is None
+        or seed_template is None
+        or plan.strategy_scope.status == "unsupported"
+        or seed_template in plan.candidate_families
+    ):
+        return plan
+    if seed_template not in SUPPORTED_AGENT_CANDIDATE_FAMILIES:
+        raise invalid_state("A Continue seed uses an unsupported strategy family.")
+    retained_families = list(plan.candidate_families)
+    if len(retained_families) >= 3:
+        retained_families = retained_families[:2]
+    retained_families.append(seed_template)
+    return QuantAgentPlan.model_validate(
+        {
+            **plan.model_dump(mode="python"),
+            "candidate_families": retained_families,
+        }
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -668,16 +722,22 @@ def _market_runtime_descriptor(
 
     dataset = record.dataset
     if record.quality.status != "accepted" or record.quality.cadence_gap_count != 0:
-        raise ValueError("Runtime research requires accepted, gap-free market data quality.")
+        raise ValueError(
+            "Runtime research requires accepted, cadence-consistent market data quality."
+        )
     if dataset.periods_per_year is None:
         raise ValueError("Runtime research requires declared periods_per_year metadata.")
     cadence = BacktestCadence(BacktestInterval(dataset.interval.value), dataset.periods_per_year)
-    expected_delta = _market_interval_delta(dataset.interval)
     if any(
-        right.timestamp - left.timestamp != expected_delta
+        not market_bar_transition_is_consistent(
+            left=left.timestamp,
+            right=right.timestamp,
+            calendar=dataset.market_calendar,
+            interval=dataset.interval,
+        )
         for left, right in zip(dataset.bars, dataset.bars[1:], strict=False)
     ):
-        raise ValueError("Runtime research requires a continuous market-bar range.")
+        raise ValueError("Runtime research requires a cadence-consistent market-bar range.")
     if len(dataset.bars) < MIN_AUTONOMOUS_RESEARCH_BARS:
         raise ValueError(
             f"Runtime research requires at least {MIN_AUTONOMOUS_RESEARCH_BARS} market bars."
@@ -8010,12 +8070,18 @@ class QuantStore:
         name: str,
         symbol: str,
         interval: QuantBarInterval,
+        market_calendar: QuantMarketCalendar = QuantMarketCalendar.CONTINUOUS,
         csv_text: str,
         source_name: str,
         source_reference: str | None,
         file_name: str | None = None,
     ) -> QuantMarketDatasetV2Record:
-        dataset = parse_market_ohlcv_csv(csv_text, symbol=symbol, interval=interval)
+        dataset = parse_market_ohlcv_csv(
+            csv_text,
+            symbol=symbol,
+            interval=interval,
+            market_calendar=market_calendar,
+        )
         quality = _market_dataset_cadence_quality(dataset)
         evidence = QuantMarketDatasetEvidence(
             source_kind=QuantMarketDataProvenance.CSV_UPLOAD,
@@ -8108,7 +8174,7 @@ class QuantStore:
                 if not sufficiency.eligible:
                     raise ValueError(
                         "Runtime research requires at least "
-                        f"{sufficiency.required_bars:,} consecutive "
+                        f"{sufficiency.required_bars:,} cadence-consistent "
                         f"{record.dataset.interval.value} bars."
                     )
                 _runtime_split(descriptor)
@@ -9442,6 +9508,16 @@ class QuantStore:
             return True
 
     def _publish_plan(self, run: QuantRunRecord, agent_plan: QuantAgentPlan | None = None) -> None:
+        seed_template: str | None = None
+        if run.seed_candidate_id is not None:
+            seed = self._experiments.get(run.seed_candidate_id)
+            if seed is None:
+                raise invalid_state("A Continue plan no longer has its selected seed candidate.")
+            seed_template = seed.template
+        agent_plan = _pin_seed_family_to_plan(
+            agent_plan,
+            seed_template=seed_template,
+        )
         if agent_plan is not None and len(set(agent_plan.candidate_families)) != len(
             agent_plan.candidate_families
         ):

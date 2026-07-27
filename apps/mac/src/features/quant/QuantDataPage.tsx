@@ -9,7 +9,15 @@ import { QuantMarketChart } from './QuantMarketWorkspace';
 const MAX_CSV_BYTES = 10_000_000;
 type DataDirectoryTab = 'datasets' | 'connections';
 type ImportSource = 'binance' | 'kraken' | 'nasdaq' | 'csv';
+type CsvMarketCalendar = '24x7' | 'XNYS' | 'XNAS' | 'XSHG' | 'XSHE';
 const MARKET_INTERVALS: readonly QuantBarInterval[] = ['1h', '4h', '1D'];
+const CSV_MARKET_CALENDARS: ReadonlyArray<{ value: CsvMarketCalendar; label: string }> = [
+  { value: '24x7', label: '24×7 continuous' },
+  { value: 'XNYS', label: 'NYSE (XNYS)' },
+  { value: 'XNAS', label: 'Nasdaq (XNAS)' },
+  { value: 'XSHG', label: 'Shanghai (XSHG)' },
+  { value: 'XSHE', label: 'Shenzhen (XSHE)' },
+];
 
 function intervalLabel(value: QuantBarInterval): string {
   return value === '1h' ? '1 hour' : value === '4h' ? '4 hour' : '1 day';
@@ -104,6 +112,8 @@ export function QuantDataPage({ api, snapshot, selectedDataset, onSelect, onUseF
   const [sourceName, setSourceName] = useState('');
   const [sourceReference, setSourceReference] = useState('');
   const [csvInterval, setCsvInterval] = useState<QuantBarInterval>('1D');
+  const [csvMarketCalendar, setCsvMarketCalendar] =
+    useState<CsvMarketCalendar>('24x7');
   const [binanceSymbol, setBinanceSymbol] = useState('BTCUSDT');
   const [binanceInterval, setBinanceInterval] = useState<QuantBarInterval>('1D');
   const [binanceLimit, setBinanceLimit] = useState(defaultMarketFetchLimit('1D'));
@@ -195,6 +205,9 @@ export function QuantDataPage({ api, snapshot, selectedDataset, onSelect, onUseF
   useEffect(() => {
     setBinanceLimit(defaultMarketFetchLimit(binanceInterval));
   }, [binanceInterval]);
+  useEffect(() => {
+    if (csvInterval !== '1D') setCsvMarketCalendar('24x7');
+  }, [csvInterval]);
   const krakenConnector = useMemo(
     () => connectors.find((connector) => connector.provider === 'kraken_spot') ?? null,
     [connectors],
@@ -302,6 +315,7 @@ export function QuantDataPage({ api, snapshot, selectedDataset, onSelect, onUseF
         name: name.trim(),
         symbol: symbol.trim(),
         interval: csvInterval,
+        marketCalendar: csvMarketCalendar,
         csvText: await file.text(),
         fileName: file.name,
         sourceName: sourceName.trim() || 'User-provided CSV',
@@ -315,6 +329,7 @@ export function QuantDataPage({ api, snapshot, selectedDataset, onSelect, onUseF
       setSourceName('');
       setSourceReference('');
       setCsvInterval('1D');
+      setCsvMarketCalendar('24x7');
       setNotice(`${dataset.name} was imported as an immutable dataset.`);
       await refresh();
       setShowImporter(false);
@@ -448,6 +463,35 @@ export function QuantDataPage({ api, snapshot, selectedDataset, onSelect, onUseF
     {importSource === 'binance' && <section id="quant-data-source-panel-binance" role="tabpanel" aria-labelledby="quant-data-source-binance" className="quant-data-import" aria-busy={busy}><header><h2>Spot OHLCV</h2><p>Fetch supported `1h`, `4h`, or `1D` completed bars. Provider batch evidence and the normalized digest are retained.</p></header><div className="quant-data-provider-fields"><label><span>Spot symbol</span><input aria-label="Binance Spot symbol" value={binanceSymbol} disabled={busy} aria-invalid={Boolean(binanceError)} aria-describedby={binanceError ? 'quant-binance-error' : undefined} onChange={(event) => setBinanceSymbol(event.target.value.toUpperCase())} /></label><label><span>Interval</span><select aria-label="Binance Spot interval" value={binanceInterval} disabled={busy} aria-invalid={Boolean(binanceError)} aria-describedby={binanceError ? 'quant-binance-error' : undefined} onChange={(event) => setBinanceInterval(event.target.value as QuantBarInterval)}>{MARKET_INTERVALS.map((value) => <option key={value} value={value}>{value}</option>)}</select></label><label><span>Bar limit</span><input aria-label="Binance Spot bar limit" type="number" min="1" max="5000" value={binanceLimit} disabled={busy} aria-invalid={Boolean(binanceError)} aria-describedby={binanceError ? 'quant-binance-error quant-binance-limit-help' : 'quant-binance-limit-help'} onChange={(event) => setBinanceLimit(Number(event.target.value))} /></label></div><footer><span id="quant-binance-limit-help">{busy ? 'Validating provider response and storing an immutable version…' : `Suggested for ${binanceInterval}: ${marketResearchRequirementLabel(binanceInterval, null)}; shorter retained datasets stay previewable.`}</span><Button className="primary" disabled={busy} onClick={() => void fetchBinanceSpot()}>{busy ? 'Fetching and validating…' : 'Fetch and validate'}</Button></footer>{binanceError && <div id="quant-binance-error" tabIndex={-1}><QuantInlineProblem problem={binanceError} action={binanceError.retryable ? <Button onClick={() => void fetchBinanceSpot()}>Retry fetch</Button> : undefined} /></div>}</section>}
     {importSource === 'kraken' && krakenConnector && <section id="quant-data-source-panel-kraken" role="tabpanel" aria-labelledby="quant-data-source-kraken" className="quant-data-import" aria-busy={busy}><header><h2>Kraken Spot OHLCV</h2><p>Fetch a recent public `4h` or `1D` window through the installed connector. Qurio validates and stores the result in the same research catalog.</p></header><div className="quant-data-provider-fields"><label><span>Spot symbol</span><select aria-label="Kraken Spot symbol" value={krakenSymbol} disabled={busy} aria-invalid={Boolean(krakenError)} aria-describedby={krakenError ? 'quant-kraken-error' : undefined} onChange={(event) => setKrakenSymbol(event.target.value)}>{krakenConnector.supportedSymbols.map((value) => <option key={value} value={value}>{value}</option>)}</select></label><label><span>Interval</span><select aria-label="Kraken Spot interval" value={krakenInterval} disabled={busy} aria-invalid={Boolean(krakenError)} aria-describedby={krakenError ? 'quant-kraken-error' : undefined} onChange={(event) => setKrakenInterval(event.target.value as QuantConnectorInterval)}>{krakenConnector.supportedIntervals.map((value) => <option key={value} value={value}>{value}</option>)}</select></label><label><span>Recent bars</span><input aria-label="Kraken Spot bar limit" type="number" min={krakenConnector.minimumRecentBars[krakenInterval]} max={krakenConnector.maximumRecentBars} value={krakenLimit} disabled={busy} aria-invalid={Boolean(krakenError)} aria-describedby={krakenError ? 'quant-kraken-error quant-kraken-limit-help' : 'quant-kraken-limit-help'} onChange={(event) => setKrakenLimit(Number(event.target.value))} /></label></div><footer><span id="quant-kraken-limit-help">{busy ? 'Validating connector response and storing an immutable version…' : `${krakenConnector.minimumRecentBars[krakenInterval]}–${krakenConnector.maximumRecentBars} recent completed bars · public market data`}</span><Button className="primary" disabled={busy} onClick={() => void fetchKrakenSpot()}>{busy ? 'Fetching and validating…' : 'Fetch and validate'}</Button></footer>{krakenError && <div id="quant-kraken-error" tabIndex={-1}><QuantInlineProblem problem={krakenError} action={krakenError.retryable ? <Button onClick={() => void fetchKrakenSpot()}>Retry fetch</Button> : undefined} /></div>}</section>}
     {importSource === 'nasdaq' && <section id="quant-data-source-panel-nasdaq" role="tabpanel" aria-labelledby="quant-data-source-nasdaq" className="quant-data-import"><header><h2>Daily equity OHLCV</h2><p>Fetch server-normalized prices with retained provider and corporate-action evidence.</p></header><div className="quant-data-provider-fields"><label><span>Equity symbol</span><input aria-label="Nasdaq Equity symbol" value={nasdaqSymbol} disabled={busy} aria-invalid={Boolean(nasdaqError)} aria-describedby={nasdaqError ? 'quant-nasdaq-error' : undefined} onChange={(event) => setNasdaqSymbol(event.target.value.toUpperCase())} /></label><label><span>Lookback days</span><input aria-label="Nasdaq Equity lookback days" type="number" min="370" max="3650" value={nasdaqLookbackDays} disabled={busy} aria-invalid={Boolean(nasdaqError)} aria-describedby={nasdaqError ? 'quant-nasdaq-error' : undefined} onChange={(event) => setNasdaqLookbackDays(Number(event.target.value))} /></label></div><footer><Button className="primary" disabled={busy} onClick={() => void fetchNasdaqEquity()}>{busy ? 'Fetching and validating…' : 'Fetch and validate'}</Button></footer>{nasdaqError && <div id="quant-nasdaq-error" tabIndex={-1}><QuantInlineProblem problem={nasdaqError} action={nasdaqError.retryable ? <Button onClick={() => void fetchNasdaqEquity()}>Retry fetch</Button> : undefined} /></div>}</section>}
-    {importSource === 'csv' && <section id="quant-data-source-panel-csv" role="tabpanel" aria-labelledby="quant-data-source-csv" className="quant-data-import"><header><h2>Market OHLCV CSV</h2><p>Upload one supported `1h`, `4h`, or `1D` UTC market-bar CSV. Qurio validates the file and stores an immutable version.</p></header><div className="quant-data-csv-fields"><label><span>CSV file</span><input aria-label="OHLCV CSV file" type="file" accept=".csv,text/csv" disabled={busy} aria-invalid={Boolean(importError)} aria-describedby={importError ? 'quant-import-error' : undefined} onChange={(event) => chooseFile(event.target.files?.[0] ?? null)} /></label><label><span>Dataset interval</span><select aria-label="Dataset interval" value={csvInterval} disabled={busy} aria-invalid={Boolean(importError)} aria-describedby={importError ? 'quant-import-error' : undefined} onChange={(event) => setCsvInterval(event.target.value as QuantBarInterval)}>{MARKET_INTERVALS.map((value) => <option key={value} value={value}>{value}</option>)}</select></label><label><span>Dataset name</span><input aria-label="Dataset name" value={name} disabled={busy} aria-invalid={Boolean(importError && !name.trim())} aria-describedby={importError ? 'quant-import-error' : undefined} onChange={(event) => setName(event.target.value)} /></label><label><span>Symbol</span><input aria-label="Dataset symbol" value={symbol} disabled={busy} aria-invalid={Boolean(importError && !symbol.trim())} aria-describedby={importError ? 'quant-import-error' : undefined} placeholder="BTCUSDT" onChange={(event) => setSymbol(event.target.value.toUpperCase())} /></label></div><details className="quant-data-import-advanced"><summary>Source metadata</summary><div><label><span>Source/provider</span><input aria-label="Dataset source provider" value={sourceName} disabled={busy} placeholder="Exchange, vendor, or research source" onChange={(event) => setSourceName(event.target.value)} /></label><label><span>Source reference</span><input aria-label="Dataset source reference" value={sourceReference} disabled={busy} placeholder="URL, export ID, or internal reference" onChange={(event) => setSourceReference(event.target.value)} /></label></div></details><footer><span>CSV only · 10 MB maximum</span><Button className="primary" disabled={!file || busy} onClick={() => void importCsv()}>{busy ? 'Importing and validating…' : 'Import and validate'}</Button></footer>{importError && <div id="quant-import-error" tabIndex={-1}><QuantInlineProblem problem={importError} action={importError.retryable && file ? <Button onClick={() => void importCsv()}>Retry import</Button> : undefined} /></div>}</section>}
+    {importSource === 'csv' && <section id="quant-data-source-panel-csv" role="tabpanel" aria-labelledby="quant-data-source-csv" className="quant-data-import">
+      <header>
+        <h2>Market OHLCV CSV</h2>
+        <p>
+          Upload a supported `1h`, `4h`, or `1D` market-bar CSV. Continuous
+          markets use an RFC3339 `timestamp`; exchange daily bars use an ISO
+          `date` session label. Qurio does not infer holiday completeness.
+        </p>
+      </header>
+      <div className="quant-data-csv-fields">
+        <label><span>CSV file</span><input aria-label="OHLCV CSV file" type="file" accept=".csv,text/csv" disabled={busy} aria-invalid={Boolean(importError)} aria-describedby={importError ? 'quant-import-error' : undefined} onChange={(event) => chooseFile(event.target.files?.[0] ?? null)} /></label>
+        <label><span>Dataset interval</span><select aria-label="Dataset interval" value={csvInterval} disabled={busy} aria-invalid={Boolean(importError)} aria-describedby={importError ? 'quant-import-error' : undefined} onChange={(event) => setCsvInterval(event.target.value as QuantBarInterval)}>{MARKET_INTERVALS.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+        <label>
+          <span>Market calendar</span>
+          <select
+            aria-label="Market calendar"
+            value={csvMarketCalendar}
+            disabled={busy || csvInterval !== '1D'}
+            onChange={(event) => setCsvMarketCalendar(event.target.value as CsvMarketCalendar)}
+          >
+            {CSV_MARKET_CALENDARS.map((calendar) => <option key={calendar.value} value={calendar.value}>{calendar.label}</option>)}
+          </select>
+        </label>
+        <label><span>Dataset name</span><input aria-label="Dataset name" value={name} disabled={busy} aria-invalid={Boolean(importError && !name.trim())} aria-describedby={importError ? 'quant-import-error' : undefined} onChange={(event) => setName(event.target.value)} /></label>
+        <label><span>Symbol</span><input aria-label="Dataset symbol" value={symbol} disabled={busy} aria-invalid={Boolean(importError && !symbol.trim())} aria-describedby={importError ? 'quant-import-error' : undefined} placeholder="BTCUSDT" onChange={(event) => setSymbol(event.target.value.toUpperCase())} /></label>
+      </div>
+      <details className="quant-data-import-advanced"><summary>Source metadata</summary><div><label><span>Source/provider</span><input aria-label="Dataset source provider" value={sourceName} disabled={busy} placeholder="Exchange, vendor, or research source" onChange={(event) => setSourceName(event.target.value)} /></label><label><span>Source reference</span><input aria-label="Dataset source reference" value={sourceReference} disabled={busy} placeholder="URL, export ID, or internal reference" onChange={(event) => setSourceReference(event.target.value)} /></label></div></details>
+      <footer><span>CSV only · 10 MB maximum</span><Button className="primary" disabled={!file || busy} onClick={() => void importCsv()}>{busy ? 'Importing and validating…' : 'Import and validate'}</Button></footer>
+      {importError && <div id="quant-import-error" tabIndex={-1}><QuantInlineProblem problem={importError} action={importError.retryable && file ? <Button onClick={() => void importCsv()}>Retry import</Button> : undefined} /></div>}
+    </section>}
   </div>;
 }

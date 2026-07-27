@@ -40,6 +40,14 @@ This demonstrates a complete Agent/evaluator boundary and an inspectable correct
 - [See the repair in the Decision Ledger](./docs/assets/pokiequant/v1-final-183209-02-ledger-repair-1440x960.png)
 - [See the holdout failure and next action](./docs/assets/pokiequant/v1-final-183209-04-holdout-revise-1440x960.png)
 
+## Second proof: professional-data integration
+
+An authorized Wind CSI300 daily export followed the same retained Data → Research →
+Continue / History path with explicit `XSHG` session semantics and DeepSeek decisions.
+This is a professional-dataset ingestion example—not a Wind API, real-time-feed, alpha,
+or investment-recommendation claim. [Read the supplemental case and inspect its sanitized
+evidence.](./docs/portfolio/QURIO_WIND_DEEPSEEK_CASE_STUDY.md)
+
 ## Review Qurio in 90 seconds
 
 1. [Watch the retained end-to-end demo](./docs/portfolio/qurio-90-second-mainline.webm).

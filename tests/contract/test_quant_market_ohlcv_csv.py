@@ -2,11 +2,19 @@ from __future__ import annotations
 
 import pytest
 
-from packages.contracts.quant import QuantBarInterval, parse_market_ohlcv_csv
+from packages.contracts.quant import (
+    QuantBarInterval,
+    QuantMarketCalendar,
+    parse_market_ohlcv_csv,
+)
 
 
 def _csv(*rows: str) -> str:
     return "timestamp,open,high,low,close,volume\n" + "\n".join(rows) + "\n"
+
+
+def _date_csv(*rows: str) -> str:
+    return "date,open,high,low,close,volume\n" + "\n".join(rows) + "\n"
 
 
 @pytest.mark.parametrize(
@@ -59,6 +67,45 @@ def test_v2_csv_accepts_eight_decimal_prices_and_normalizes_bom_headers() -> Non
     dataset = parse_market_ohlcv_csv(text, symbol="btcusdt", interval=QuantBarInterval.HOUR)
 
     assert str(dataset.bars[0].open) == "100.12345678"
+
+
+def test_v2_csv_parses_exchange_daily_session_dates_without_inferring_holidays() -> None:
+    dataset = parse_market_ohlcv_csv(
+        _date_csv(
+            "2024-02-09,100,102,99,101,12.3",
+            "2024-02-19,101,103,100,102,13",
+        ),
+        symbol="000300.SH",
+        interval=QuantBarInterval.DAILY,
+        market_calendar=QuantMarketCalendar.XSHG,
+    )
+
+    assert dataset.market_calendar is QuantMarketCalendar.XSHG
+    assert dataset.market_session.value == "regular"
+    assert dataset.time_zone == "Asia/Shanghai"
+    assert dataset.periods_per_year == 252
+    assert dataset.bars[0].timestamp.isoformat() == "2024-02-09T00:00:00+00:00"
+    assert dataset.bars[1].timestamp.isoformat() == "2024-02-19T00:00:00+00:00"
+
+
+def test_v2_csv_rejects_exchange_weekend_session_date() -> None:
+    with pytest.raises(ValueError, match="weekday"):
+        parse_market_ohlcv_csv(
+            _date_csv("2024-02-10,100,102,99,101,12.3"),
+            symbol="000300.SH",
+            interval=QuantBarInterval.DAILY,
+            market_calendar=QuantMarketCalendar.XSHG,
+        )
+
+
+def test_v2_csv_rejects_exchange_intraday_without_a_declared_session_cadence() -> None:
+    with pytest.raises(ValueError, match="supports only 1D"):
+        parse_market_ohlcv_csv(
+            _date_csv("2024-02-09,100,102,99,101,12.3"),
+            symbol="000300.SH",
+            interval=QuantBarInterval.HOUR,
+            market_calendar=QuantMarketCalendar.XSHG,
+        )
 
 
 @pytest.mark.parametrize(

@@ -188,6 +188,7 @@ export interface QuantMarketDatasetImportRequest {
   name: string;
   symbol: string;
   interval: QuantBarInterval;
+  marketCalendar?: '24x7' | 'XNYS' | 'XNAS' | 'XSHG' | 'XSHE';
   csvText: string;
   fileName?: string;
   sourceName?: string;
@@ -1088,6 +1089,7 @@ export function createApiQuantApi(api: GlintApi): QuantApi {
           name: request.name,
           symbol: request.symbol,
           interval: request.interval,
+          market_calendar: request.marketCalendar ?? '24x7',
           csv_text: request.csvText,
           file_name: request.fileName,
           source_name: request.sourceName ?? 'User-provided CSV',

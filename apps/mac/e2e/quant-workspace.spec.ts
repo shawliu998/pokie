@@ -1814,6 +1814,7 @@ test('public 4h market CSV reaches the exact G1 eligibility threshold and can be
     name: 'BTCUSDT CSV 4 hour threshold',
     symbol: 'BTCUSDT',
     interval: '4h',
+    market_calendar: '24x7',
     csv_text: csvText,
     file_name: 'btcusdt-4h-threshold.csv',
     source_name: 'Research CSV',

@@ -485,6 +485,39 @@ def _iteration_replan_template_relation_repair(
     )
 
 
+def _premature_iteration_replan_repair(
+    *,
+    action: QuantAgentAction,
+    arguments: dict[str, object],
+    call_fingerprint: str,
+) -> QuantToolRepair | None:
+    """Remove only iteration evidence that does not exist before the A/B comparison."""
+
+    if action is not QuantAgentAction.CREATE_CANDIDATE or "replan_decision" not in arguments:
+        return None
+    return QuantToolRepair(
+        action=action,
+        call_fingerprint=call_fingerprint,
+        allowed_shape=(
+            "Before two base candidates and their training comparison exist, keep the "
+            "create_candidate proposal unchanged and remove only replan_decision."
+        ),
+        violations=[
+            QuantToolRepairViolation(
+                path="replan_decision",
+                code="field_not_allowed_for_action",
+                constraint=(
+                    "replan_decision requires authoritative iteration feedback from a "
+                    "completed two-candidate training comparison."
+                ),
+                correction="Remove replan_decision and keep every other argument unchanged.",
+                required_change="remove",
+                rejected_value_fingerprint=canonical_digest(arguments["replan_decision"]),
+            )
+        ],
+    )
+
+
 def _feedback_replan_repair(
     *,
     action: QuantAgentAction,
@@ -846,6 +879,27 @@ class QuantToolRegistry:
                         (
                             "The replan action conflicts with the proposed and reference "
                             "template relationship. Replace replan_decision.action, or stop."
+                        ),
+                        call_fingerprint=call_fingerprint,
+                        repair=repair,
+                    )
+            if (
+                action is QuantAgentAction.CREATE_CANDIDATE
+                and observation.error_code == "UNEXPECTED_ITERATION_REPLAN_DECISION"
+            ):
+                call_fingerprint = _tool_call_fingerprint(action, arguments)
+                repair = _premature_iteration_replan_repair(
+                    action=action,
+                    arguments=arguments,
+                    call_fingerprint=call_fingerprint,
+                )
+                if repair is not None:
+                    return _failed(
+                        action,
+                        "INVALID_ARGUMENTS",
+                        (
+                            "Iteration evidence is not available before the base comparison. "
+                            "Remove only replan_decision, then retry the same candidate."
                         ),
                         call_fingerprint=call_fingerprint,
                         repair=repair,

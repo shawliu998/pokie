@@ -621,7 +621,7 @@ def test_public_market_run_pins_an_aligned_utc_subrange_end_to_end(
 
 
 def test_public_market_run_continue_uses_source_seed_and_allows_a_new_bounded_window(
-    client: TestClient, principal_id: str
+    client: TestClient, principal_id: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     workspace_id, dataset, project = _provision(
         client, principal_id, interval=QuantBarInterval.FOUR_HOURS, count=600
@@ -629,6 +629,19 @@ def test_public_market_run_continue_uses_source_seed_and_allows_a_new_bounded_wi
     source, seed = _complete_public_market_source(
         client, principal_id, workspace_id, dataset, project
     )
+    omitted_seed_family = next(
+        family
+        for family in ("sma_crossover", "rsi_mean_reversion", "breakout")
+        if family != seed.template
+    )
+    planner_plan = routes_quant._generate_agent_plan(  # pyright: ignore[reportPrivateUsage]
+        "Continue the source evidence with a stricter drawdown objective."
+    ).model_copy(update={"candidate_families": [omitted_seed_family]})
+
+    def forced_continue_plan(_question: str) -> Any:
+        return planner_plan
+
+    monkeypatch.setattr(routes_quant, "_generate_agent_plan", forced_continue_plan)
     store = routes_quant._store()  # pyright: ignore[reportPrivateUsage]
     source_before = store.to_market_run_response(
         store.get_market_run(workspace_id=workspace_id, run_id=source["id"])
@@ -715,6 +728,15 @@ def test_public_market_run_continue_uses_source_seed_and_allows_a_new_bounded_wi
     assert restored.seed_candidate_id == seed.id
     assert restored.runtime_descriptor_digest == child["runtime_descriptor_digest"]
     assert restored.runtime_split_digest == child["sealed_split_digest"]
+    assert restored.planned_candidate_families == [omitted_seed_family, seed.template]
+    plan_artifact = next(
+        artifact
+        for artifact in QuantStore().artifacts_for_run(
+            workspace_id=workspace_id, run_id=child["id"]
+        )
+        if artifact.id == restored.plan_artifact_id
+    )
+    assert plan_artifact.content["candidate_families"] == restored.planned_candidate_families
 
     guarded = QuantStore()
     guarded.get_market_run(workspace_id=workspace_id, run_id=child["id"])

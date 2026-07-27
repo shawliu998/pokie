@@ -2192,6 +2192,8 @@ describe('Quant Workspace components', () => {
     expect(markup).toContain('value="1h"');
     expect(markup).toContain('value="4h"');
     expect(markup).toContain('value="1D"');
+    expect(markup).toContain('Market calendar');
+    expect(markup).toContain('Shanghai (XSHG)');
     expect(markup).toContain('Import and validate');
     expect(markup).toContain('Source metadata');
     expect(markup).toContain('Dataset source provider');
@@ -2200,35 +2202,35 @@ describe('Quant Workspace components', () => {
     expect(markup).not.toContain('Nasdaq Equity symbol');
   });
 
-  it('submits market-v2 CSV imports with an explicit supported interval', async () => {
+  it('submits exchange-daily CSV imports with an explicit market calendar', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const root = createRoot(container);
     const importedDataset = {
       contract: 'market-v2' as const,
-      id: 'dataset-market-csv-4h',
-      name: 'BTCUSDT CSV 4 hour',
-      symbol: 'BTCUSDT',
-      interval: '4h' as const,
-      dateRange: { start: '2024-01-01T00:00:00Z', end: '2025-12-31T20:00:00Z' },
-      barCount: 4386,
+      id: 'dataset-market-csv-xshg',
+      name: 'CSI 300 · Wind daily',
+      symbol: '000300.SH',
+      interval: '1D' as const,
+      dateRange: { start: '2024-01-02T00:00:00Z', end: '2026-07-24T00:00:00Z' },
+      barCount: 619,
       schemaVersion: 'quant-market-bars-v2',
-      parserVersion: 'quant-market-csv-v1',
+      parserVersion: 'quant-market-ohlcv-csv-v3',
       digest: `sha256:${'a'.repeat(64)}`,
       recordDigest: `sha256:${'b'.repeat(64)}`,
       authenticity: 'imported' as const,
       researchEligible: true,
       createdAt: '2026-07-22T00:00:00Z',
-      periodsPerYear: 2190,
-      marketCalendar: '24x7' as const,
-      marketSession: 'continuous' as const,
-      timeZone: 'UTC',
+      periodsPerYear: 252,
+      marketCalendar: 'XSHG' as const,
+      marketSession: 'regular' as const,
+      timeZone: 'Asia/Shanghai',
       source: {
         kind: 'csv_upload' as const,
-        fileName: 'btcusdt-4h.csv',
-        sourceName: 'Research CSV',
-        sourceReference: 'upload:btc-4h',
-        normalizerVersion: 'quant-market-csv-v1',
+        fileName: 'csi300-wind-daily.csv',
+        sourceName: 'Wind',
+        sourceReference: 'wind:000300.SH|authorized-export',
+        normalizerVersion: 'quant-market-ohlcv-csv-v3',
         retrievedAtUtc: null,
         requestedBarCount: null,
         returnedBarCount: null,
@@ -2239,7 +2241,7 @@ describe('Quant Workspace components', () => {
         targetSatisfied: null,
         submittedCsvDigest: `sha256:${'c'.repeat(64)}`,
       },
-      quality: { status: 'accepted' as const, cadenceGapCount: 0, normalizationNote: 'Contiguous 4h UTC bars.' },
+      quality: { status: 'accepted' as const, cadenceGapCount: 0, normalizationNote: 'Weekday-consistent XSHG session labels.' },
     };
     const onSelect = vi.fn();
     const importMarketDatasetCsv = vi.fn(async () => importedDataset);
@@ -2253,45 +2255,52 @@ describe('Quant Workspace components', () => {
     });
     const fileInput = container.querySelector<HTMLInputElement>('input[aria-label="OHLCV CSV file"]');
     const intervalSelect = container.querySelector<HTMLSelectElement>('select[aria-label="Dataset interval"]');
+    const calendarSelect = container.querySelector<HTMLSelectElement>('select[aria-label="Market calendar"]');
     const nameInput = container.querySelector<HTMLInputElement>('input[aria-label="Dataset name"]');
     const symbolInput = container.querySelector<HTMLInputElement>('input[aria-label="Dataset symbol"]');
     const providerInput = container.querySelector<HTMLInputElement>('input[aria-label="Dataset source provider"]');
     const referenceInput = container.querySelector<HTMLInputElement>('input[aria-label="Dataset source reference"]');
     const importButton = [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent?.includes('Import and validate'));
-    expect(fileInput && intervalSelect && nameInput && symbolInput && providerInput && referenceInput && importButton).toBeTruthy();
-    const file = new File(['timestamp,open,high,low,close,volume\n2024-01-01T00:00:00Z,1,1,1,1,1'], 'btcusdt-4h.csv', { type: 'text/csv' });
-    Object.defineProperty(file, 'text', { configurable: true, value: async () => 'timestamp,open,high,low,close,volume\n2024-01-01T00:00:00Z,1,1,1,1,1' });
+    expect(fileInput && intervalSelect && calendarSelect && nameInput && symbolInput && providerInput && referenceInput && importButton).toBeTruthy();
+    expect(calendarSelect!.value).toBe('24x7');
+    expect(calendarSelect!.disabled).toBe(false);
+    const csvText = 'date,open,high,low,close,volume\n2024-01-02,1,1,1,1,1';
+    const file = new File([csvText], 'csi300-wind-daily.csv', { type: 'text/csv' });
+    Object.defineProperty(file, 'text', { configurable: true, value: async () => csvText });
     Object.defineProperty(fileInput!, 'files', { configurable: true, value: [file] });
     await act(async () => {
       fileInput!.dispatchEvent(new Event('change', { bubbles: true }));
     });
     await act(async () => {
       const setValue = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set;
-      setValue?.call(intervalSelect!, '4h');
-      intervalSelect!.dispatchEvent(new Event('change', { bubbles: true }));
+      setValue?.call(calendarSelect!, 'XSHG');
+      calendarSelect!.dispatchEvent(new Event('change', { bubbles: true }));
     });
+    expect(intervalSelect!.value).toBe('1D');
+    expect(calendarSelect!.value).toBe('XSHG');
     await act(async () => {
       const inputSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-      inputSetter?.call(nameInput!, 'BTCUSDT CSV 4 hour');
+      inputSetter?.call(nameInput!, 'CSI 300 · Wind daily');
       nameInput!.dispatchEvent(new Event('input', { bubbles: true }));
-      inputSetter?.call(symbolInput!, 'BTCUSDT');
+      inputSetter?.call(symbolInput!, '000300.SH');
       symbolInput!.dispatchEvent(new Event('input', { bubbles: true }));
-      inputSetter?.call(providerInput!, 'Research CSV');
+      inputSetter?.call(providerInput!, 'Wind');
       providerInput!.dispatchEvent(new Event('input', { bubbles: true }));
-      inputSetter?.call(referenceInput!, 'upload:btc-4h');
+      inputSetter?.call(referenceInput!, 'wind:000300.SH|authorized-export');
       referenceInput!.dispatchEvent(new Event('input', { bubbles: true }));
     });
     await act(async () => {
       importButton!.click();
     });
     expect(importMarketDatasetCsv).toHaveBeenCalledWith(expect.objectContaining({
-      name: 'BTCUSDT CSV 4 hour',
-      symbol: 'BTCUSDT',
-      interval: '4h',
-      csvText: 'timestamp,open,high,low,close,volume\n2024-01-01T00:00:00Z,1,1,1,1,1',
-      fileName: 'btcusdt-4h.csv',
-      sourceName: 'Research CSV',
-      sourceReference: 'upload:btc-4h',
+      name: 'CSI 300 · Wind daily',
+      symbol: '000300.SH',
+      interval: '1D',
+      marketCalendar: 'XSHG',
+      csvText,
+      fileName: 'csi300-wind-daily.csv',
+      sourceName: 'Wind',
+      sourceReference: 'wind:000300.SH|authorized-export',
     }));
     expect(onSelect).not.toHaveBeenCalled();
     await act(async () => { root.unmount(); });

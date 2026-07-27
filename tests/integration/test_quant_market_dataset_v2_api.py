@@ -12,6 +12,7 @@ from pydantic import ValidationError
 
 from packages.contracts.quant import (
     QuantBarInterval,
+    QuantMarketCalendar,
     QuantRunMode,
     QuantRunState,
     parse_market_ohlcv_csv,
@@ -79,6 +80,25 @@ def _generated_market_csv(interval: QuantBarInterval, count: int) -> str:
     return "\n".join(rows) + "\n"
 
 
+def _generated_exchange_daily_csv(count: int) -> str:
+    session = datetime(2024, 1, 2, tzinfo=UTC)
+    rows = ["date,open,high,low,close,volume,amount"]
+    while len(rows) <= count:
+        session_date = session.date()
+        if session.weekday() < 5 and session_date.isoformat() != "2024-02-12":
+            index = len(rows) - 1
+            opening = Decimal("100") + Decimal(index % 17) / Decimal("10")
+            close = opening + Decimal((index % 5) - 2) / Decimal("20")
+            high = max(opening, close) + Decimal("0.25")
+            low = min(opening, close) - Decimal("0.25")
+            rows.append(
+                f"{session_date.isoformat()},{opening},{high},{low},{close},"
+                f"{Decimal('12.3456789') + index},{Decimal('123456.78') + index}"
+            )
+        session += timedelta(days=1)
+    return "\n".join(rows) + "\n"
+
+
 CSV_CONTIGUOUS = _market_csv(
     "2024-01-02T00:00:00Z",
     "2024-01-02T01:00:00Z",
@@ -99,6 +119,8 @@ def _import_csv(
     csv_text: str = CSV_CONTIGUOUS,
     *,
     interval: QuantBarInterval = QuantBarInterval.HOUR,
+    market_calendar: QuantMarketCalendar = QuantMarketCalendar.CONTINUOUS,
+    symbol: str = "btcusdt",
 ) -> dict[str, Any]:
     stem = f"btc-usdt-{interval.value}"
     response = client.post(
@@ -106,8 +128,9 @@ def _import_csv(
         headers=_headers(principal_id, workspace_id),
         json={
             "name": f"BTC {interval.value} bars",
-            "symbol": "btcusdt",
+            "symbol": symbol,
             "interval": interval.value,
+            "market_calendar": market_calendar.value,
             "csv_text": csv_text,
             "file_name": f"{stem}.csv",
             "source_name": "Research CSV",
@@ -223,6 +246,60 @@ def test_v2_response_marks_interval_aware_market_research_eligibility(
     assert imported["interval"] == interval.value
     assert imported["bar_count"] == count
     assert imported["research_eligible"] is eligible
+
+
+def test_v2_exchange_daily_import_restores_previews_and_enters_runtime(
+    client: TestClient, principal_id: str
+) -> None:
+    workspace_id = _workspace(client, principal_id, "V2 XSHG daily")["workspace_id"]
+    csv_text = _generated_exchange_daily_csv(252)
+    imported = _import_csv(
+        client,
+        principal_id,
+        workspace_id,
+        csv_text,
+        interval=QuantBarInterval.DAILY,
+        market_calendar=QuantMarketCalendar.XSHG,
+        symbol="000300.SH",
+    )
+    store = QuantStore()
+    record = store.get_market_dataset_v2(
+        workspace_id=workspace_id, dataset_id=imported["dataset_id"]
+    )
+
+    assert imported["research_eligible"] is True
+    assert record.dataset.market_calendar is QuantMarketCalendar.XSHG
+    assert record.dataset.market_session.value == "regular"
+    assert record.dataset.time_zone == "Asia/Shanghai"
+    assert record.dataset.periods_per_year == 252
+    assert record.quality.status == "accepted"
+    assert record.quality.cadence_gap_count == 0
+    assert "holiday completeness is not inferred" in record.quality.normalization_note
+
+    preview = store.market_dataset_v2_preview(
+        workspace_id=workspace_id,
+        dataset_id=record.id,
+        max_points=240,
+    )
+    assert preview["returned_bar_count"] == 240
+    assert (
+        datetime.fromisoformat(preview["bars"][0]["timestamp"].replace("Z", "+00:00")).weekday() < 5
+    )
+    descriptor = store.validate_market_dataset_for_run(
+        workspace_id=workspace_id,
+        dataset_id=record.id,
+        research_start_utc=record.dataset.covered_start,
+        research_end_utc=record.dataset.covered_end,
+    )
+    assert len(descriptor.bars) == 252
+    assert descriptor.periods_per_year == 252
+
+    restored = QuantStore().get_market_dataset_v2(
+        workspace_id=workspace_id,
+        dataset_id=record.id,
+    )
+    assert restored.dataset.digest == record.dataset.digest
+    assert restored.record_digest == record.record_digest
 
 
 def test_v2_preview_returns_only_latest_contiguous_tail_and_is_workspace_scoped(
@@ -590,6 +667,26 @@ def test_v2_csv_request_size_and_interval_are_strictly_bounded() -> None:
                 "interval": "1h",
                 "csv_text": CSV_CONTIGUOUS,
                 "file_name": "../btc.csv",
+            }
+        )
+    with pytest.raises(ValidationError, match="supported explicit calendar"):
+        QuantMarketDatasetV2ImportRequest.model_validate(
+            {
+                "name": "unknown calendar",
+                "symbol": "BTCUSDT",
+                "interval": "1D",
+                "market_calendar": "unknown",
+                "csv_text": CSV_CONTIGUOUS,
+            }
+        )
+    with pytest.raises(ValidationError, match="supports only 1D"):
+        QuantMarketDatasetV2ImportRequest.model_validate(
+            {
+                "name": "intraday exchange",
+                "symbol": "000300.SH",
+                "interval": "1h",
+                "market_calendar": "XSHG",
+                "csv_text": CSV_CONTIGUOUS,
             }
         )
 

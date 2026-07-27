@@ -323,6 +323,7 @@ describe('Quant fixture API adapter', () => {
       name: 'BTCUSDT CSV 4 hour',
       symbol: 'BTCUSDT',
       interval: '4h',
+      market_calendar: '24x7',
       csv_text: 'timestamp,open,high,low,close,volume\n2024-01-01T00:00:00Z,1,1,1,1,1\n',
       file_name: 'btcusdt-4h.csv',
       source_name: 'Research CSV',

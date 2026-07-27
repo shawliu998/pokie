@@ -516,6 +516,7 @@ def import_market_dataset_v2_csv(
             name=body.name,
             symbol=body.symbol,
             interval=body.interval,
+            market_calendar=body.market_calendar,
             csv_text=body.csv_text,
             file_name=body.file_name,
             source_name=body.source_name,

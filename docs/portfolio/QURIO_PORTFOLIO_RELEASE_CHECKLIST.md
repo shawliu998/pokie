@@ -12,6 +12,9 @@ require explicit approval.
       AGI application evidence index links work in an incognito browser.
 - [ ] The committed Kraken evidence SHA-256 is
       `9bc4c3c084b731f7db724db880fadd34f7d9ae7720a361b6193c27262ae3c106`.
+- [ ] The supplemental Wind integration evidence SHA-256 is
+      `32711e26c715f6cc4c76f4c1d4101179573ec1c6a87031e3ebcee190af6d679d`;
+      the release contains the sanitized JSON and case study, not the raw CSV or SQLite state.
 - [ ] A fresh macOS package is built from the exact reviewed commit. Do not reuse the older
       `.run/release/Qurio-macos-arm64-0.1.0.zip`.
 - [ ] The fresh app launches on Apple silicon, opens the no-key demo, and reopens the guided demo.
@@ -34,6 +37,7 @@ Qurio-macos-arm64-0.1.0.dmg.sha256
 Qurio-macos-arm64-0.1.0.zip
 Qurio-macos-arm64-0.1.0.zip.sha256
 qurio-v1-kraken-deepseek.json
+qurio-wind-csi300-deepseek.json
 qurio-90-second-mainline.webm
 ```
 

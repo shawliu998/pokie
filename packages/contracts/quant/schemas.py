@@ -403,8 +403,9 @@ class QuantMarketDatasetV2ImportRequest(ContractModel):
     """Explicit C2B upload boundary for an isolated v2 market dataset."""
 
     name: NonEmptyString = Field(max_length=200)
-    symbol: NonEmptyString = Field(pattern=r"^[A-Za-z][A-Za-z0-9.\-]{0,15}$")
+    symbol: NonEmptyString = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9.\-]{0,15}$")
     interval: QuantBarInterval
+    market_calendar: QuantMarketBarCalendar = QuantMarketBarCalendar.CONTINUOUS
     csv_text: NonEmptyString = Field(max_length=10_000_000)
     file_name: NonEmptyString | None = Field(default=None, max_length=255)
     source_name: NonEmptyString = Field(default="User-provided CSV", max_length=200)
@@ -416,6 +417,28 @@ class QuantMarketDatasetV2ImportRequest(ContractModel):
         if value is not None and any(character in value for character in ("/", "\\", "\x00")):
             raise ValueError("file_name must be a file name, not a path")
         return value
+
+    @field_validator("market_calendar")
+    @classmethod
+    def validate_import_calendar(cls, value: QuantMarketBarCalendar) -> QuantMarketBarCalendar:
+        if value not in {
+            QuantMarketBarCalendar.CONTINUOUS,
+            QuantMarketBarCalendar.XNYS,
+            QuantMarketBarCalendar.XNAS,
+            QuantMarketBarCalendar.XSHG,
+            QuantMarketBarCalendar.XSHE,
+        }:
+            raise ValueError("market CSV import requires a supported explicit calendar")
+        return value
+
+    @model_validator(mode="after")
+    def validate_calendar_interval(self) -> QuantMarketDatasetV2ImportRequest:
+        if (
+            self.market_calendar is not QuantMarketBarCalendar.CONTINUOUS
+            and self.interval is not QuantBarInterval.DAILY
+        ):
+            raise ValueError("exchange calendar CSV import supports only 1D")
+        return self
 
 
 class QuantMarketBinanceFetchRequest(ContractModel):
