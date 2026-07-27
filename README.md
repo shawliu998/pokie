@@ -157,6 +157,7 @@ For deeper review:
 - [Interface contract](./apps/mac/DESIGN.md)
 - [Capability inventory](./docs/POKIEQUANT_CAPABILITY_INVENTORY.md)
 - [DeepSeek application and interview brief（中文）](./docs/portfolio/QURIO_DEEPSEEK_APPLICATION_BRIEF_ZH.md)
+- [DeepSeek AGI application evidence index（中文）](./docs/portfolio/evidence/AGI_APPLICATION_EVIDENCE.md)
 - [Portfolio release checklist](./docs/portfolio/QURIO_PORTFOLIO_RELEASE_CHECKLIST.md)
 - [Implementation history](./docs/IMPLEMENTATION_HISTORY.md)
 - [Third-party notices](./THIRD_PARTY_NOTICES.md)

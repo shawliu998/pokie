@@ -8,8 +8,8 @@ require explicit approval.
 
 - [ ] The latest Qurio branch is the repository default branch.
 - [ ] GitHub Actions is green for Phase 1, Phase 2, Phase 3, security audit, and macOS native.
-- [ ] The README preview, video, case study, architecture, evidence, and Chinese brief links work
-      in an incognito browser.
+- [ ] The README preview, video, case study, architecture, evidence JSON, Chinese brief, and
+      AGI application evidence index links work in an incognito browser.
 - [ ] The committed Kraken evidence SHA-256 is
       `9bc4c3c084b731f7db724db880fadd34f7d9ae7720a361b6193c27262ae3c106`.
 - [ ] A fresh macOS package is built from the exact reviewed commit. Do not reuse the older
