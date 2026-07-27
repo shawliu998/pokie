@@ -235,8 +235,8 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/git/db
             apps/mac/src-tauri/target
-          key: cargo-${{ runner.os }}-${{ hashFiles('apps/mac/src-tauri/Cargo.lock') }}
-          restore-keys: cargo-${{ runner.os }}-
+          key: cargo-${{ runner.os }}-${{ github.event.repository.name }}-${{ hashFiles('apps/mac/src-tauri/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-${{ github.event.repository.name }}-
       - name: Install JavaScript dependencies
         run: pnpm install --frozen-lockfile
       - name: Verify native Tauri runtime
