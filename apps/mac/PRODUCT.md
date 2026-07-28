@@ -214,7 +214,7 @@ Disciplined, restrained, legible. The product should feel like a serious institu
 - Generic AI dashboards assembled from repeated cards, decorative icons, status dots, gradients, oversized copy, or chat bubbles on every page.
 - Dense trading terminals that expose every internal event without establishing a clear decision hierarchy.
 - Decorative workflow rails, colored side stripes, connected green-dot timelines, and repeated success badges.
-- Blind visual imitation of OpenBB or other competitors when their interaction does not serve Qurio's autonomous research lifecycle.
+- Interfaces whose interaction model does not serve Qurio's autonomous research lifecycle.
 - Interfaces that call training metrics “results,” imply paper-trading eligibility before sealed holdout review, or render synthetic curves as real evidence.
 
 ## Design Principles

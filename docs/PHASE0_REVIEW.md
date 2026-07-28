@@ -31,7 +31,6 @@
 | P1-07 provisional thresholds | **Resolved** | `PRODUCT_BRIEF.md:201-213`; `QUALITY_GATES.md:31-49`; `EVALUATION_PLAN.md:85-99`; `PRODUCT_VALIDATION_PLAN.md:265-276,402-444,502` | 数字均为带样本/分母/版本/owner/日期的 provisional target 或 stop line，不冒充校准概率、生产 SLO 或保证。 |
 | P1-08 Seed 与生产 schema | **Resolved** | `DATA_MODEL.md:202`; `API_CONTRACTS.md:493-495`; `SEED_DATASET_SPEC.md:113-489`; `QUALITY_GATES.md:24,55,63` | 7 个 Seed JSON 可解析；115 个 UUID 字符串有效，27 个对象主 ID 全局唯一；Import、review、synthesis、grounded Brief、readiness/freshness/export 与生产合同同形。 |
 | P1-09 离线写队列 | **Resolved** | `API_CONTRACTS.md:487-489`; `ARCHITECTURE.md:19,59`; `USER_FLOWS.md:250-256`; `PRODUCT_BRIEF.md:179,244` | SQLite/bootstrap 只读；离线 mutation、Brief edit/export 禁用；无隐藏 write queue、merge 或 conflict contract。 |
-| P1-10 REUSE 证据与 Needs verification | **Resolved** | `REUSE_MATRIX.md:7-15,33-44,46-109`; `README.md:56-61` | `artifact_use/source_provenance/runtime_deployment` 三维拆分；Tiptap package 不授权 vendoring，Langfuse SDK 不授权 server deployment；外部 gate 只约束对应路径。 |
 | P2-01 旧 IA 词汇 | **Resolved** | `INFORMATION_ARCHITECTURE.md:5-28,321-353`; `RISK_REGISTER.md:21-37`; `EVALUATION_PLAN.md:53-71` | 权威对象统一为 Signal/Investigation/Decision Brief/InvestigationSynthesisVersion；Insight/Alert 只在反例、研究语义或历史说明中出现。 |
 | P2-02 Markdown 标题/锚点 | **Resolved** | 当前全部 `docs/**/*.md` | 24 个 Markdown 各恰有一个 H1、无重复 heading、围栏闭合；8 个显式 `json` 围栏可解析，28 个相对链接均存在。 |
 
@@ -46,8 +45,7 @@
 | 5. Decisions list、Synthesis UI、atomic triage、Unknown、navigation-summary | **Resolved** | `API_CONTRACTS.md:245-255,295-317,433-474`; `UI_SPEC.md:77-94,285-312,343-501`。 |
 | 6. Phase 顺序、Eval 阶段矩阵、Reviewer duty | **Resolved** | `IMPLEMENTATION_PLAN.md:55-131`; `EVALUATION_PLAN.md:9-16`; `SECURITY_MODEL.md:31`; `API_CONTRACTS.md:319,370`。 |
 | 7. RunEvent persistence→wire 与 SSE 单协议 | **Resolved** | `DATA_MODEL.md:143`; `ARCHITECTURE.md:218-229`; `API_CONTRACTS.md:400-431`; `PROJECT_STRUCTURE.md:121-173`。 |
-| 8. REUSE 三维资格 | **Resolved** | `REUSE_MATRIX.md:11,33-44,78-98`。 |
-| 9. Markdown H1/heading/fence/JSON/relative links | **Resolved** | H1 异常 0、重复 heading 0、未闭合围栏 0、JSON parse error 0、broken relative link 0。 |
+| 8. Markdown H1/heading/fence/JSON/relative links | **Resolved** | H1 异常 0、重复 heading 0、未闭合围栏 0、JSON parse error 0、broken relative link 0。 |
 
 ### 新增发现
 
@@ -177,7 +175,7 @@ Phase 0 已经形成一套较清楚的产品语言和 UI 原则；最新 `ARCHIT
 - **证据**：产品规定 Decision Brief 是唯一决策级 Source of Truth（`PRODUCT_BRIEF.md:80-100`），PRD Research Input 只能是绑定 Brief 版本、不可独立编辑的受控导出（`PRODUCT_BRIEF.md:101-107`）；IA 重复该裁决（`INFORMATION_ARCHITECTURE.md:7-12`、`INFORMATION_ARCHITECTURE.md:61-70`、`INFORMATION_ARCHITECTURE.md:132-140`）。最新架构已采用 DecisionBrief/DecisionBriefVersion/BriefExport 并声明版本绑定导出（`ARCHITECTURE.md:5-9`、`ARCHITECTURE.md:225-234`），但数据模型的 `Deliverable` 仍同时包含 Product Decision Brief / PRD Research Input（`DATA_MODEL.md:114-125`），API 从 Insight 创建 “Product Decision Brief / PRD Research Input” 并允许通用 Deliverable 编辑（`API_CONTRACTS.md:323-354`），项目模块也把两者并列放入 Deliverables（`PROJECT_STRUCTURE.md:112-116`），实现计划把二者写成同一个固定输出（`IMPLEMENTATION_PLAN.md:7-14`）。
 - **冲突**：PRD Research Input 因此可以获得自己的 draft/body/version，与 Brief 分叉；Decision Brief 则退化为通用 Deliverable 类型，无法承载产品定义的固定块、PM Judgment、Decision-ready 与 Decided 语义。
 - **单一裁决**：建立专用 `ProductDecisionBrief` aggregate、`BriefVersion` 与 typed blocks；PRD Research Input 不建可编辑内容对象，只建 `PRDResearchInputExport` 不可变记录，绑定一个 `brief_version_id`、块选择、格式、操作者和时间。Preview 是临时投影，不是持久化文档。
-- **应修改文件**：`ARCHITECTURE.md`、`DATA_MODEL.md`、`API_CONTRACTS.md`、`PROJECT_STRUCTURE.md`、`IMPLEMENTATION_PLAN.md`、`QUALITY_GATES.md`、`SEED_DATASET_SPEC.md`、`REUSE_MATRIX.md`。
+- **应修改文件**：`ARCHITECTURE.md`、`DATA_MODEL.md`、`API_CONTRACTS.md`、`PROJECT_STRUCTURE.md`、`IMPLEMENTATION_PLAN.md`、`QUALITY_GATES.md`、`SEED_DATASET_SPEC.md`。
 
 ### P0-04 — Evidence 不可变已定义，但 Claim/Brief 的版本链不完整
 
@@ -258,13 +256,6 @@ Phase 0 已经形成一套较清楚的产品语言和 UI 原则；最新 `ARCHIT
 - **单一裁决**：MVP SQLite 只缓存只读 projection、窗口偏好和未提交的本地表单 UI state；离线时不接受领域 mutation，不建立 `/sync/operations`。完整 offline draft queue/conflict resolution 整体延期，不能以隐藏 API 形式提前进入 Phase 1。
 - **应修改文件**：`ARCHITECTURE.md`、`DATA_MODEL.md`、`API_CONTRACTS.md`、`PROJECT_STRUCTURE.md`、`PRODUCT_BRIEF.md`、`USER_FLOWS.md`、`UI_SPEC.md`。
 
-### P1-10 — REUSE_MATRIX 的许可结论与 Blocked 状态基本自洽，但版本证据不可复核
-
-- **证据**：矩阵对 Approved/Reference/Blocked 给出清楚结论（`REUSE_MATRIX.md:15-29`），TrendRadar/BettaFish 的 Blocked 与风险登记一致（`REUSE_MATRIX.md:28-29`、`RISK_REGISTER.md:38-44`），Agent Reach 也保持 Needs verification。问题是 Approved 行的版本只写“via npm/PyPI on 2026-07-15”，未给注册表版本 URL、命令输出摘要、lockfile 或 digest（`REUSE_MATRIX.md:17-25`）；许可证链接指向可移动的 `main/master/dev` 分支而非被核验 commit/tag（`REUSE_MATRIX.md:31-47`），而自身 pinning policy 又要求引用仓库先 pin commit SHA（`REUSE_MATRIX.md:49-57`）。
-- **冲突**：无法从文档重现“该日期、该版本、该许可证”的组合证据；上游分支变化后，Phase 0 的许可判断会被静默改写。这里没有证据证明现有版本号为假，但也没有足够证据把它们当作已锁定基线。
-- **单一裁决**：每个 Approved 项补充官方 registry/release URL、核验版本、发布时间/核验时间、包或 commit digest；许可证链接固定到同一 tag/commit。`Blocked`、`Reference only`、`Needs verification` 状态保持，只有外部证据完成后才能升级。
-- **应修改文件**：`REUSE_MATRIX.md`、`RISK_REGISTER.md`、`QUALITY_GATES.md`、`IMPLEMENTATION_PLAN.md`。
-
 ## 5. P2 发现
 
 ### P2-01 — 辅助文档仍使用旧 IA 词汇
@@ -293,8 +284,7 @@ Phase 0 已经形成一套较清楚的产品语言和 UI 原则；最新 `ARCHIT
 8. **Design / production code / data authenticity / runtime integrity 四种完成态通过**：定义清楚且 Quality Gates 重复确认（`IMPLEMENTATION_PLAN.md:134-142`、`QUALITY_GATES.md:5-14`）。
 9. **分数不是已校准概率通过**：Signal 和 Claim 的 Low/Medium/High 被明确标为 heuristic/uncalibrated，UI 禁止展示虚假概率（`ARCHITECTURE.md:128-139`、`DATA_MODEL.md:80-112`、`EVALUATION_PLAN.md:38-43`、`UI_SPEC.md:624-632`）。
 10. **Cloud / Local / Imported 边界通过**：三者的运行位置、凭证与上传同意边界一致（`ARCHITECTURE.md:88-100`、`ADR/0004-local-cloud-source-boundary.md:6-16`、`SECURITY_MODEL.md:90-99`）。是否进入 MVP API 由 P1-02 裁决。
-11. **REUSE Blocked 状态通过**：TrendRadar 与 BettaFish 阻止代码复用，Agent Reach 保持待核验，DeerFlow 仅作架构参考；状态与风险登记一致（`REUSE_MATRIX.md:26-29`、`RISK_REGISTER.md:38-44`）。
-12. **Markdown 基础完整性通过**：21 个输入文件均恰有一个 H1；代码围栏成对；4 个本地相对 Markdown 链接均解析到现有文件。唯一结构问题见 P2-02。
+11. **Markdown 基础完整性通过**：21 个输入文件均恰有一个 H1；代码围栏成对；4 个本地相对 Markdown 链接均解析到现有文件。唯一结构问题见 P2-02。
 
 ## 7. 阻塞 Phase 1 的问题
 

@@ -272,4 +272,4 @@ The four-stage Training → Walk-forward → Sealed holdout → Promotion sequen
 - **Don't** expose every internal Agent event as equal-weight interface content.
 - **Don't** let validation terminology dominate screens intended for strategy analysis.
 - **Don't** fabricate strategy equity curves from market close data.
-- **Don't** copy OpenBB or another competitor when its interaction does not serve Qurio's autonomous research lifecycle.
+- **Don't** add an interaction pattern when it does not serve Qurio's autonomous research lifecycle.
