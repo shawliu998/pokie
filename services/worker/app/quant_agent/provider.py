@@ -33,6 +33,8 @@ MAX_RESPONSE_BYTES = 100_000
 _TRUE_VALUES = frozenset({"1", "true", "yes"})
 _FALSE_VALUES = frozenset({"0", "false", "no"})
 ContractT = TypeVar("ContractT", bound=BaseModel)
+RequestProfile = Literal["deepseek", "kimi_k3", "openai", "qwen", "custom"]
+_REQUEST_PROFILES = frozenset({"deepseek", "kimi_k3", "openai", "qwen", "custom"})
 
 
 class QuantAgentProviderError(RuntimeError):
@@ -182,8 +184,16 @@ def _closed_validation_errors(error: ValueError) -> list[dict[str, object]]:
 class OpenAICompatibleProvider:
     provider_name: str = "openai_compatible"
 
-    def __init__(self, config: OpenAICompatibleConfig) -> None:
+    def __init__(
+        self,
+        config: OpenAICompatibleConfig,
+        *,
+        request_profile: RequestProfile = "deepseek",
+        provider_name: str = "openai_compatible",
+    ) -> None:
         self.config = config
+        self.request_profile = request_profile
+        self.provider_name = provider_name
         self.model_name: str | None = config.model
         self._transport = HttpxOpenAICompatibleTransport(config)
 
@@ -252,18 +262,39 @@ class OpenAICompatibleProvider:
                 reason_code="contract_invalid",
             ) from None
 
-    def _complete(self, messages: list[dict[str, str]]) -> str:
+    def _request(
+        self, messages: list[dict[str, str]], *, max_tokens: int | None = None
+    ) -> dict[str, Any]:
+        token_limit = self.config.max_tokens if max_tokens is None else max_tokens
         request: dict[str, Any] = {
             "model": self.config.model,
             "messages": messages,
-            "thinking": {"type": "disabled"},
-            "temperature": 0,
             "response_format": {"type": "json_object"},
         }
-        if self.config.max_tokens is not None:
-            request["max_tokens"] = self.config.max_tokens
+        if self.request_profile == "deepseek":
+            request["thinking"] = {"type": "disabled"}
+            request["temperature"] = 0
+            if token_limit is not None:
+                request["max_tokens"] = token_limit
+        elif self.request_profile == "kimi_k3":
+            request["reasoning_effort"] = "max"
+            if token_limit is not None:
+                request["max_completion_tokens"] = token_limit
+        elif self.request_profile == "openai":
+            request["temperature"] = 0
+            if token_limit is not None:
+                request["max_completion_tokens"] = token_limit
+        elif self.request_profile == "qwen":
+            request["temperature"] = 0
+            if token_limit is not None:
+                request["max_tokens"] = token_limit
+        elif token_limit is not None:
+            request["max_tokens"] = token_limit
+        return request
+
+    def _complete(self, messages: list[dict[str, str]], *, max_tokens: int | None = None) -> str:
         try:
-            envelope = self._transport.complete(request)
+            envelope = self._transport.complete(self._request(messages, max_tokens=max_tokens))
             return envelope["choices"][0]["message"]["content"]
         except OpenAICompatibleError as exc:
             raise QuantAgentProviderError(
@@ -275,6 +306,30 @@ class OpenAICompatibleProvider:
                 "Quant agent response failed closed validation.",
                 reason_code="contract_invalid",
             ) from None
+
+    def test_connection(self) -> None:
+        content = self._complete(
+            [
+                {
+                    "role": "system",
+                    "content": "Return exactly one JSON object and no Markdown.",
+                },
+                {"role": "user", "content": 'Return {"status":"ok"}.'},
+            ],
+            max_tokens=32,
+        )
+        try:
+            value = json.loads(content)
+        except (json.JSONDecodeError, TypeError):
+            raise QuantAgentProviderError(
+                "Provider connection test returned invalid JSON.",
+                reason_code="contract_invalid",
+            ) from None
+        if not isinstance(value, dict):
+            raise QuantAgentProviderError(
+                "Provider connection test returned an invalid envelope.",
+                reason_code="contract_invalid",
+            )
 
 
 class MockQuantAgentProvider:
@@ -847,8 +902,31 @@ def load_quant_agent_provider() -> QuantAgentProvider:
             SecretStr(key),
             base_url,
             model,
+            timeout_seconds=(
+                15.0 if os.environ.get("POKIEQUANT_AGENT_PROVIDER_TEST") == "true" else 45.0
+            ),
             max_tokens=DEFAULT_QUANT_AGENT_MAX_TOKENS,
         )
     except OpenAICompatibleError:
         raise QuantAgentProviderError("Quant agent configuration is invalid.") from None
-    return OpenAICompatibleProvider(config)
+    default_profile = "deepseek" if provider == "deepseek" else "custom"
+    profile = os.environ.get("POKIEQUANT_AGENT_REQUEST_PROFILE", default_profile).strip().lower()
+    if profile not in _REQUEST_PROFILES:
+        raise QuantAgentProviderError("Quant agent request profile is invalid.")
+    identity = os.environ.get(
+        "POKIEQUANT_AGENT_PROVIDER_IDENTITY",
+        "deepseek" if provider in {"deepseek", "openai_compatible"} else provider,
+    ).strip()
+    if identity not in {
+        "deepseek",
+        "kimi_k3",
+        "openai",
+        "qwen",
+        "custom_openai_compatible",
+    }:
+        raise QuantAgentProviderError("Quant agent provider identity is invalid.")
+    return OpenAICompatibleProvider(
+        config,
+        request_profile=cast(RequestProfile, profile),
+        provider_name=identity,
+    )

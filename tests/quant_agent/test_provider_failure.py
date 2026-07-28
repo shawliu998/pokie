@@ -26,6 +26,9 @@ _PROVIDER_ENV_KEYS = (
     "POKIEQUANT_AGENT_API_KEY",
     "POKIEQUANT_AGENT_BASE_URL",
     "POKIEQUANT_AGENT_MODEL",
+    "POKIEQUANT_AGENT_PROVIDER_IDENTITY",
+    "POKIEQUANT_AGENT_REQUEST_PROFILE",
+    "POKIEQUANT_AGENT_PROVIDER_TEST",
     "DEEPSEEK_API_KEY",
     "POKIEQUANT_AGENT_ALLOW_MOCK_FALLBACK",
 )
@@ -61,6 +64,21 @@ def test_openai_compatible_key_and_model_are_recorded_as_deepseek_provenance() -
 
     assert QuantStore._configured_agent_provider() == "deepseek"  # pyright: ignore[reportPrivateUsage]
     assert QuantStore._configured_agent_model() == "deepseek-v4-flash"  # pyright: ignore[reportPrivateUsage]
+
+
+def test_explicit_provider_identity_is_retained_without_changing_transport() -> None:
+    os.environ["POKIEQUANT_AGENT_PROVIDER"] = "openai_compatible"
+    os.environ["POKIEQUANT_AGENT_PROVIDER_IDENTITY"] = "kimi_k3"
+    os.environ["POKIEQUANT_AGENT_REQUEST_PROFILE"] = "kimi_k3"
+    os.environ["POKIEQUANT_AGENT_API_KEY"] = "test-placeholder"
+    os.environ["POKIEQUANT_AGENT_BASE_URL"] = "https://api.moonshot.cn/v1"
+    os.environ["POKIEQUANT_AGENT_MODEL"] = "kimi-k3"
+
+    provider = load_quant_agent_provider()
+
+    assert QuantStore._configured_agent_provider() == "kimi_k3"  # pyright: ignore[reportPrivateUsage]
+    assert QuantStore._configured_agent_model() == "kimi-k3"  # pyright: ignore[reportPrivateUsage]
+    assert provider.provider_name == "kimi_k3"
 
 
 @pytest.mark.parametrize("allow_fallback", ["true", "false"])

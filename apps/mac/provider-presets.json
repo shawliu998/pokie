@@ -1,0 +1,56 @@
+[
+  {
+    "id": "mock",
+    "label": "Offline deterministic",
+    "transport": "mock",
+    "baseUrl": null,
+    "model": null,
+    "requestProfile": "mock",
+    "verified": true
+  },
+  {
+    "id": "deepseek",
+    "label": "DeepSeek",
+    "transport": "deepseek",
+    "baseUrl": "https://api.deepseek.com",
+    "model": "deepseek-v4-flash",
+    "requestProfile": "deepseek",
+    "verified": true
+  },
+  {
+    "id": "kimi_k3",
+    "label": "Kimi K3",
+    "transport": "openai_compatible",
+    "baseUrl": "https://api.moonshot.cn/v1",
+    "model": "kimi-k3",
+    "requestProfile": "kimi_k3",
+    "verified": true
+  },
+  {
+    "id": "openai",
+    "label": "OpenAI",
+    "transport": "openai_compatible",
+    "baseUrl": "https://api.openai.com/v1",
+    "model": "gpt-4.1-mini",
+    "requestProfile": "openai",
+    "verified": true
+  },
+  {
+    "id": "qwen",
+    "label": "Qwen",
+    "transport": "openai_compatible",
+    "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "model": "qwen-plus",
+    "requestProfile": "qwen",
+    "verified": true
+  },
+  {
+    "id": "custom_openai_compatible",
+    "label": "Custom OpenAI-compatible",
+    "transport": "openai_compatible",
+    "baseUrl": "https://api.openai.com/v1",
+    "model": "",
+    "requestProfile": "custom",
+    "verified": false
+  }
+]

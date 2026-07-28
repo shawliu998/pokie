@@ -5,7 +5,7 @@ from email.message import Message
 from io import BytesIO
 from pathlib import Path
 from typing import Protocol
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from urllib.request import Request
 
 import pytest
@@ -174,6 +174,54 @@ def test_http_errors_are_nonzero_and_response_body_is_not_leaked(
     assert audit_npm_lock.main([str(_lockfile(tmp_path))]) == 2
     output = capsys.readouterr()
     assert f"HTTP {status}" in output.err
+    assert "TOP_SECRET" not in output.out + output.err
+
+
+def test_transient_transport_error_retries_without_weakening_fail_closed_behavior(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    calls = 0
+    sleeps: list[float] = []
+    success = _response({})
+
+    def flaky(request: Request, *, timeout: float) -> FakeResponse:
+        nonlocal calls
+        calls += 1
+        if calls < audit_npm_lock.REQUEST_ATTEMPTS:
+            raise URLError("TOP_SECRET")
+        return success(request, timeout=timeout)
+
+    monkeypatch.setattr(audit_npm_lock, "urlopen", flaky)
+    monkeypatch.setattr(audit_npm_lock.time, "sleep", sleeps.append)
+
+    assert audit_npm_lock.main([str(_lockfile(tmp_path))]) == 0
+    assert calls == audit_npm_lock.REQUEST_ATTEMPTS
+    assert sleeps == [0.25, 0.5]
+    assert "TOP_SECRET" not in capsys.readouterr().out
+
+
+def test_persistent_transport_error_remains_fail_closed_after_bounded_retries(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    calls = 0
+
+    def fail(_request: Request, *, timeout: float) -> FakeResponse:
+        nonlocal calls
+        assert timeout == 45
+        calls += 1
+        raise URLError("TOP_SECRET")
+
+    monkeypatch.setattr(audit_npm_lock, "urlopen", fail)
+    monkeypatch.setattr(audit_npm_lock.time, "sleep", lambda _seconds: None)
+
+    assert audit_npm_lock.main([str(_lockfile(tmp_path))]) == 2
+    assert calls == audit_npm_lock.REQUEST_ATTEMPTS
+    output = capsys.readouterr()
+    assert "request failed: URLError" in output.err
     assert "TOP_SECRET" not in output.out + output.err
 
 

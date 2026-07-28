@@ -31,7 +31,9 @@ SESSION_FILE_NAME = "qurio-local-runtime.json"
 DATABASE_FILE_NAME = "qurio-local.db"
 OBJECT_DIR_NAME = "objects"
 READY_PREFIX = "QURIO_RUNTIME_READY "
+PROVIDER_TEST_PREFIX = "QURIO_PROVIDER_TEST "
 DEFAULT_MODEL = "deepseek-v4-flash"
+REQUEST_PROFILES = frozenset({"mock", "deepseek", "kimi_k3", "openai", "qwen", "custom"})
 
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
@@ -42,6 +44,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--provider", choices=("mock", "deepseek", "openai_compatible"), default="mock"
     )
+    parser.add_argument("--provider-id", default=None, metavar="STRING")
+    parser.add_argument("--request-profile", default=None, metavar="STRING")
+    parser.add_argument("--test-provider", action="store_true")
     parser.add_argument("--model", default=None, metavar="STRING")
     parser.add_argument("--base-url", default=None, metavar="HTTPS_URL")
     parser.add_argument("--runtime-dir", type=Path, default=DEFAULT_RUNTIME_DIR, metavar="PATH")
@@ -99,6 +104,41 @@ def require_provider_key(provider: str, environ: dict[str, str] | None = None) -
         )
 
 
+def selected_provider_identity(provider: str, provider_id: str | None) -> str:
+    default = {
+        "mock": "mock",
+        "deepseek": "deepseek",
+        "openai_compatible": "custom_openai_compatible",
+    }[provider]
+    value = (provider_id or default).strip()
+    if value not in {
+        "mock",
+        "deepseek",
+        "kimi_k3",
+        "openai",
+        "qwen",
+        "custom_openai_compatible",
+    }:
+        raise ValueError("--provider-id is invalid.")
+    return value
+
+
+def selected_request_profile(provider: str, request_profile: str | None) -> str:
+    default = {
+        "mock": "mock",
+        "deepseek": "deepseek",
+        "openai_compatible": "custom",
+    }[provider]
+    value = (request_profile or default).strip()
+    if value not in REQUEST_PROFILES:
+        raise ValueError("--request-profile is invalid.")
+    if provider == "mock" and value != "mock":
+        raise ValueError("Offline deterministic mode requires the mock request profile.")
+    if provider != "mock" and value == "mock":
+        raise ValueError("A model provider cannot use the mock request profile.")
+    return value
+
+
 def runtime_paths(runtime_dir: Path) -> tuple[Path, Path, Path]:
     return (
         runtime_dir / DATABASE_FILE_NAME,
@@ -145,6 +185,8 @@ def configure_bootstrap_environment(
     database_path: Path,
     object_root: Path,
     provider: str,
+    provider_identity: str | None = None,
+    request_profile: str | None = None,
     model: str | None,
     base_url: str | None = None,
 ) -> None:
@@ -158,6 +200,10 @@ def configure_bootstrap_environment(
             "GLINT_CREATE_SCHEMA_ON_STARTUP": "true",
             "GLINT_ALLOWED_ORIGINS": json.dumps(["tauri://localhost"]),
             "POKIEQUANT_AGENT_PROVIDER": provider,
+            "POKIEQUANT_AGENT_PROVIDER_IDENTITY": selected_provider_identity(
+                provider, provider_identity
+            ),
+            "POKIEQUANT_AGENT_REQUEST_PROFILE": selected_request_profile(provider, request_profile),
             "POKIEQUANT_AGENT_ALLOW_MOCK_FALLBACK": "false",
         }
     )
@@ -172,7 +218,13 @@ def configure_bootstrap_environment(
 
 
 def bootstrap_metadata(
-    *, runtime_dir: Path, provider: str, model: str | None, base_url: str | None = None
+    *,
+    runtime_dir: Path,
+    provider: str,
+    model: str | None,
+    base_url: str | None = None,
+    provider_identity: str | None = None,
+    request_profile: str | None = None,
 ) -> dict[str, str]:
     database_path, object_root, session_path = runtime_paths(runtime_dir)
     runtime_dir.mkdir(parents=True, exist_ok=True)
@@ -184,6 +236,8 @@ def bootstrap_metadata(
         database_path=database_path,
         object_root=object_root,
         provider=provider,
+        provider_identity=provider_identity,
+        request_profile=request_profile,
         model=model,
         base_url=base_url,
     )
@@ -224,6 +278,8 @@ def build_process_env(
     database_path: Path,
     object_root: Path,
     provider: str,
+    provider_identity: str | None = None,
+    request_profile: str | None = None,
     model: str | None,
     base_url: str | None = None,
 ) -> dict[str, str]:
@@ -237,6 +293,10 @@ def build_process_env(
         "GLINT_CREATE_SCHEMA_ON_STARTUP": "false",
         "GLINT_ALLOWED_ORIGINS": json.dumps(["tauri://localhost"]),
         "POKIEQUANT_AGENT_PROVIDER": provider,
+        "POKIEQUANT_AGENT_PROVIDER_IDENTITY": selected_provider_identity(
+            provider, provider_identity
+        ),
+        "POKIEQUANT_AGENT_REQUEST_PROFILE": selected_request_profile(provider, request_profile),
         "POKIEQUANT_AGENT_ALLOW_MOCK_FALLBACK": "false",
     }
     if role == "worker":
@@ -367,14 +427,20 @@ def run_child(role: Literal["api", "worker"], api_port: int | None) -> int:
 def run(
     *,
     provider: str,
+    provider_identity: str | None = None,
+    request_profile: str | None = None,
     model: str | None,
     runtime_dir: Path,
     base_url: str | None = None,
 ) -> int:
+    provider_identity = selected_provider_identity(provider, provider_identity)
+    request_profile = selected_request_profile(provider, request_profile)
     require_provider_key(provider)
     metadata = bootstrap_metadata(
         runtime_dir=runtime_dir,
         provider=provider,
+        provider_identity=provider_identity,
+        request_profile=request_profile,
         model=model,
         base_url=base_url,
     )
@@ -397,6 +463,8 @@ def run(
             database_path=database_path,
             object_root=object_root,
             provider=provider,
+            provider_identity=provider_identity,
+            request_profile=request_profile,
             model=model,
             base_url=base_url,
         )
@@ -409,6 +477,8 @@ def run(
             database_path=database_path,
             object_root=object_root,
             provider=provider,
+            provider_identity=provider_identity,
+            request_profile=request_profile,
             model=model,
             base_url=base_url,
         )
@@ -420,6 +490,7 @@ def run(
             "workspace_id": metadata["workspace_id"],
             "principal_id": metadata["principal_id"],
             "provider": provider,
+            "preset": provider_identity,
             "model": model,
             "base_url": base_url,
         }
@@ -435,16 +506,60 @@ def run(
         terminate_children(processes)
 
 
+def test_provider_connection(
+    *,
+    provider: str,
+    provider_identity: str,
+    request_profile: str,
+    model: str | None,
+    base_url: str | None,
+) -> int:
+    require_provider_key(provider)
+    if provider == "mock":
+        print(PROVIDER_TEST_PREFIX + '{"status":"verified"}', flush=True)
+        return 0
+    os.environ["POKIEQUANT_AGENT_PROVIDER"] = provider
+    os.environ["POKIEQUANT_AGENT_PROVIDER_IDENTITY"] = provider_identity
+    os.environ["POKIEQUANT_AGENT_REQUEST_PROFILE"] = request_profile
+    os.environ["POKIEQUANT_AGENT_MODEL"] = model or ""
+    os.environ["POKIEQUANT_AGENT_PROVIDER_TEST"] = "true"
+    if base_url is None:
+        os.environ.pop("POKIEQUANT_AGENT_BASE_URL", None)
+    else:
+        os.environ["POKIEQUANT_AGENT_BASE_URL"] = base_url
+    from services.worker.app.quant_agent.provider import load_quant_agent_provider
+
+    loaded = load_quant_agent_provider()
+    test_connection = getattr(loaded, "test_connection", None)
+    if not callable(test_connection):
+        raise RuntimeError("The selected provider does not support connection testing.")
+    test_connection()
+    print(PROVIDER_TEST_PREFIX + '{"status":"verified"}', flush=True)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     try:
         if args.child_role is not None:
             return run_child(args.child_role, args.api_port)
         provider = str(args.provider)
+        provider_identity = selected_provider_identity(provider, args.provider_id)
+        request_profile = selected_request_profile(provider, args.request_profile)
         model = selected_model(provider, args.model)
         base_url = selected_base_url(provider, args.base_url)
+        if args.test_provider:
+            return test_provider_connection(
+                provider=provider,
+                provider_identity=provider_identity,
+                request_profile=request_profile,
+                model=model,
+                base_url=base_url,
+            )
         return run(
             provider=provider,
+            provider_identity=provider_identity,
+            request_profile=request_profile,
             model=model,
             runtime_dir=resolve_runtime_dir(args.runtime_dir),
             base_url=base_url,

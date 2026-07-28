@@ -2550,6 +2550,9 @@ describe('Quant Workspace components', () => {
     await act(async () => { connectionsTab!.click(); });
     expect(container.textContent).toContain('Kraken Spot public OHLC');
     expect(container.textContent).toContain('BTCUSD, BTCUSDT, ETHUSD, ETHUSDT');
+    expect(container.textContent).toContain('Wind');
+    expect(container.textContent).toContain('Not installed · licensed API required');
+    expect(container.textContent).toContain('Kimi membership or Kimi Work plugin does not grant Qurio backend access');
     const openConnector = [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Fetch data');
     await act(async () => { openConnector!.click(); });
     expect(container.querySelector('[role="tabpanel"][aria-labelledby="quant-data-source-kraken"]')).toBeTruthy();

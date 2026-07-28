@@ -1876,8 +1876,7 @@ class QuantStore:
                 )
                 if (
                     approval.get("execution_boundary") != expected_boundary
-                    or approval.get("research_loop_policy_digest")
-                    != expected_policy_digest
+                    or approval.get("research_loop_policy_digest") != expected_policy_digest
                 ):
                     raise ValueError(
                         "Persisted Quant approval evidence differs from the Run policy."
@@ -8984,21 +8983,14 @@ class QuantStore:
         if run.state in {QuantRunState.COMPLETED, QuantRunState.FAILED}:
             return run
         if run.state is QuantRunState.RUNNING_EXPERIMENTS:
-            if (
-                research_loop is not None
-                and run.research_loop_policy != research_loop
-            ):
-                raise invalid_state(
-                    "The approved research loop no longer matches this Run."
-                )
+            if research_loop is not None and run.research_loop_policy != research_loop:
+                raise invalid_state("The approved research loop no longer matches this Run.")
             return run
         if run.state is not QuantRunState.WAITING_PLAN_APPROVAL:
             raise invalid_state("Approve-plan requires a plan awaiting approval.")
         if research_loop is not None:
             if run.market_run_contract_version != QUANT_MARKET_RUN_CONTRACT_VERSION:
-                raise invalid_state(
-                    "A research loop can be attached only to a public market Run."
-                )
+                raise invalid_state("A research loop can be attached only to a public market Run.")
             if (
                 research_loop.follow_up_mode != "one_train_only_follow_up"
                 or run.parent_run_id is not None
@@ -9760,12 +9752,20 @@ class QuantStore:
         if provider in {"", "mock"}:
             return "mock"
         if provider in {"deepseek", "openai_compatible"}:
-            return "deepseek"
+            identity = os.environ.get("POKIEQUANT_AGENT_PROVIDER_IDENTITY", "deepseek").strip()
+            if identity in {
+                "deepseek",
+                "kimi_k3",
+                "openai",
+                "qwen",
+                "custom_openai_compatible",
+            }:
+                return identity
         raise ValueError("POKIEQUANT_AGENT_PROVIDER is invalid.")
 
     @staticmethod
     def _configured_agent_model() -> str | None:
-        if QuantStore._configured_agent_provider() != "deepseek":
+        if QuantStore._configured_agent_provider() == "mock":
             return None
         return (
             os.environ.get("POKIEQUANT_AGENT_MODEL")

@@ -909,9 +909,7 @@ class QuantMarketPlanApproveRequest(QuantPlanApproveRequest):
             self.research_loop is not None
             and self.research_loop.follow_up_mode != "one_train_only_follow_up"
         ):
-            raise ValueError(
-                "market plan approval accepts only the one-follow-up research loop"
-            )
+            raise ValueError("market plan approval accepts only the one-follow-up research loop")
         return self
 
 

@@ -189,9 +189,7 @@ def test_public_market_plan_approval_can_attach_one_bounded_follow_up(
     store = QuantStore()
     approval_event = next(
         event
-        for event in reversed(
-            store.events_for_run(workspace_id=workspace_id, run_id=created["id"])
-        )
+        for event in reversed(store.events_for_run(workspace_id=workspace_id, run_id=created["id"]))
         if event["event_type"] == "plan.approved"
     )
     assert (
@@ -218,9 +216,7 @@ def test_public_market_plan_approval_can_attach_one_bounded_follow_up(
     )
     assert restored.mode == QuantRunMode.AUTO
     assert restored.research_loop_policy is not None
-    assert (
-        restored.research_loop_policy.follow_up_mode == "one_train_only_follow_up"
-    )
+    assert restored.research_loop_policy.follow_up_mode == "one_train_only_follow_up"
     assert restored.research_series_root_run_id == created["id"]
     assert restored.research_series_version == 1
     assert (

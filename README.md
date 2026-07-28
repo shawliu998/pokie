@@ -196,7 +196,9 @@ pnpm package:mac
 
 The application embeds its FastAPI API and Research Agent worker, stores optional provider
 credentials in Keychain, and supports a no-key deterministic demo. Developer ID signing and Apple
-notarization are still required before frictionless public distribution.
+notarization are still required before frictionless public distribution. The credential-gated
+[macOS beta release workflow](./docs/MACOS_BETA_RELEASE.md) is prepared but is not evidence that a
+notarized artifact already exists.
 
 <details>
 <summary><strong>Run the focused verification gates</strong></summary>

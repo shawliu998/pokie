@@ -84,6 +84,7 @@ scan_native_artifacts() (
 
 native_scan_token=$provided_token
 scan_native_artifacts
+printf 'Native bundle, embedded runtime, signature, and secret scan verified.\n'
 
 port_is_free() {
   local port=$1
@@ -301,6 +302,7 @@ if [[ "$allowed_origin" != "$native_origin" || "$allowed_origin" == "*" ]]; then
   printf 'Native API CORS allow-origin does not exactly match the Tauri dev origin.\n' >&2
   exit 1
 fi
+printf 'Native API health and exact-origin CORS verified.\n'
 
 binary_cdhash() {
   codesign -dv --verbose=4 "$native_binary" 2>&1 \
@@ -432,14 +434,21 @@ store_fixture_session() {
 }
 
 activate_temporary_keychain
+printf 'Isolated Keychain activated.\n'
 # Warm the exact `tauri dev` binary while the isolated Keychain is empty.  This
 # prevents a build after SecTrustedApplication captured the binary CDHash.
 start_tauri "$api_url"
 stop_tauri
 expected_native_cdhash=$(binary_cdhash)
-[[ -n "$expected_native_cdhash" ]]
+[[ -n "$expected_native_cdhash" ]] || {
+  printf 'Native gate could not resolve the warmed binary CDHash.\n' >&2
+  exit 1
+}
+printf 'Native WebView warm start and clean exit verified.\n'
 store_fixture_session
+printf 'JWT stored in the isolated Keychain.\n'
 start_tauri "$api_url"
+printf 'Authenticated native WebView start verified.\n'
 native_scan_token=$fixture_token
 scan_native_artifacts
 if [[ -n "$fixture_pid" ]]; then
@@ -465,10 +474,17 @@ if [[ -n "$fixture_pid" ]]; then
 else
   sleep 5
 fi
-stored_keychain_value=$(security find-generic-password -s "$keychain_service" \
-  -a "$keychain_account" -w "$temporary_keychain" 2>/dev/null)
-[[ "$stored_keychain_value" == "$fixture_token" ]]
+if ! stored_keychain_value=$(security find-generic-password -s "$keychain_service" \
+  -a "$keychain_account" -w "$temporary_keychain" 2>/dev/null); then
+  printf 'Native gate could not read the JWT after authenticated startup.\n' >&2
+  exit 1
+fi
+[[ "$stored_keychain_value" == "$fixture_token" ]] || {
+  printf 'Native gate found a changed JWT after authenticated startup.\n' >&2
+  exit 1
+}
 stop_tauri
+printf 'Authenticated JWT persistence and clean exit verified.\n'
 
 offline_api_url=http://127.0.0.1:9
 if [[ -n "$fixture_pid" ]]; then
@@ -482,7 +498,12 @@ fi
 start_tauri "$offline_api_url"
 scan_native_artifacts
 sleep 5
-kill -0 "$tauri_pid" 2>/dev/null
+kill -0 "$tauri_pid" 2>/dev/null || {
+  printf 'Native process did not survive the API-outage window.\n' >&2
+  printf 'Native process log tail:\n' >&2
+  tail -80 "$tauri_log" >&2 || true
+  exit 1
+}
 if [[ -n "$fixture_pid" ]]; then
   fixture_state=$(fixture_curl -fsS "$fixture_url/v1/fixture-state" \
     -H "X-Workspace-ID: $fixture_workspace")

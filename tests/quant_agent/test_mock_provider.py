@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import cast
+from typing import Literal, cast
 
 import pytest
 from pydantic import SecretStr
@@ -437,6 +437,47 @@ def test_quant_provider_requests_bounded_non_thinking_json() -> None:
     assert captured["thinking"] == {"type": "disabled"}
     assert captured["response_format"] == {"type": "json_object"}
     assert captured["max_tokens"] == 2_500
+
+
+@pytest.mark.parametrize(
+    ("profile", "included", "excluded"),
+    [
+        ("deepseek", {"thinking", "max_tokens"}, {"reasoning_effort", "max_completion_tokens"}),
+        (
+            "kimi_k3",
+            {"reasoning_effort", "max_completion_tokens"},
+            {"thinking", "temperature", "max_tokens"},
+        ),
+        (
+            "openai",
+            {"temperature", "max_completion_tokens"},
+            {"thinking", "reasoning_effort", "max_tokens"},
+        ),
+        ("qwen", {"temperature", "max_tokens"}, {"thinking", "reasoning_effort"}),
+        ("custom", {"max_tokens"}, {"thinking", "reasoning_effort", "temperature"}),
+    ],
+)
+def test_request_profiles_do_not_leak_provider_specific_parameters(
+    profile: str, included: set[str], excluded: set[str]
+) -> None:
+    provider = OpenAICompatibleProvider(
+        OpenAICompatibleConfig(
+            SecretStr("test-key"),
+            "https://api.example.com",
+            "test-model",
+            max_tokens=2_500,
+        ),
+        request_profile=cast(Literal["deepseek", "kimi_k3", "openai", "qwen", "custom"], profile),
+    )
+
+    request = provider._request(  # pyright: ignore[reportPrivateUsage]
+        [{"role": "user", "content": "Return JSON."}]
+    )
+
+    assert included <= request.keys()
+    assert not (excluded & request.keys())
+    if profile == "kimi_k3":
+        assert request["reasoning_effort"] == "max"
 
 
 def test_model_provider_repairs_contract_json_once() -> None:

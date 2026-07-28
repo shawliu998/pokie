@@ -231,6 +231,12 @@
           "markdownDescription": "Enables the store_offline_cache command without any pre-configured scope."
         },
         {
+          "description": "Enables the test_local_runtime_provider command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-test-local-runtime-provider",
+          "markdownDescription": "Enables the test_local_runtime_provider command without any pre-configured scope."
+        },
+        {
           "description": "Denies the clear_access_token command without any pre-configured scope.",
           "type": "string",
           "const": "deny-clear-access-token",
@@ -283,6 +289,12 @@
           "type": "string",
           "const": "deny-store-offline-cache",
           "markdownDescription": "Denies the store_offline_cache command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the test_local_runtime_provider command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-test-local-runtime-provider",
+          "markdownDescription": "Denies the test_local_runtime_provider command without any pre-configured scope."
         },
         {
           "description": "Default core plugins set.\n#### This default permission set includes:\n\n- `core:path:default`\n- `core:event:default`\n- `core:window:default`\n- `core:webview:default`\n- `core:app:default`\n- `core:image:default`\n- `core:resources:default`\n- `core:menu:default`\n- `core:tray:default`",

@@ -35,6 +35,19 @@ def test_tauri_bundle_embeds_the_frozen_runtime() -> None:
     assert config["bundle"]["macOS"]["minimumSystemVersion"] == "11.0"
 
 
+def test_bundle_finds_the_same_user_uv_fallback_as_release_verification(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    home = tmp_path / "home"
+    uv = home / "Library" / "Python" / "3.12" / "bin" / "uv"
+    uv.parent.mkdir(parents=True)
+    uv.touch()
+    monkeypatch.setattr(bundle.Path, "home", classmethod(lambda _cls: home))
+    monkeypatch.setattr(bundle.shutil, "which", lambda _name: None)
+
+    assert bundle.uv_executable(tmp_path / "repo") == uv
+
+
 def test_bundle_environment_uses_managed_locked_python(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
