@@ -204,6 +204,55 @@ describe('Quant Workspace components', () => {
     expect(pendingRecent).toContain('Experiments complete — validation pending');
   });
 
+  it('keeps the approved Agent-loop boundary recoverable in market Run history', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const api: QuantApi = {
+      ...createFixtureQuantApi(),
+      listRuns: async () => [],
+      listMarketRuns: async () => [{
+        contract: 'market-v2-public',
+        id: 'market-loop-run',
+        projectId: quantFixtureSnapshot.project.id,
+        datasetId: 'market-v2-btcusdt-4h',
+        state: 'completed',
+        mode: 'auto',
+        question: 'BTCUSDT bounded Agent loop',
+        attemptNumber: 1,
+        parentRunId: null,
+        seedCandidateId: null,
+        refinementReason: null,
+        retryOfRunId: null,
+        provider: 'fixture',
+        model: null,
+        usedExperiments: 3,
+        createdAt: '2026-06-01T00:00:00Z',
+        updatedAt: '2026-06-02T00:00:00Z',
+        symbol: 'BTCUSDT',
+        interval: '4h',
+        periodsPerYear: 2190,
+        researchStartUtc: '2024-01-01T00:00:00Z',
+        researchEndUtc: '2024-06-01T00:00:00Z',
+        researchLoop: {
+          followUpMode: 'one_train_only_follow_up',
+          maxVersions: 2,
+          maxTotalExperiments: 6,
+          maxTotalAgentActions: 24,
+        },
+      }],
+    };
+    await act(async () => {
+      root.render(<QuantRunsPage api={api} snapshot={quantFixtureSnapshot} onOpenRun={vi.fn()} onOpenReport={vi.fn()} onStartNewResearch={vi.fn()} />);
+    });
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    });
+    expect(container.textContent).toContain('Agent loop · one evidence-led follow-up');
+    await act(async () => { root.unmount(); });
+    container.remove();
+  });
+
   it('keeps the sidebar research-led and removes development-only identity', () => {
     const markup = renderToStaticMarkup(<QuantSidebar snapshot={quantFixtureSnapshot} destination="projects" onSelect={vi.fn()} />);
     expect(markup).toContain('Current research');
@@ -304,6 +353,48 @@ describe('Quant Workspace components', () => {
     expect(markup).toContain(`${snapshot.limits.maxRepairAttempts} repairs per experiment`);
     expect(markup.indexOf('Research plan awaiting approval')).toBeLessThan(markup.indexOf('>Approve &amp; run<'));
     expect(markup.indexOf('Research plan awaiting approval')).toBeLessThan(markup.indexOf('>Request changes<'));
+  });
+
+  it('attaches one bounded follow-up only when a root market plan is explicitly approved with it', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const onCommand = vi.fn();
+    const snapshot = structuredClone(quantFixtureSnapshot);
+    snapshot.researchPlan = {
+      candidateFamilies: ['sma_crossover', 'breakout'],
+      selectionObjective: 'risk_adjusted_return',
+      completionCriteria: ['Backtest every candidate.', 'Compare completed candidates.'],
+      objectiveSummary: 'Compare bounded trend candidates on retained training evidence.',
+    };
+    snapshot.run = {
+      ...snapshot.run,
+      contract: 'market-v2-public',
+      state: 'waiting_plan_approval',
+      legalCommands: ['approve_plan', 'request_plan_changes', 'cancel_run'],
+      planRevision: 2,
+    };
+    await act(async () => {
+      root.render(<QuantOverviewWorkbench snapshot={snapshot} activeTab="overview" onTabChange={vi.fn()} onRunResearch={vi.fn()} onOpenAnalysis={vi.fn()} onOpenReport={vi.fn()} selectedCandidateId="" onSelectCandidate={vi.fn()} onCommand={onCommand} />);
+    });
+    expect(container.textContent).toContain('Research loop');
+    expect(container.textContent).toContain('One research run');
+    expect(container.textContent).toContain('Allow one evidence-led follow-up');
+    expect(container.textContent).toContain('Run the approved plan once, open the sealed holdout once, then stop for review.');
+    await act(async () => {
+      [...container.querySelectorAll<HTMLButtonElement>('.pq-copilot-actions button')].find((button) => button.textContent === 'Approve & run')?.click();
+    });
+    expect(onCommand).toHaveBeenLastCalledWith('approve_plan');
+    await act(async () => {
+      [...container.querySelectorAll<HTMLButtonElement>('.pq-plan-loop button')].find((button) => button.textContent === 'Allow one evidence-led follow-up')?.click();
+    });
+    expect(container.textContent).toContain('The Agent may use the final training comparison to precommit one independent follow-up under the same approved constraints, then stops for review.');
+    await act(async () => {
+      [...container.querySelectorAll<HTMLButtonElement>('.pq-copilot-actions button')].find((button) => button.textContent === 'Approve & run')?.click();
+    });
+    expect(onCommand).toHaveBeenLastCalledWith('approve_plan', { followUpMode: 'one_train_only_follow_up' });
+    await act(async () => { root.unmount(); });
+    container.remove();
   });
 
   it('makes a bounded proxy explicit and requires confirmation before Qurio runs experiments', () => {
@@ -684,7 +775,7 @@ describe('Quant Workspace components', () => {
       } : candidate),
     };
     const experiments = renderToStaticMarkup(<QuantStrategyLab snapshot={feedbackSnapshot} selectedCandidateId="candidate-c" onSelectCandidate={vi.fn()} variant="experiments" />);
-    expect(experiments).toContain('Agent decision');
+    expect(experiments).toContain('Agent loop · current decision');
     expect(experiments).toContain('Observation → Why Qurio changed → Next action');
     expect(experiments).toContain('SMA 20/100');
     expect(experiments).toContain('SMA 50/200');
@@ -848,7 +939,7 @@ describe('Quant Workspace components', () => {
     const snapshot = liveFixtures[fixtureName] as unknown as QuantWorkspaceSnapshot;
     const markup = renderToStaticMarkup(<QuantStrategyLab snapshot={snapshot} selectedCandidateId="" onSelectCandidate={vi.fn()} variant="experiments" />);
     expect(markup).toContain(visibleState);
-    expect(markup).toContain('Agent decision');
+    expect(markup).toContain('Agent loop · current decision');
     expect(markup).toContain('>Observation<');
     expect(markup).toContain('Why Qurio changed');
     expect(markup).toContain('Next action');
@@ -2459,6 +2550,9 @@ describe('Quant Workspace components', () => {
     await act(async () => { connectionsTab!.click(); });
     expect(container.textContent).toContain('Kraken Spot public OHLC');
     expect(container.textContent).toContain('BTCUSD, BTCUSDT, ETHUSD, ETHUSDT');
+    expect(container.textContent).toContain('Wind');
+    expect(container.textContent).toContain('Not installed · licensed API required');
+    expect(container.textContent).toContain('Kimi membership or Kimi Work plugin does not grant Qurio backend access');
     const openConnector = [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Fetch data');
     await act(async () => { openConnector!.click(); });
     expect(container.querySelector('[role="tabpanel"][aria-labelledby="quant-data-source-kraken"]')).toBeTruthy();

@@ -146,6 +146,7 @@ from .schemas import (
     QuantMarketDatasetV2ImportRequest,
     QuantMarketDatasetV2PreviewResponse,
     QuantMarketDatasetV2Response,
+    QuantMarketPlanApproveRequest,
     QuantMarketRunV2CreateRequest,
     QuantMarketRunV2Response,
     QuantNasdaqEquityFetchRequest,

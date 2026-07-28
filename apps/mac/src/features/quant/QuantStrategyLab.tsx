@@ -185,7 +185,7 @@ function CompletedAgentDecisionPath({ snapshot }: { snapshot: QuantWorkspaceSnap
     : decisionStopReason[ledger.outcome.reason];
   return <section className="pq-agent-decision-chain is-completed" aria-labelledby="pq-agent-decision-chain-heading">
     <header>
-      <div><h3 id="pq-agent-decision-chain-heading">Agent decision</h3><p>The retained evidence that changed the research path.</p></div>
+      <div><h3 id="pq-agent-decision-chain-heading">Agent loop · current decision</h3><p>The retained evidence that changed the research path.</p></div>
       <span>Observation → Why Qurio changed → Next action</span>
     </header>
     <div>
@@ -291,7 +291,7 @@ function LiveResearchWorkbench({ snapshot }: { snapshot: QuantWorkspaceSnapshot 
       </div>
     </header>
     {live && <section className="pq-agent-decision-chain" aria-labelledby="pq-agent-decision-chain-heading">
-      <header><div><h3 id="pq-agent-decision-chain-heading">Agent decision</h3><p>The evidence and reason behind Qurio’s next registered action.</p></div><span>Observation → Why Qurio changed → Next action</span></header>
+      <header><div><h3 id="pq-agent-decision-chain-heading">Agent loop · current decision</h3><p>The evidence and reason behind Qurio’s next registered action.</p></div><span>Observation → Why Qurio changed → Next action</span></header>
       <div>
         <section><span>Observation</span><strong>{decision.observation.title}</strong><p>{decision.observation.detail}</p>{latest && <small>Training result · Experiment {latest.ordinal}</small>}</section>
         <section><span>Why Qurio changed</span><strong>{whyTitle}</strong><p>{adaptationDetail}</p></section>

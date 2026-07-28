@@ -6,9 +6,17 @@ import argparse
 import importlib
 import logging
 import os
+import sys
 import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
+
+# Keep the container liveness probe independent from optional model/provider
+# imports. Those dependencies are intentionally loaded for real worker commands,
+# but importing them is unnecessary work for this no-I/O health command and can
+# exceed Docker Desktop's short health-check timeout on a bind-mounted checkout.
+if __name__ == "__main__" and sys.argv[1:] == ["health"]:
+    raise SystemExit(0)
 
 from connectors.factory import SourceConnectorFactory, create_connector_factory
 from services.worker.app.adapter_wiring import load_domain_adapter

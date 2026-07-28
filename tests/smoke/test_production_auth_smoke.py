@@ -22,6 +22,10 @@ def test_production_rejects_forged_and_expired_access_tokens() -> None:
             f"{base_url}/v1/sync/bootstrap",
             headers={"Authorization": f"Bearer {token}", "X-Workspace-ID": workspace},
             timeout=10,
+            # This acceptance URL is the loopback port published by the
+            # ephemeral Compose stack. It must never be routed through a
+            # user's desktop HTTP proxy.
+            trust_env=False,
         )
 
     assert get(valid).status_code == 200

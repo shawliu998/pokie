@@ -30,6 +30,7 @@ from packages.contracts.quant import (
     QuantMarketDatasetV2ImportRequest,
     QuantMarketDatasetV2PreviewResponse,
     QuantMarketDatasetV2Response,
+    QuantMarketPlanApproveRequest,
     QuantMarketRunV2CreateRequest,
     QuantMarketRunV2Response,
     QuantNasdaqEquityFetchRequest,
@@ -752,7 +753,7 @@ def get_market_run(run_id: UUID, context: Ctx) -> dict[str, Any]:
     response_model=QuantMarketRunV2Response,
 )
 def approve_market_run_plan(
-    run_id: UUID, body: QuantPlanApproveRequest, context: Ctx
+    run_id: UUID, body: QuantMarketPlanApproveRequest, context: Ctx
 ) -> dict[str, Any]:
     store = _store()
     run = store.approve_market_run_plan(
@@ -761,6 +762,7 @@ def approve_market_run_plan(
         expected_row_version=body.expected_row_version,
         plan_revision=body.plan_revision,
         reason=body.reason,
+        research_loop=body.research_loop,
     )
     return QuantMarketRunV2Response.model_validate(store.to_market_run_response(run)).model_dump(
         mode="json"

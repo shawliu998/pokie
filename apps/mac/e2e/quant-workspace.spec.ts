@@ -100,7 +100,7 @@ async function expectLiveAgentDecision(page: Page, state = fixtureState) {
   if (!expected) throw new Error(`No Qurio research decision expectation is registered for ${state}.`);
   const surface = page.locator('[aria-labelledby="pq-agent-decision-chain-heading"]');
   await expect(surface).toBeVisible();
-  await expect(surface.getByRole('heading', { name: 'Agent decision' })).toBeVisible();
+  await expect(surface.getByRole('heading', { name: 'Agent loop · current decision' })).toBeVisible();
   const sections = surface.locator(':scope > div > section');
   const observation = sections.nth(0);
   const why = sections.nth(1);
@@ -1901,4 +1901,35 @@ test('public 4h PLAN mutations use the dedicated Market Run endpoints', async ({
   expect(retryResponse?.ok()).toBe(true);
   expect(await retryResponse?.json()).toMatchObject({ attempt_number: 2, retry_of_run_id: expect.any(String) });
   await expect(page.getByText('New attempt created', { exact: true })).toBeVisible();
+});
+
+test('approved market plan can start one bounded evidence-led Agent loop', async ({ page }) => {
+  test.skip(process.env.GLINT_E2E_API_MODE !== 'fixture' || fixtureState !== 'quant-completed', 'The approval loop uses the deterministic public-v2 API fixture.');
+  await page.setViewportSize({ width: 1440, height: 960 });
+  await page.goto('/');
+  await page.getByTestId('quant-sidebar').getByRole('button', { name: 'New research', exact: true }).click();
+  await page.getByLabel('Research dataset').selectOption('66666666-6666-4666-8666-666666666604');
+  await page.getByLabel('Research goal').fill('Test a bounded BTCUSDT 4h trend comparison with one evidence-led follow-up.');
+  await page.getByRole('button', { name: 'Generate plan' }).click();
+  const loop = page.locator('.pq-plan-loop .quant-mode-switch');
+  await expect(loop.getByRole('button', { name: 'One research run' })).toHaveAttribute('aria-pressed', 'true');
+  await loop.getByRole('button', { name: 'Allow one evidence-led follow-up' }).click();
+  await expect(page.getByText('The Agent may use the final training comparison to precommit one independent follow-up under the same approved constraints, then stops for review.', { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  await page.setViewportSize({ width: 1024, height: 900 });
+  await expect(loop).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  const approve = page.waitForRequest((request) => request.url().includes('/approve-plan'));
+  await page.getByRole('button', { name: 'Approve & run', exact: true }).click();
+  expect((await approve).postDataJSON()).toMatchObject({
+    research_loop: {
+      follow_up_mode: 'one_train_only_follow_up',
+      max_versions: 2,
+      max_total_experiments: 6,
+      max_total_agent_actions: 24,
+    },
+  });
+  await page.getByRole('tab', { name: 'Experiments', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Agent loop · current decision' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });

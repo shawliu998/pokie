@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { getLocalRuntimeStatus, startLocalRuntime, stopLocalRuntime, type LocalRuntimeBoundary } from './local-runtime';
+import { getLocalRuntimeStatus, LOCAL_RUNTIME_PRESETS, localRuntimeInputForPreset, startLocalRuntime, stopLocalRuntime, testLocalRuntimeProvider, type LocalRuntimeBoundary } from './local-runtime';
 
 const status = { state: 'running' as const, apiUrl: 'http://127.0.0.1:8123', workspaceId: 'workspace-1', provider: 'mock' as const, model: null, baseUrl: null, message: null };
+type RuntimeCommand = Parameters<LocalRuntimeBoundary['invoke']>[0];
 
 describe('local runtime bridge', () => {
   it('uses only the fixed native commands and returns non-secret status', async () => {
     const calls: Array<[string, Record<string, unknown> | undefined]> = [];
-    const native: LocalRuntimeBoundary = { isTauri: () => true, invoke: async <T,>(command: 'start_local_runtime' | 'stop_local_runtime' | 'get_local_runtime_status', args?: Record<string, unknown>) => { calls.push([command, args]); return status as T; } };
+    const native: LocalRuntimeBoundary = { isTauri: () => true, invoke: async <T,>(command: RuntimeCommand, args?: Record<string, unknown>) => { calls.push([command, args]); return status as T; } };
     await expect(startLocalRuntime({ provider: 'mock', model: null }, native)).resolves.toEqual(status);
     await expect(getLocalRuntimeStatus(native)).resolves.toEqual(status);
     await expect(stopLocalRuntime(native)).resolves.toEqual(status);
@@ -20,7 +21,7 @@ describe('local runtime bridge', () => {
 
   it('passes only the explicit OpenAI-compatible endpoint, model, and write-only key', async () => {
     const calls: Array<[string, Record<string, unknown> | undefined]> = [];
-    const native: LocalRuntimeBoundary = { isTauri: () => true, invoke: async <T,>(command: 'start_local_runtime' | 'stop_local_runtime' | 'get_local_runtime_status', args?: Record<string, unknown>) => {
+    const native: LocalRuntimeBoundary = { isTauri: () => true, invoke: async <T,>(command: RuntimeCommand, args?: Record<string, unknown>) => {
       calls.push([command, args]);
       return { ...status, provider: 'openai_compatible', model: 'provider-model', baseUrl: 'https://provider.example/v1' } as T;
     } };
@@ -31,5 +32,49 @@ describe('local runtime bridge', () => {
   it('fails outside the native app', async () => {
     const browser: LocalRuntimeBoundary = { isTauri: () => false, invoke: async <T>() => status as T };
     await expect(startLocalRuntime({ provider: 'mock', model: null }, browser)).rejects.toThrow('native app');
+  });
+
+  it('maps every reviewed preset through the shared closed registry', () => {
+    expect(LOCAL_RUNTIME_PRESETS.map((preset) => preset.id)).toEqual([
+      'mock',
+      'deepseek',
+      'kimi_k3',
+      'openai',
+      'qwen',
+      'custom_openai_compatible',
+    ]);
+    expect(localRuntimeInputForPreset('kimi_k3')).toEqual({
+      preset: 'kimi_k3',
+      provider: 'openai_compatible',
+      model: 'kimi-k3',
+      baseUrl: 'https://api.moonshot.cn/v1',
+    });
+    expect(localRuntimeInputForPreset('custom_openai_compatible', {
+      customBaseUrl: 'https://provider.example/v1',
+      customModel: 'provider-model',
+      apiKey: 'write-only',
+    })).toEqual({
+      preset: 'custom_openai_compatible',
+      provider: 'openai_compatible',
+      model: 'provider-model',
+      baseUrl: 'https://provider.example/v1',
+      apiKey: 'write-only',
+    });
+  });
+
+  it('uses a separate bounded command for provider verification', async () => {
+    const calls: Array<[string, Record<string, unknown> | undefined]> = [];
+    const result = { provider: 'qwen', model: 'qwen-plus', latencyMs: 42, status: 'verified', message: 'ok' } as const;
+    const native: LocalRuntimeBoundary = {
+      isTauri: () => true,
+      invoke: async <T,>(command: RuntimeCommand, args?: Record<string, unknown>) => {
+        calls.push([command, args]);
+        return result as T;
+      },
+    };
+    const input = localRuntimeInputForPreset('qwen', { apiKey: 'write-only' });
+    await expect(testLocalRuntimeProvider(input, native)).resolves.toEqual(result);
+    expect(calls).toEqual([['test_local_runtime_provider', { request: input }]]);
+    expect(JSON.stringify(result)).not.toContain('write-only');
   });
 });

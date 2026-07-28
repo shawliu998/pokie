@@ -9,8 +9,8 @@
 <p align="center"><strong>Research a market idea, compare what survives, and keep the evidence.</strong></p>
 
 <p align="center">
-  An <strong>agent-native</strong> quantitative research workspace built around one inspectable
-  loop: plan, experiment, observe, adapt, and decide.
+  A quantitative research workspace where plans, experiments, decisions, and evidence stay
+  connected.
 </p>
 
 <p align="center">
@@ -31,10 +31,10 @@ Qurio is a macOS workspace for doing quantitative research as a sequence you can
 bring in market data, state a bounded objective, approve a plan, compare experiments, inspect
 the result, and continue from the retained evidence.
 
-Agent-native here describes the structure, not a chat layer. The Research Agent owns bounded
-research decisions, registered tools keep each action inside the approved scope, and retained
-evidence determines the next legal action. One deterministic evaluator calculates every
-quantitative metric. The model can change the research path; it cannot quietly change the math.
+One Research Agent proposes a bounded plan, registered tools keep each action inside the approved
+scope, and retained evidence determines the next legal step. One deterministic evaluator
+calculates every quantitative metric. The model can change the research path; it cannot quietly
+change the math.
 
 Not a crystal ball. It is a place to find out which ideas survive contact with data.
 
@@ -83,7 +83,7 @@ Not a crystal ball. It is a place to find out which ideas survive contact with d
 
 Fewer “trust me” charts. More runs you can inspect.
 
-## The Agent loop
+## How a research run unfolds
 
 ```text
 Objective → Approved plan → Experiments → Observation → Adaptation
@@ -196,7 +196,9 @@ pnpm package:mac
 
 The application embeds its FastAPI API and Research Agent worker, stores optional provider
 credentials in Keychain, and supports a no-key deterministic demo. Developer ID signing and Apple
-notarization are still required before frictionless public distribution.
+notarization are still required before frictionless public distribution. The credential-gated
+[macOS beta release workflow](./docs/MACOS_BETA_RELEASE.md) is prepared but is not evidence that a
+notarized artifact already exists.
 
 <details>
 <summary><strong>Run the focused verification gates</strong></summary>

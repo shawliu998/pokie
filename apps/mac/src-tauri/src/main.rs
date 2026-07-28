@@ -56,7 +56,12 @@ fn main() {
         )
         .menu(native_menu)
         .setup(|app| {
-            let resource_dir = app.path().resource_dir()?;
+            // A missing resource path must not take down the entire workspace.
+            // Packaged builds resolve this directory and use the embedded
+            // runtime. Source/dev launches can safely fall back to the checked
+            // out runtime, while an incomplete installation reports the
+            // actionable runtime error only when the user starts the Agent.
+            let resource_dir = app.path().resource_dir().ok();
             let app_data_dir = app.path().app_data_dir()?;
             app.manage(local_runtime::LocalRuntimeManager::new(
                 resource_dir,
@@ -74,6 +79,7 @@ fn main() {
             local_runtime::start_local_runtime,
             local_runtime::stop_local_runtime,
             local_runtime::get_local_runtime_status,
+            local_runtime::test_local_runtime_provider,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Qurio");

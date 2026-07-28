@@ -40,9 +40,14 @@ def build_arguments(repo_root: Path) -> list[str]:
 
 
 def uv_executable(repo_root: Path) -> Path:
-    bundled = repo_root / ".venv" / "bin" / "uv"
-    if bundled.is_file():
-        return bundled
+    candidates = (
+        repo_root / ".venv" / "bin" / "uv",
+        Path.home() / "Library" / "Python" / "3.12" / "bin" / "uv",
+        Path.home() / ".local" / "bin" / "uv",
+    )
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
     discovered = shutil.which("uv")
     if discovered:
         return Path(discovered)

@@ -4,5 +4,5 @@
   "description": "The main Qurio window may access scoped Keychain session, redacted offline-cache and packaged local-runtime commands.",
   "windows": ["main"],
   "platforms": ["macOS"],
-  "permissions": ["allow-get-access-token", "allow-store-access-token", "allow-clear-access-token", "allow-store-offline-cache", "allow-get-offline-cache", "allow-clear-offline-cache", "allow-start-local-runtime", "allow-stop-local-runtime", "allow-get-local-runtime-status"]
+  "permissions": ["allow-get-access-token", "allow-store-access-token", "allow-clear-access-token", "allow-store-offline-cache", "allow-get-offline-cache", "allow-clear-offline-cache", "allow-start-local-runtime", "allow-stop-local-runtime", "allow-get-local-runtime-status", "allow-test-local-runtime-provider"]
 }

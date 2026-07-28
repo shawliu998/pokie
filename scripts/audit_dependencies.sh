@@ -81,7 +81,21 @@ printf '%s\n' "$version" | grep -Eq '(^|[^0-9])0\.22\.2([^0-9]|$)' || {
 }
 for lock_path in "${tauri_locks[@]}"; do
   printf '==> Rust dependency audit: %s\n' "${lock_path#"$ROOT_DIR/"}"
-  if ! "$cargo_audit_bin" audit --file "$lock_path"; then
+  cargo_audit_status=1
+  for audit_attempt in 1 2 3; do
+    if "$cargo_audit_bin" audit --file "$lock_path"; then
+      cargo_audit_status=0
+      break
+    else
+      cargo_audit_status=$?
+      if ((audit_attempt < 3)); then
+        printf 'Rust dependency audit attempt %s failed; retrying the fail-closed gate.\n' \
+          "$audit_attempt" >&2
+        sleep "$audit_attempt"
+      fi
+    fi
+  done
+  if ((cargo_audit_status != 0)); then
     audit_status=1
   fi
 done

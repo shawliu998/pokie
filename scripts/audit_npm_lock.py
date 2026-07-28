@@ -7,6 +7,7 @@ import argparse
 import json
 import re
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,8 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 ENDPOINT = "https://registry.npmjs.org/-/npm/v1/security/advisories/bulk"
+REQUEST_ATTEMPTS = 3
+RETRY_BACKOFF_SECONDS = 0.25
 LOCAL_REFERENCES = ("file:", "link:", "workspace:")
 PRODUCTION_GROUPS = ("dependencies", "optionalDependencies")
 SEVERITY_RANK = {"low": 0, "moderate": 1, "high": 2, "critical": 3}
@@ -202,15 +205,24 @@ def _request_batch(packages: dict[str, list[str]], *, timeout: float = 45) -> di
         },
         method="POST",
     )
-    try:
-        with urlopen(request, timeout=timeout) as response:
-            if response.status != 200:
-                raise AuditError(f"npm bulk advisory endpoint returned HTTP {response.status}")
-            raw_body = response.read()
-    except HTTPError as error:
-        raise AuditError(f"npm bulk advisory endpoint returned HTTP {error.code}") from error
-    except (URLError, TimeoutError, OSError) as error:
-        raise AuditError(f"npm bulk advisory request failed: {type(error).__name__}") from error
+    raw_body: bytes | None = None
+    for attempt in range(1, REQUEST_ATTEMPTS + 1):
+        try:
+            with urlopen(request, timeout=timeout) as response:
+                if response.status != 200:
+                    raise AuditError(f"npm bulk advisory endpoint returned HTTP {response.status}")
+                raw_body = response.read()
+            break
+        except HTTPError as error:
+            raise AuditError(f"npm bulk advisory endpoint returned HTTP {error.code}") from error
+        except (URLError, TimeoutError, OSError) as error:
+            if attempt == REQUEST_ATTEMPTS:
+                raise AuditError(
+                    f"npm bulk advisory request failed: {type(error).__name__}"
+                ) from error
+            time.sleep(RETRY_BACKOFF_SECONDS * attempt)
+    if raw_body is None:
+        raise AuditError("npm bulk advisory request did not return a response")
     try:
         payload = json.loads(raw_body.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as error:

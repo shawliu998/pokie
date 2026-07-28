@@ -10,6 +10,7 @@ fn main() {
             "start_local_runtime",
             "stop_local_runtime",
             "get_local_runtime_status",
+            "test_local_runtime_provider",
         ]),
     ))
     .expect("failed to build the restricted Qurio Tauri manifest")

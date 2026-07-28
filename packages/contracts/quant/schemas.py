@@ -898,6 +898,21 @@ class QuantPlanApproveRequest(ContractModel):
     reason: NonEmptyString = Field(default="Plan approved.", max_length=500)
 
 
+class QuantMarketPlanApproveRequest(QuantPlanApproveRequest):
+    """Approve a public market plan with an optional bounded execution loop."""
+
+    research_loop: QuantResearchLoopPolicy | None = None
+
+    @model_validator(mode="after")
+    def validate_research_loop(self) -> QuantMarketPlanApproveRequest:
+        if (
+            self.research_loop is not None
+            and self.research_loop.follow_up_mode != "one_train_only_follow_up"
+        ):
+            raise ValueError("market plan approval accepts only the one-follow-up research loop")
+        return self
+
+
 class QuantPlanChangesRequest(ContractModel):
     expected_row_version: int = Field(ge=1)
     plan_revision: int = Field(ge=1)

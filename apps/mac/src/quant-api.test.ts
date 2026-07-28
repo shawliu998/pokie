@@ -455,6 +455,19 @@ describe('Quant fixture API adapter', () => {
     expect(calls.map((call) => call.path)).toEqual(['/quant/datasets/v2', `/quant/datasets/v2/${dataset.dataset_id}/preview?max_points=240`, '/quant/market-runs', '/quant/market-runs?limit=100', `/quant/market-runs/${run.id}/approve-plan`]);
     expect(JSON.parse(String(calls[2]?.init?.body))).toMatchObject({ project_id: run.project_id, mode: 'plan', dataset_id: dataset.dataset_id, research_start_utc: dataset.covered_start, research_end_utc: dataset.covered_end });
     expect(JSON.parse(String(calls[4]?.init?.body))).toEqual({ expected_row_version: 3, plan_revision: 2, reason: 'Plan approved from the research workspace.' });
+
+    await api.sendCommand({ command: 'approve_plan', expectedVersion: run.row_version, idempotencyKey: 'market-loop-approve-key', run: commandRun, payload: { followUpMode: 'one_train_only_follow_up' } });
+    expect(JSON.parse(String(calls[5]?.init?.body))).toEqual({
+      expected_row_version: 3,
+      plan_revision: 2,
+      reason: 'Plan approved from the research workspace.',
+      research_loop: {
+        follow_up_mode: 'one_train_only_follow_up',
+        max_versions: 2,
+        max_total_experiments: 6,
+        max_total_agent_actions: 24,
+      },
+    });
   });
 
   it('sends refinement lineage only as a complete server contract', async () => {

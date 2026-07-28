@@ -18,6 +18,7 @@ from packages.contracts.quant import (
     QuantResearchSeriesDecision,
     QuantRunMode,
     QuantRunState,
+    research_loop_policy_digest,
 )
 from services.api.app.api import routes_quant
 from services.api.app.core.errors import ApiError
@@ -139,6 +140,89 @@ def _create_body(
         "research_start_utc": dataset["covered_start"],
         "research_end_utc": dataset["covered_end"],
     }
+
+
+def test_public_market_plan_approval_can_attach_one_bounded_follow_up(
+    client: TestClient, principal_id: str
+) -> None:
+    workspace_id, dataset, project = _provision(
+        client,
+        principal_id,
+        interval=QuantBarInterval.FOUR_HOURS,
+    )
+    created_response = client.post(
+        "/v1/quant/market-runs",
+        headers=_headers(principal_id, workspace_id),
+        json=_create_body(dataset, project),
+    )
+    assert created_response.status_code == 201, created_response.text
+    created = created_response.json()
+    assert created["mode"] == "plan"
+    assert created["research_loop"] is None
+    assert created["research_series"] is None
+
+    approved_response = client.post(
+        f"/v1/quant/market-runs/{created['id']}/approve-plan",
+        headers=_headers(principal_id, workspace_id),
+        json={
+            "expected_row_version": created["row_version"],
+            "plan_revision": created["plan_revision"],
+            "reason": "Approve one bounded evidence-led follow-up.",
+            "research_loop": {
+                "follow_up_mode": "one_train_only_follow_up",
+                "max_versions": 2,
+                "max_total_experiments": 6,
+                "max_total_agent_actions": 24,
+            },
+        },
+    )
+    assert approved_response.status_code == 200, approved_response.text
+    approved = approved_response.json()
+    assert approved["id"] == created["id"]
+    assert approved["mode"] == "auto"
+    assert approved["state"] == "running_experiments"
+    assert approved["research_loop"]["follow_up_mode"] == "one_train_only_follow_up"
+    assert approved["research_series"]["root_run_id"] == created["id"]
+    assert approved["research_series"]["version_number"] == 1
+    assert approved["research_series"]["remaining_versions"] == 1
+
+    store = QuantStore()
+    approval_event = next(
+        event
+        for event in reversed(store.events_for_run(workspace_id=workspace_id, run_id=created["id"]))
+        if event["event_type"] == "plan.approved"
+    )
+    assert (
+        approval_event["payload"]["approval_contract_version"]
+        == "quant-execution-boundary-approval-v1"
+    )
+    assert approval_event["payload"]["execution_boundary"] == "one_evidence_led_follow_up"
+    assert (
+        approval_event["payload"]["research_loop_policy_digest"]
+        == approved["research_series"]["policy_digest"]
+    )
+    plan_artifact = next(
+        artifact
+        for artifact in reversed(
+            store.artifacts_for_run(workspace_id=workspace_id, run_id=created["id"])
+        )
+        if artifact.kind.value == "plan"
+    )
+    assert "research_loop" not in plan_artifact.content
+
+    restored = QuantStore().get_market_run(
+        workspace_id=workspace_id,
+        run_id=created["id"],
+    )
+    assert restored.mode == QuantRunMode.AUTO
+    assert restored.research_loop_policy is not None
+    assert restored.research_loop_policy.follow_up_mode == "one_train_only_follow_up"
+    assert restored.research_series_root_run_id == created["id"]
+    assert restored.research_series_version == 1
+    assert (
+        research_loop_policy_digest(restored.research_loop_policy)
+        == approved["research_series"]["policy_digest"]
+    )
 
 
 def test_public_market_research_loop_precommits_exactly_one_train_only_follow_up(
@@ -1340,6 +1424,9 @@ def test_public_market_run_plan_mutations_retry_and_wrong_endpoints_fail_closed(
     assert approved_response.status_code == 200, approved_response.text
     approved = approved_response.json()
     assert approved["state"] == "running_experiments"
+    assert approved["mode"] == "plan"
+    assert approved["research_loop"] is None
+    assert approved["research_series"] is None
 
     baseline = _persisted_state(workspace_id)
     wrong_endpoint = client.post(

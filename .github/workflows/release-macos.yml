@@ -1,0 +1,89 @@
+name: macOS signed beta
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version label used for the uploaded artifact
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  signed-notarized-dmg:
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require Apple signing and notarization credentials
+        run: |
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID KEYCHAIN_PASSWORD; do
+            test -n "${!name}" || { echo "::error::$name is required"; exit 1; }
+          done
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.28"
+          enable-cache: true
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "10.4.1"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.14.0"
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install locked dependencies
+        run: |
+          uv sync --locked --extra test --no-install-project
+          pnpm install --frozen-lockfile
+
+      - name: Import Developer ID certificate
+        run: |
+          certificate_path="$RUNNER_TEMP/qurio-developer-id.p12"
+          keychain_path="$RUNNER_TEMP/qurio-signing.keychain-db"
+          printf '%s' "$APPLE_CERTIFICATE" | base64 --decode > "$certificate_path"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$keychain_path"
+          security import "$certificate_path" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain_path"
+          security list-keychain -d user -s "$keychain_path"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$keychain_path"
+          security find-identity -v -p codesigning "$keychain_path"
+
+      - name: Build, sign, notarize, and staple DMG
+        run: pnpm --filter @glint/mac exec tauri build --bundles dmg -- --locked
+
+      - name: Verify signed artifact
+        run: |
+          app_path="apps/mac/src-tauri/target/release/bundle/macos/Qurio.app"
+          dmg_path=$(find apps/mac/src-tauri/target/release/bundle/dmg -maxdepth 1 -name '*.dmg' -print -quit)
+          test -n "$dmg_path"
+          codesign --verify --deep --strict --verbose=2 "$app_path"
+          spctl --assess --type execute --verbose=2 "$app_path"
+          xcrun stapler validate "$app_path"
+          xcrun stapler validate "$dmg_path"
+          shasum -a 256 "$dmg_path" > "$RUNNER_TEMP/Qurio-${{ inputs.version }}-macos-arm64.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Qurio-${{ inputs.version }}-macos-arm64-notarized
+          if-no-files-found: error
+          path: |
+            apps/mac/src-tauri/target/release/bundle/dmg/*.dmg
+            ${{ runner.temp }}/Qurio-${{ inputs.version }}-macos-arm64.sha256

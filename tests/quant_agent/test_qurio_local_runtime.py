@@ -114,6 +114,8 @@ def test_api_and_worker_environment_share_provider_model_and_cors(tmp_path: Path
     )
     for env in (api, worker):
         assert env["POKIEQUANT_AGENT_PROVIDER"] == "deepseek"
+        assert env["POKIEQUANT_AGENT_PROVIDER_IDENTITY"] == "deepseek"
+        assert env["POKIEQUANT_AGENT_REQUEST_PROFILE"] == "deepseek"
         assert env["POKIEQUANT_AGENT_MODEL"] == "deepseek-v4"
         assert env["POKIEQUANT_AGENT_ALLOW_MOCK_FALLBACK"] == "false"
         assert json.loads(env["GLINT_ALLOWED_ORIGINS"]) == ["tauri://localhost"]
@@ -154,6 +156,39 @@ def test_openai_compatible_environment_retains_only_endpoint_model_and_process_k
     assert env["POKIEQUANT_AGENT_MODEL"] == "provider-model"
     assert env["POKIEQUANT_AGENT_BASE_URL"] == "https://provider.example/v1"
     assert env["POKIEQUANT_AGENT_API_KEY"] == "process-only"
+    assert env["POKIEQUANT_AGENT_PROVIDER_IDENTITY"] == "custom_openai_compatible"
+    assert env["POKIEQUANT_AGENT_REQUEST_PROFILE"] == "custom"
+
+
+def test_provider_connection_uses_the_worker_transport_without_creating_a_runtime(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    tested: list[bool] = []
+
+    class Provider:
+        def test_connection(self) -> None:
+            tested.append(True)
+
+    monkeypatch.setenv("POKIEQUANT_AGENT_API_KEY", "process-only")
+    monkeypatch.setattr(
+        "services.worker.app.quant_agent.provider.load_quant_agent_provider",
+        lambda: Provider(),
+    )
+
+    assert (
+        runtime.test_provider_connection(
+            provider="openai_compatible",
+            provider_identity="kimi_k3",
+            request_profile="kimi_k3",
+            model="kimi-k3",
+            base_url="https://api.moonshot.cn/v1",
+        )
+        == 0
+    )
+    assert tested == [True]
+    assert capsys.readouterr().out == 'QURIO_PROVIDER_TEST {"status":"verified"}\n'
+    assert runtime.os.environ["POKIEQUANT_AGENT_PROVIDER_IDENTITY"] == "kimi_k3"
+    assert runtime.os.environ["POKIEQUANT_AGENT_REQUEST_PROFILE"] == "kimi_k3"
 
 
 def test_mock_ready_contract_uses_null_model(tmp_path: Path) -> None:

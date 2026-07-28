@@ -94,7 +94,7 @@ describe('Live Agent decision surface', () => {
       />,
     );
 
-    expect(markup).toContain('Agent decision');
+    expect(markup).toContain('Agent loop · current decision');
     expect(markup).toContain('Candidate experiments');
     expect(markup).toContain('Initial hypothesis A');
     expect(markup).toContain('Initial hypothesis B');
@@ -107,6 +107,6 @@ describe('Live Agent decision surface', () => {
     expect(markup).toContain('Tool observation · Running');
     expect(markup).toContain('The tool is running. Qurio has not retained an observation yet.');
     expect(markup).not.toContain('run_backtest</code>');
-    expect(markup.match(/Agent decision/g)).toHaveLength(1);
+    expect(markup.match(/Agent loop · current decision/g)).toHaveLength(1);
   });
 });
