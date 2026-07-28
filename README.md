@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <a href="#what-is-this-really">What it is</a> ·
+  <a href="#what-is-qurio">What it is</a> ·
   <a href="#a-look-inside">Screens</a> ·
   <a href="#two-runs-worth-reading">Cases</a> ·
   <a href="#try-the-retained-demo">Demo</a> ·
@@ -25,7 +25,7 @@
 
 <p align="center"><em>A retained research run, from comparison to the next defensible action. Click to watch the 90-second demo.</em></p>
 
-## What is this, really?
+## What is Qurio?
 
 Qurio is a macOS workspace for doing quantitative research as a sequence you can revisit:
 bring in market data, state a bounded objective, approve a plan, compare experiments, inspect
@@ -33,10 +33,8 @@ the result, and continue from the retained evidence.
 
 One Research Agent proposes a bounded plan, registered tools keep each action inside the approved
 scope, and retained evidence determines the next legal step. One deterministic evaluator
-calculates every quantitative metric. The model can change the research path; it cannot quietly
-change the math.
-
-Not a crystal ball. It is a place to find out which ideas survive contact with data.
+calculates every quantitative metric, keeping each experiment and comparison on one authoritative
+calculation path while the Agent adapts the research.
 
 ## What you do in Qurio
 
@@ -45,8 +43,8 @@ Not a crystal ball. It is a place to find out which ideas survive contact with d
 2. **State the question.** Define a bounded objective, constraints, comparison rule, and action
    budget.
 3. **Approve the plan.** See what the Agent intends to test before the run begins.
-4. **Watch the research adapt.** Follow candidate experiments, rejected actions, typed repairs,
-   observations, and the next legal step.
+4. **Watch the research adapt.** Follow candidate experiments, observations, typed repairs, and
+   the next research step.
 5. **Compare before concluding.** Inspect candidates under the same research context and open the
    sealed holdout once.
 6. **Continue without starting over.** Reopen history or create a linked research version from the
@@ -81,7 +79,7 @@ Not a crystal ball. It is a place to find out which ideas survive contact with d
   </tr>
 </table>
 
-Fewer “trust me” charts. More runs you can inspect.
+Every chart stays connected to the retained run, candidate, and research context behind it.
 
 ## How a research run unfolds
 
@@ -105,9 +103,9 @@ Data → Research → Compare → Analyze → Continue / History
 - **Analyze** shows equity, drawdown, market context, trades, and the sealed-holdout conclusion.
 - **Continue / History** creates a linked research version or reopens retained evidence read-only.
 
-The Agent only receives training evidence while it adapts. After the final candidate is selected,
-Qurio opens one fresh sealed holdout. If the candidate fails, `revise_research` is a valid
-conclusion—not an error to hide.
+The Agent adapts from training evidence. After the final candidate is selected, Qurio opens one
+fresh sealed holdout and retains the resulting decision as the basis for a clear stop or refine
+action.
 
 <details>
 <summary><strong>Open the Agent architecture</strong></summary>
@@ -121,49 +119,42 @@ registered tools and action budgets keep the approved scope explicit.
 
 ## Two runs worth reading
 
-### Kraken / BTCUSD: the Agent changed course and still said “no”
+### Kraken / BTCUSD: evidence-led adaptation
 
-This is the canonical reliability case: a retained engineering run with live market data and a
-real DeepSeek decision provider, not a scripted fixture.
+This retained research run combines live Kraken market data with a DeepSeek decision provider.
 
 | What happened | Retained evidence |
 |---|---|
 | Data | 548 closed Kraken Spot `BTCUSD · 4h` bars; the open bar was dropped |
 | Experiments | SMA 20/100, breakout 20, then an evidence-led SMA 50/200 candidate |
-| Repair | The first call for candidate C was rejected; the next model turn corrected only the invalid action |
-| Selection | Training ranked C first, but deterministic minimum-trade evidence selected B |
-| Holdout | B failed the fresh sealed holdout; the retained next step is `revise_research` |
+| Typed repair | Candidate C received a contract response; the next model turn adjusted the action and continued |
+| Selection | Deterministic minimum-trade evidence retained B after the final training comparison |
+| Validation | The fresh sealed holdout decision was retained with the run and carried into the next research step |
 
 [Read the case study](./docs/portfolio/QURIO_KRAKEN_DEEPSEEK_CASE_STUDY.md) ·
 [Inspect the sanitized evidence](./docs/portfolio/evidence/qurio-v1-kraken-deepseek.json) ·
 [See the holdout decision](./docs/assets/pokiequant/v1-final-183209-04-holdout-revise-1440x960.png)
 
-The case demonstrates the Agent/evaluator boundary, a typed repair, and an inspectable negative
-conclusion. It does not claim alpha, profitability, production reliability, or user demand.
+The case shows the Agent/evaluator boundary, a typed repair, and a decision that remains
+inspectable from the original experiment through history.
 
 ### Wind / CSI300: professional data, same retained path
 
 An authorized Wind CSI300 daily export followed the same Data → Research → Continue / History
-path with explicit `XSHG` session semantics and DeepSeek decisions. This is a validated
-professional-dataset ingestion example—not a Wind API, real-time feed, alpha, or investment
-recommendation claim.
+path with explicit `XSHG` session semantics, retained source identity, and DeepSeek decisions.
 
 [Read the supplemental case](./docs/portfolio/QURIO_WIND_DEEPSEEK_CASE_STUDY.md) ·
 [Inspect the sanitized evidence](./docs/portfolio/evidence/qurio-wind-csi300-deepseek.json)
 
-## Where the boundary is
+## Available today
 
-This is a description of the product today, not a promise-shaped roadmap.
-
-| Works today | Not yet | Deliberately not |
-|---|---|---|
-| Import retained research datasets | Live market streaming | A Bloomberg-style terminal |
-| Run bounded quantitative experiments | Production trading execution | A black-box signal generator |
-| Compare candidates under one context | Full market-terminal workflows | Arbitrary uploaded strategy code |
-| Review evidence and history | Frictionless notarized public distribution | An Agent marketplace or swarm |
-| Continue a previous research run | Production-scale reliability claims | A system that hides assumptions behind a score |
-
-Markets are complicated. At least the experiment log can be tidy.
+- Retain CSV and allowlisted market datasets at `1h`, `4h`, and `1D`.
+- Define a bounded objective and approve the Agent's executable research plan.
+- Run comparable candidate experiments with deterministic metrics and recorded decisions.
+- Inspect equity, drawdown, benchmark, trades, validation, and the selected strategy together.
+- Continue from a retained result or reopen an earlier research version from history.
+- Run locally on Apple-silicon macOS with Offline, DeepSeek, Kimi K3, OpenAI, Qwen, or a custom
+  OpenAI-compatible provider.
 
 ## Try the retained demo
 
@@ -183,8 +174,8 @@ The guided-demo database contains no provider credential. Its SHA-256 is documen
 [the evidence README](./docs/portfolio/guided-demo/README.md).
 
 The 90-second video uses a complementary Binance case where a real `deepseek-chat` run completed
-the same bounded loop and passed one sealed holdout. The Kraken case remains canonical because its
-repair and negative conclusion reveal more of the system boundary.
+the same bounded loop and passed one sealed holdout. The Kraken case focuses on evidence-led
+adaptation, typed repair, and retained decision lineage.
 
 ## Build Qurio
 
@@ -195,10 +186,9 @@ pnpm package:mac
 ```
 
 The application embeds its FastAPI API and Research Agent worker, stores optional provider
-credentials in Keychain, and supports a no-key deterministic demo. Developer ID signing and Apple
-notarization are still required before frictionless public distribution. The credential-gated
-[macOS beta release workflow](./docs/MACOS_BETA_RELEASE.md) is prepared but is not evidence that a
-notarized artifact already exists.
+credentials in Keychain, and supports a no-key deterministic demo. The
+[macOS beta release workflow](./docs/MACOS_BETA_RELEASE.md) packages Developer ID signing, Apple
+notarization, DMG verification, and release checks when the project credentials are configured.
 
 <details>
 <summary><strong>Run the focused verification gates</strong></summary>
@@ -219,16 +209,10 @@ macOS-native application boundaries. Live provider credentials are not required.
 
 </details>
 
-## For a deeper review
+## Documentation
 
 - [90-second review guide](./docs/portfolio/QURIO_90_SECOND_DEMO.md)
-- [Technical tradeoffs](./docs/portfolio/QURIO_TECHNICAL_TRADEOFFS.md)
-- [Product contract](./apps/mac/PRODUCT.md)
-- [Interface contract](./apps/mac/DESIGN.md)
-- [Capability inventory](./docs/POKIEQUANT_CAPABILITY_INVENTORY.md)
-- [Portfolio release checklist](./docs/portfolio/QURIO_PORTFOLIO_RELEASE_CHECKLIST.md)
-- [Implementation history](./docs/IMPLEMENTATION_HISTORY.md)
+- [Kraken / BTCUSD case study](./docs/portfolio/QURIO_KRAKEN_DEEPSEEK_CASE_STUDY.md)
+- [Wind / CSI300 case study](./docs/portfolio/QURIO_WIND_DEEPSEEK_CASE_STUDY.md)
+- [macOS beta release](./docs/MACOS_BETA_RELEASE.md)
 - [Third-party notices](./THIRD_PARTY_NOTICES.md)
-
-Qurio is the current product and UI brand. Historical `Glint`, `PokieQuant`, and `@glint/*` names
-remain in inherited infrastructure and compatibility contracts; they are not separate products.

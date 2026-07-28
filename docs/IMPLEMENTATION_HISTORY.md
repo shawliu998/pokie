@@ -430,4 +430,4 @@ The API owns lifecycle and legal commands. The worker owns fenced fixture execut
 incremental seven-tool Agent loop. The Mac client owns selection, layout, disclosure, and other
 presentation preferences.
 
-See `docs/POKIEQUANT_PRODUCT_SPEC.md`, `docs/POKIEQUANT_STATE_MATRIX.md`, and `docs/POKIEQUANT_REFERENCE_AUDIT.md` for the product, state, provenance, and license contracts.
+See `docs/POKIEQUANT_PRODUCT_SPEC.md` and `docs/POKIEQUANT_STATE_MATRIX.md` for the retained product and state contracts. Dependency licenses and notices remain in the repository root and automated license gates.

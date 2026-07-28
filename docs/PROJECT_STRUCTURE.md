@@ -80,7 +80,6 @@ Glint/
     observability/
     scripts/
   docs/
-    REUSE_MATRIX.md
     RISK_REGISTER.md
     IMPLEMENTATION_PLAN.md
     PROJECT_STRUCTURE.md
